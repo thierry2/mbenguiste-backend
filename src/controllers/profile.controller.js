@@ -1,0 +1,51 @@
+const catchAsync = require('../utils/catchAsync');
+const ApiError = require('../utils/apiError');
+const profileModel = require('../models/profile.model');
+const profileService = require('../services/profile.service');
+
+const getMe = catchAsync(async (req, res) => {
+  profileModel.touchActivity(req.user.id).catch(() => {}); // présence, non bloquant
+  const profile = await profileModel.findById(req.user.id);
+  if (!profile) throw ApiError.notFound('Profil introuvable');
+  res.json({ success: true, data: { profile } });
+});
+
+const updateMe = catchAsync(async (req, res) => {
+  const profile = await profileService.updateProfile(req.user.id, req.body);
+  res.json({ success: true, data: { profile } });
+});
+
+/** Termine l'onboarding : dernières infos + bascule onboarding_done à true. */
+const completeOnboarding = catchAsync(async (req, res) => {
+  const profile = await profileService.updateProfile(req.user.id, {
+    ...req.body,
+    onboardingFait: true,
+  });
+  res.json({ success: true, data: { profile } });
+});
+
+const getById = catchAsync(async (req, res) => {
+  const profile = await profileModel.findById(req.params.id);
+  if (!profile) throw ApiError.notFound('Profil introuvable');
+  res.json({ success: true, data: { profile } });
+});
+
+const getPreferences = catchAsync(async (req, res) => {
+  const preferences = await profileService.getPreferences(req.user.id);
+  res.json({ success: true, data: { preferences } });
+});
+
+const setPreferences = catchAsync(async (req, res) => {
+  const preferences = await profileService.setPreferences(req.user.id, req.body);
+  res.json({ success: true, data: { preferences } });
+});
+
+const savePushToken = catchAsync(async (req, res) => {
+  const { pushToken } = req.body;
+  if (!pushToken) throw ApiError.badRequest('pushToken requis');
+  const supabase = require('../config/supabase');
+  await supabase.from('profiles').update({ push_token: pushToken }).eq('id', req.user.id);
+  res.json({ success: true });
+});
+
+module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, savePushToken };
