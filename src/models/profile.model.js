@@ -5,7 +5,7 @@ const SELECT_PROFILE = `
   id, email, first_name, birth_date, bio, avatar_url,
   current_country, current_city, target_country, target_city, open_to_relocate,
   primary_language, spoken_languages, is_verified, is_premium, premium_until,
-  onboarding_done, last_active_at, created_at,
+  onboarding_done, last_active_at, created_at, lifestyle,
   notif_push, notif_email, notif_sms, is_discoverable, incognito, hide_online_status,
   gender:genders!gender_id(code, display_name),
   goal:relationship_goals!relationship_goal_id(code, display_name),
@@ -67,6 +67,9 @@ function fromRow(row) {
       incognito:      row.incognito ?? false,
       masquerEnLigne: row.hide_online_status ?? false,
     },
+
+    // Descripteurs mode de vie ({kind: code}) — résolus en libellés côté front (bootstrap).
+    lifestyle: row.lifestyle ?? {},
 
     photos: (row.photos ?? [])
       .sort((a, b) => a.position - b.position)
@@ -140,6 +143,7 @@ async function update(id, updates) {
   if (updates.objectifId      !== undefined) row.relationship_goal_id = updates.objectifId;
   if (updates.languePrincipale!== undefined) row.primary_language  = updates.languePrincipale;
   if (updates.langues         !== undefined) row.spoken_languages  = updates.langues;
+  if (updates.lifestyle       !== undefined) row.lifestyle         = updates.lifestyle;
   if (updates.onboardingFait  !== undefined) row.onboarding_done   = updates.onboardingFait;
 
   const { error } = await supabase.from('profiles').update(row).eq('id', id);

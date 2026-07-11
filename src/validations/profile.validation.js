@@ -16,6 +16,8 @@ const profileBody = z.object({
   objectif: z.enum(['serious', 'marriage', 'friendship', 'unsure']).nullable().optional(),
   languePrincipale: z.string().max(20).optional(),
   langues: z.array(z.string().max(20)).max(10).optional(),
+  // Descripteurs mode de vie : {kind: code}. Clés/valeurs courtes, contrôle fin côté DB.
+  lifestyle: z.record(z.string().max(40)).optional(),
   interets: z.array(z.string().max(40)).max(10).optional(),
   prompts: z.array(z.object({
     code: z.string().max(60),

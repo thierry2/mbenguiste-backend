@@ -20,14 +20,22 @@ async function idForCode(table, code) {
 
 /** Toutes les listes nécessaires à l'onboarding (front). */
 async function bootstrap() {
-  const [genders, goals, interests, prompts, plans, reportReasons] = await Promise.all([
+  const [genders, goals, interests, prompts, plans, reportReasons, lifestyleRows] = await Promise.all([
     loadTable('genders'),
     loadTable('relationship_goals'),
     loadTable('interests', 'id, code, display_name, category, display_order'),
     loadTable('prompts', 'id, code, question, display_order'),
     loadTable('subscription_plans', 'id, code, display_name, months, price_eur, display_order'),
     loadTable('report_reasons'),
+    loadTable('lifestyle_options', 'kind, code, display_name, display_order'),
   ]);
+
+  // Descripteurs mode de vie groupés par type ({astro:[{code,label}], …}).
+  const lifestyle = {};
+  for (const o of lifestyleRows) {
+    (lifestyle[o.kind] ||= []).push({ code: o.code, label: o.display_name });
+  }
+
   return {
     genres: genders.map((g) => ({ id: g.id, code: g.code, label: g.display_name })),
     objectifs: goals.map((g) => ({ id: g.id, code: g.code, label: g.display_name })),
@@ -35,6 +43,7 @@ async function bootstrap() {
     prompts: prompts.map((p) => ({ id: p.id, code: p.code, question: p.question })),
     plans: plans.map((p) => ({ id: p.id, code: p.code, label: p.display_name, mois: p.months, prixEur: Number(p.price_eur) })),
     motifsSignalement: reportReasons.map((r) => ({ id: r.id, code: r.code, label: r.display_name })),
+    lifestyle,
   };
 }
 
