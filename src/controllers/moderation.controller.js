@@ -1,0 +1,28 @@
+const catchAsync = require('../utils/catchAsync');
+const ApiError = require('../utils/apiError');
+const moderationModel = require('../models/moderation.model');
+
+const blockUser = catchAsync(async (req, res) => {
+  if (req.params.id === req.user.id) throw ApiError.badRequest('Impossible de se bloquer soi-même');
+  await moderationModel.block(req.user.id, req.params.id);
+  res.json({ success: true });
+});
+
+const unblockUser = catchAsync(async (req, res) => {
+  await moderationModel.unblock(req.user.id, req.params.id);
+  res.json({ success: true });
+});
+
+const listBlocked = catchAsync(async (req, res) => {
+  const blocked = await moderationModel.listBlocked(req.user.id);
+  res.json({ success: true, data: { blocked } });
+});
+
+const reportUser = catchAsync(async (req, res) => {
+  if (req.params.id === req.user.id) throw ApiError.badRequest('Impossible de se signaler soi-même');
+  const { reason, details } = req.body;
+  await moderationModel.report(req.user.id, req.params.id, reason, details);
+  res.json({ success: true });
+});
+
+module.exports = { blockUser, unblockUser, listBlocked, reportUser };

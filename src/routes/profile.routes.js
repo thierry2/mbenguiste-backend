@@ -5,6 +5,7 @@ const { memoryUpload } = require('../middlewares/upload.middleware');
 const schemas = require('../validations/profile.validation');
 const c = require('../controllers/profile.controller');
 const photoC = require('../controllers/photo.controller');
+const modC = require('../controllers/moderation.controller');
 
 const router = express.Router();
 
@@ -14,6 +15,14 @@ router.post('/me/onboarding', authenticate, validate(schemas.completeOnboarding)
 router.get('/me/preferences', authenticate, c.getPreferences);
 router.put('/me/preferences', authenticate, validate(schemas.preferences), c.setPreferences);
 router.post('/me/push-token', authenticate, c.savePushToken);
+router.patch('/me/settings', authenticate, c.updateSettings);
+router.delete('/me', authenticate, c.deleteMe);
+
+// Modération (store-required) : bloquer / débloquer / signaler.
+router.get('/me/blocks', authenticate, modC.listBlocked);
+router.post('/:id/block', authenticate, modC.blockUser);
+router.delete('/:id/block', authenticate, modC.unblockUser);
+router.post('/:id/report', authenticate, modC.reportUser);
 
 // Photos de profil (multipart, champ `file`).
 router.post('/me/photos', authenticate, memoryUpload.single('file'), photoC.addPhoto);

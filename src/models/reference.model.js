@@ -20,12 +20,13 @@ async function idForCode(table, code) {
 
 /** Toutes les listes nécessaires à l'onboarding (front). */
 async function bootstrap() {
-  const [genders, goals, interests, prompts, plans] = await Promise.all([
+  const [genders, goals, interests, prompts, plans, reportReasons] = await Promise.all([
     loadTable('genders'),
     loadTable('relationship_goals'),
     loadTable('interests', 'id, code, display_name, category, display_order'),
     loadTable('prompts', 'id, code, question, display_order'),
     loadTable('subscription_plans', 'id, code, display_name, months, price_eur, display_order'),
+    loadTable('report_reasons'),
   ]);
   return {
     genres: genders.map((g) => ({ id: g.id, code: g.code, label: g.display_name })),
@@ -33,6 +34,7 @@ async function bootstrap() {
     interets: interests.map((i) => ({ id: i.id, code: i.code, label: i.display_name, categorie: i.category })),
     prompts: prompts.map((p) => ({ id: p.id, code: p.code, question: p.question })),
     plans: plans.map((p) => ({ id: p.id, code: p.code, label: p.display_name, mois: p.months, prixEur: Number(p.price_eur) })),
+    motifsSignalement: reportReasons.map((r) => ({ id: r.id, code: r.code, label: r.display_name })),
   };
 }
 

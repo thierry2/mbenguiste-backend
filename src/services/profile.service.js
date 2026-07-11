@@ -35,6 +35,16 @@ async function updateProfile(userId, input) {
     await profileModel.setInterests(userId, ids);
   }
 
+  // Prompts ({code, reponse}) → lignes profile_prompts ordonnées.
+  if (Array.isArray(input.prompts)) {
+    const rows = [];
+    for (const p of input.prompts) {
+      const id = await idForCode('prompts', p.code);
+      if (id) rows.push({ prompt_id: id, answer: p.reponse, position: rows.length });
+    }
+    await profileModel.setPrompts(userId, rows);
+  }
+
   return profileModel.findById(userId);
 }
 

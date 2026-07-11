@@ -48,4 +48,16 @@ const savePushToken = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, savePushToken };
+/** Réglages (notifications + visibilité). Corps = booléens optionnels. */
+const updateSettings = catchAsync(async (req, res) => {
+  const profile = await profileModel.updateSettings(req.user.id, req.body || {});
+  res.json({ success: true, data: { profile } });
+});
+
+/** Suppression du compte (soft delete + anonymisation). Le client se déconnecte ensuite. */
+const deleteMe = catchAsync(async (req, res) => {
+  await profileModel.softDelete(req.user.id);
+  res.json({ success: true });
+});
+
+module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, savePushToken, updateSettings, deleteMe };

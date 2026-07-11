@@ -17,6 +17,10 @@ const profileBody = z.object({
   languePrincipale: z.string().max(20).optional(),
   langues: z.array(z.string().max(20)).max(10).optional(),
   interets: z.array(z.string().max(40)).max(10).optional(),
+  prompts: z.array(z.object({
+    code: z.string().max(60),
+    reponse: z.string().min(1).max(200),
+  })).max(3).optional(),
 });
 
 const updateMe = z.object({ body: profileBody });

@@ -14,19 +14,23 @@ require('dotenv').config();
 const supabase = require('../src/config/supabase');
 const logger = require('../src/utils/logger');
 
+// Portraits Unsplash haute résolution (URLs stables, vérifiées une à une).
+// randomuser.me ne sert que du 128 px : flou garanti sur une carte plein écran.
+const U = (id, w = 900) => `https://images.unsplash.com/photo-${id}?w=${w}&q=80&fit=crop`;
+
 const PROFILES = [
-  { prenom: 'Aïcha',    genre: 'woman', seek: 'man',   an: 1997, from: ['CI','Abidjan'],  to: ['FR','Paris'],     goal: 'serious',    bio: "Pédiatre passionnée d'afrobeats et de longs appels le soir.", interests: ['afrobeats','cooking','travel'], img: 'women/68' },
-  { prenom: 'Marième',  genre: 'woman', seek: 'man',   an: 1994, from: ['SN','Dakar'],    to: ['BE','Bruxelles'], goal: 'marriage',   bio: "Le thieboudienne en famille puis un appel qui n'en finit pas.",   interests: ['faith','family','dance'],       img: 'women/44' },
-  { prenom: 'Fatou',    genre: 'woman', seek: 'man',   an: 1999, from: ['ML','Bamako'],   to: ['CA','Montréal'],  goal: 'serious',    bio: 'Étudiante en droit, je ris fort et je voyage léger.',            interests: ['reading','travel','cinema'],    img: 'women/22' },
-  { prenom: 'Grâce',    genre: 'woman', seek: 'man',   an: 1996, from: ['CD','Kinshasa'], to: ['FR','Lyon'],      goal: 'serious',    bio: 'Danseuse le week-end, comptable la semaine.',                    interests: ['dance','afrobeats','sport'],    img: 'women/56' },
-  { prenom: 'Julien',   genre: 'man',   seek: 'woman', an: 1990, from: ['FR','Paris'],    to: ['SN','Dakar'],     goal: 'serious',    bio: "Prof de français rêvant de soleil et de teranga. Oui, un Parisien qui veut partir.", interests: ['reading','travel','cooking'], img: 'men/32' },
-  { prenom: 'Kwame',    genre: 'man',   seek: 'woman', an: 1992, from: ['GH','Accra'],    to: ['GB','Londres'],   goal: 'serious',    bio: 'Ingénieur, fan de jollof (le meilleur, ne débattons pas).',      interests: ['entrepreneurship','sport','travel'], img: 'men/45' },
-  { prenom: 'Thomas',   genre: 'man',   seek: 'woman', an: 1988, from: ['BE','Bruxelles'],to: ['CI','Abidjan'],   goal: 'marriage',   bio: 'Belge, restaurateur, amoureux de la cuisine ouest-africaine.',   interests: ['cooking','faith','family'],     img: 'men/76' },
-  { prenom: 'Ibrahim',  genre: 'man',   seek: 'woman', an: 1995, from: ['CM','Douala'],   to: ['DE','Berlin'],    goal: 'serious',    bio: 'Développeur le jour, guitariste le soir.',                        interests: ['afrobeats','entrepreneurship','cinema'], img: 'men/12' },
-  { prenom: 'Sarah',    genre: 'woman', seek: 'man',   an: 1993, from: ['MA','Casablanca'],to: ['CA','Toronto'],   goal: 'serious',    bio: 'Architecte, thé à la menthe non négociable.',                    interests: ['travel','reading','cinema'],    img: 'women/33' },
-  { prenom: 'Chloé',    genre: 'woman', seek: 'man',   an: 1998, from: ['CH','Genève'],   to: ['CM','Yaoundé'],   goal: 'serious',    bio: 'Suissesse humanitaire, le cœur déjà en Afrique centrale.',        interests: ['faith','travel','family'],      img: 'women/9'  },
-  { prenom: 'David',    genre: 'man',   seek: 'woman', an: 1991, from: ['CA','Montréal'], to: ['CD','Kinshasa'],  goal: 'serious',    bio: 'Musicien québécois, la rumba dans la peau.',                     interests: ['dance','afrobeats','travel'],   img: 'men/23' },
-  { prenom: 'Awa',      genre: 'woman', seek: 'man',   an: 2000, from: ['CI','Bouaké'],   to: ['US','New York'],  goal: 'unsure',     bio: "Créatrice de mode, je verrai bien où le cœur me mène.",          interests: ['entrepreneurship','dance','cinema'], img: 'women/15' },
+  { prenom: 'Aïcha',    genre: 'woman', seek: 'man',   an: 1997, from: ['CI','Abidjan'],  to: ['FR','Paris'],     goal: 'serious',    bio: "Pédiatre passionnée d'afrobeats et de longs appels le soir.", interests: ['afrobeats','cooking','travel'], photos: ['1531123897727-8f129e1688ce'] },
+  { prenom: 'Marième',  genre: 'woman', seek: 'man',   an: 1994, from: ['SN','Dakar'],    to: ['BE','Bruxelles'], goal: 'marriage',   bio: "Le thieboudienne en famille puis un appel qui n'en finit pas.",   interests: ['faith','family','dance'],       photos: ['1611432579699-484f7990b127'] },
+  { prenom: 'Fatou',    genre: 'woman', seek: 'man',   an: 1999, from: ['ML','Bamako'],   to: ['CA','Montréal'],  goal: 'serious',    bio: 'Étudiante en droit, je ris fort et je voyage léger.',            interests: ['reading','travel','cinema'],    photos: ['1531727991582-cfd25ce79613'] },
+  { prenom: 'Grâce',    genre: 'woman', seek: 'man',   an: 1996, from: ['CD','Kinshasa'], to: ['FR','Lyon'],      goal: 'serious',    bio: 'Danseuse le week-end, comptable la semaine.',                    interests: ['dance','afrobeats','sport'],    photos: ['1589156280159-27698a70f29e'] },
+  { prenom: 'Julien',   genre: 'man',   seek: 'woman', an: 1990, from: ['FR','Paris'],    to: ['SN','Dakar'],     goal: 'serious',    bio: "Prof de français rêvant de soleil et de teranga. Oui, un Parisien qui veut partir.", interests: ['reading','travel','cooking'], photos: ['1500648767791-00dcc994a43e'] },
+  { prenom: 'Kwame',    genre: 'man',   seek: 'woman', an: 1992, from: ['GH','Accra'],    to: ['GB','Londres'],   goal: 'serious',    bio: 'Ingénieur, fan de jollof (le meilleur, ne débattons pas).',      interests: ['entrepreneurship','sport','travel'], photos: ['1531384441138-2736e62e0919', '1522529599102-193c0d76b5b6'] },
+  { prenom: 'Thomas',   genre: 'man',   seek: 'woman', an: 1988, from: ['BE','Bruxelles'],to: ['CI','Abidjan'],   goal: 'marriage',   bio: 'Belge, restaurateur, amoureux de la cuisine ouest-africaine.',   interests: ['cooking','faith','family'],     photos: ['1506794778202-cad84cf45f1d'] },
+  { prenom: 'Ibrahim',  genre: 'man',   seek: 'woman', an: 1995, from: ['CM','Douala'],   to: ['DE','Berlin'],    goal: 'serious',    bio: 'Développeur le jour, guitariste le soir.',                        interests: ['afrobeats','entrepreneurship','cinema'], photos: ['1543610892-0b1f7e6d8ac1'] },
+  { prenom: 'Sarah',    genre: 'woman', seek: 'man',   an: 1993, from: ['MA','Casablanca'],to: ['CA','Toronto'],   goal: 'serious',    bio: 'Architecte, thé à la menthe non négociable.',                    interests: ['travel','reading','cinema'],    photos: ['1567532939604-b6b5b0db2604'] },
+  { prenom: 'Chloé',    genre: 'woman', seek: 'man',   an: 1998, from: ['CH','Genève'],   to: ['CM','Yaoundé'],   goal: 'serious',    bio: 'Suissesse humanitaire, le cœur déjà en Afrique centrale.',        interests: ['faith','travel','family'],      photos: ['1494790108377-be9c29b29330'] },
+  { prenom: 'David',    genre: 'man',   seek: 'woman', an: 1991, from: ['CA','Montréal'], to: ['CD','Kinshasa'],  goal: 'serious',    bio: 'Musicien québécois, la rumba dans la peau.',                     interests: ['dance','afrobeats','travel'],   photos: ['1595152772835-219674b2a8a6', '1507003211169-0a1dd7228f2d'] },
+  { prenom: 'Awa',      genre: 'woman', seek: 'man',   an: 2000, from: ['CI','Bouaké'],   to: ['US','New York'],  goal: 'unsure',     bio: "Créatrice de mode, je verrai bien où le cœur me mène.",          interests: ['entrepreneurship','dance','cinema'], photos: ['1618085222100-93f0eecad0aa'] },
 ];
 
 const PROMPTS = {
@@ -72,7 +76,7 @@ async function main() {
       birth_date: `${p.an}-06-15`,
       gender_id: genders.get(p.genre)?.id ?? null,
       bio: p.bio,
-      avatar_url: `https://randomuser.me/api/portraits/${p.img}.jpg`,
+      avatar_url: U(p.photos[0], 400),
       current_country: p.from[0], current_city: p.from[1],
       target_country: p.to[0], target_city: p.to[1],
       open_to_relocate: true,
@@ -83,11 +87,11 @@ async function main() {
     }, { onConflict: 'id' });
     if (profErr) { logger.warn(`${p.prenom} : profil KO (${profErr.message})`); continue; }
 
-    // 3) Photo, intérêts, prompts, préférences.
+    // 3) Photos (haute résolution), intérêts, prompts, préférences.
     await supabase.from('profile_photos').delete().eq('profile_id', userId);
-    await supabase.from('profile_photos').insert({
-      profile_id: userId, url: `https://randomuser.me/api/portraits/${p.img}.jpg`, position: 0,
-    });
+    await supabase.from('profile_photos').insert(
+      p.photos.map((id, i) => ({ profile_id: userId, url: U(id), position: i })),
+    );
 
     await supabase.from('profile_interests').delete().eq('profile_id', userId);
     const interestRows = p.interests.map((code) => ({ profile_id: userId, interest_id: interests.get(code)?.id })).filter((r) => r.interest_id);

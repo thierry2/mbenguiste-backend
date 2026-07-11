@@ -6,6 +6,7 @@ const SELECT_PROFILE = `
   current_country, current_city, target_country, target_city, open_to_relocate,
   primary_language, spoken_languages, is_verified, is_premium, premium_until,
   onboarding_done, last_active_at, created_at,
+  notif_push, notif_email, notif_sms, is_discoverable, incognito, hide_online_status,
   gender:genders!gender_id(code, display_name),
   goal:relationship_goals!relationship_goal_id(code, display_name),
   photos:profile_photos(id, url, position),
@@ -56,6 +57,17 @@ function fromRow(row) {
     premiumJusquau: row.premium_until ?? null,
     onboardingFait: row.onboarding_done ?? false,
 
+    // Réglages (n'apparaissent que sur /me — pas exposés sur le profil d'autrui,
+    // mais inoffensifs : booléens sans PII).
+    reglages: {
+      notifPush:      row.notif_push ?? true,
+      notifEmail:     row.notif_email ?? true,
+      notifSms:       row.notif_sms ?? false,
+      discoverable:   row.is_discoverable ?? true,
+      incognito:      row.incognito ?? false,
+      masquerEnLigne: row.hide_online_status ?? false,
+    },
+
     photos: (row.photos ?? [])
       .sort((a, b) => a.position - b.position)
       .map((p) => ({ id: p.id, url: p.url, position: p.position })),
@@ -72,7 +84,8 @@ function fromRow(row) {
       })),
 
     createdAt:     row.created_at,
-    lastActiveAt:  row.last_active_at,
+    // « En ligne » masqué à la demande : on n'expose pas last_active_at.
+    lastActiveAt:  row.hide_online_status ? null : (row.last_active_at ?? null),
   };
 }
 
@@ -134,12 +147,36 @@ async function update(id, updates) {
   return findById(id);
 }
 
+/** Met à jour les réglages (notifications + visibilité). Champs booléens optionnels. */
+async function updateSettings(id, s) {
+  const row = { updated_at: new Date().toISOString() };
+  if (s.notifPush      !== undefined) row.notif_push          = !!s.notifPush;
+  if (s.notifEmail     !== undefined) row.notif_email         = !!s.notifEmail;
+  if (s.notifSms       !== undefined) row.notif_sms           = !!s.notifSms;
+  if (s.discoverable   !== undefined) row.is_discoverable     = !!s.discoverable;
+  if (s.incognito      !== undefined) row.incognito           = !!s.incognito;
+  if (s.masquerEnLigne !== undefined) row.hide_online_status  = !!s.masquerEnLigne;
+  const { error } = await supabase.from('profiles').update(row).eq('id', id);
+  if (error) throw error;
+  return findById(id);
+}
+
 /** Remplace les intérêts d'un profil (liste d'ids). */
 async function setInterests(profileId, interestIds) {
   await supabase.from('profile_interests').delete().eq('profile_id', profileId);
   if (!interestIds?.length) return;
   const rows = interestIds.map((interest_id) => ({ profile_id: profileId, interest_id }));
   const { error } = await supabase.from('profile_interests').insert(rows);
+  if (error) throw error;
+}
+
+/** Remplace les prompts d'un profil (lignes {prompt_id, answer, position}). */
+async function setPrompts(profileId, rows) {
+  await supabase.from('profile_prompts').delete().eq('profile_id', profileId);
+  if (!rows?.length) return;
+  const { error } = await supabase
+    .from('profile_prompts')
+    .insert(rows.map((r) => ({ ...r, profile_id: profileId })));
   if (error) throw error;
 }
 
@@ -150,4 +187,35 @@ async function touchActivity(id) {
     .eq('id', id);
 }
 
-module.exports = { findById, ensureProfile, update, setInterests, touchActivity, ageFromBirthDate, fromRow };
+/**
+ * Suppression douce (RGPD / stores). On NE supprime JAMAIS via auth.admin.deleteUser :
+ * on pose `deleted_at` (le middleware auth renverra 403, findById l'exclut déjà) et on
+ * anonymise les données personnelles + on coupe la découverte (retiré des files, photos
+ * effacées). L'utilisateur reste techniquement en base le temps de purger proprement les
+ * relations, mais n'est plus joignable ni visible.
+ */
+async function softDelete(id) {
+  // Purge des contenus qui exposeraient encore l'utilisateur.
+  await supabase.from('profile_photos').delete().eq('profile_id', id);
+  await supabase.from('profile_interests').delete().eq('profile_id', id);
+  await supabase.from('profile_prompts').delete().eq('profile_id', id);
+
+  const { error } = await supabase.from('profiles').update({
+    deleted_at: new Date().toISOString(),
+    // Anonymisation des PII : plus rien d'identifiant ne subsiste dans la ligne.
+    first_name: 'Membre',
+    email: null,
+    bio: null,
+    avatar_url: null,
+    current_city: null,
+    target_city: null,
+    primary_language: null,
+    spoken_languages: [],
+    push_token: null,
+    is_verified: false,
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) throw error;
+}
+
+module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow };
