@@ -1,5 +1,6 @@
 const supabase = require('../config/supabase');
 const { fromRow } = require('./profile.model');
+const { countriesForRegions } = require('../config/regions');
 
 // Version « carte » : mêmes relations que le profil complet, en plus léger.
 const SELECT_CARD = `
@@ -30,7 +31,7 @@ async function candidates(userId, { limit = 20 } = {}) {
     supabase.from('blocks').select('blocker_id').eq('blocked_id', userId),
     supabase.from('blocks').select('blocked_id').eq('blocker_id', userId),
     supabase.from('profiles')
-      .select('current_country, current_city, target_country, target_city')
+      .select('current_country, current_city, target_country, target_city, spoken_languages')
       .eq('id', userId)
       .maybeSingle(),
     supabase.from('swipes')
@@ -50,7 +51,7 @@ async function candidates(userId, { limit = 20 } = {}) {
   // 2) Préférences de l'utilisateur.
   const { data: prefs } = await supabase
     .from('match_preferences')
-    .select('seeking_gender_id, min_age, max_age, target_country')
+    .select('seeking_gender_id, seeking_goal_id, min_age, max_age, regions, require_common_language, min_photos, require_bio, verified_only')
     .eq('profile_id', userId)
     .maybeSingle();
 
@@ -70,7 +71,22 @@ async function candidates(userId, { limit = 20 } = {}) {
   }
 
   if (prefs?.seeking_gender_id) query = query.eq('gender_id', prefs.seeking_gender_id);
-  if (prefs?.target_country)    query = query.eq('target_country', prefs.target_country);
+  if (prefs?.seeking_goal_id)   query = query.eq('relationship_goal_id', prefs.seeking_goal_id);
+
+  // Région/Continent → liste de pays autorisés (vide = monde entier).
+  if (prefs?.regions?.length) {
+    const countries = countriesForRegions(prefs.regions);
+    if (countries.length) query = query.in('current_country', countries);
+  }
+
+  // Langue en commun → intersection avec mes langues (opérateur overlap).
+  if (prefs?.require_common_language && me?.spoken_languages?.length) {
+    query = query.overlaps('spoken_languages', me.spoken_languages);
+  }
+
+  // Filtres qualité (le nombre de photos est post-filtré, la relation étant jointe).
+  if (prefs?.require_bio)   query = query.not('bio', 'is', null);
+  if (prefs?.verified_only) query = query.eq('is_verified', true);
 
   // Tranche d'âge → bornes de date de naissance (max_age plus vieux = date la plus ancienne).
   if (prefs?.min_age || prefs?.max_age) {
@@ -90,7 +106,12 @@ async function candidates(userId, { limit = 20 } = {}) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map((row) => ({
+  // Nombre de photos minimum : post-filtre (la relation photos est jointe, pas
+  // comptable dans la requête). Peut réduire le lot sous `limit` — acceptable.
+  const rows = prefs?.min_photos
+    ? (data || []).filter((r) => (r.photos?.length ?? 0) >= prefs.min_photos)
+    : (data || []);
+  return rows.map((row) => ({
     ...fromRow(row),
     routesCroisees: crossesRoutes(me, row),
   }));

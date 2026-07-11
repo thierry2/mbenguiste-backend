@@ -52,16 +52,29 @@ async function updateProfile(userId, input) {
 async function getPreferences(userId) {
   const { data } = await supabase
     .from('match_preferences')
-    .select('seeking_gender_id, min_age, max_age, max_distance_km, target_country, genders:seeking_gender_id(code)')
+    .select(`
+      seeking_gender_id, min_age, max_age, regions,
+      require_common_language, min_photos, require_bio, verified_only,
+      genders:seeking_gender_id(code), goal:seeking_goal_id(code)
+    `)
     .eq('profile_id', userId)
     .maybeSingle();
-  if (!data) return { genreRecherche: null, ageMin: 18, ageMax: 60, distanceMaxKm: null, paysCible: null };
+  if (!data) {
+    return {
+      genreRecherche: null, ageMin: 18, ageMax: 60, objectifRecherche: null,
+      regions: [], langueCommune: false, photosMin: 0, avecBio: false, verifiesUniquement: false,
+    };
+  }
   return {
     genreRecherche: data.genders?.code ?? null,
     ageMin: data.min_age,
     ageMax: data.max_age,
-    distanceMaxKm: data.max_distance_km ?? null,
-    paysCible: data.target_country ?? null,
+    objectifRecherche: data.goal?.code ?? null,
+    regions: data.regions ?? [],
+    langueCommune: data.require_common_language ?? false,
+    photosMin: data.min_photos ?? 0,
+    avecBio: data.require_bio ?? false,
+    verifiesUniquement: data.verified_only ?? false,
   };
 }
 
@@ -69,10 +82,15 @@ async function setPreferences(userId, input) {
   const row = { profile_id: userId, updated_at: new Date().toISOString() };
   if (input.genreRecherche !== undefined)
     row.seeking_gender_id = input.genreRecherche ? await idForCode('genders', input.genreRecherche) : null;
+  if (input.objectifRecherche !== undefined)
+    row.seeking_goal_id = input.objectifRecherche ? await idForCode('relationship_goals', input.objectifRecherche) : null;
   if (input.ageMin !== undefined) row.min_age = input.ageMin;
   if (input.ageMax !== undefined) row.max_age = input.ageMax;
-  if (input.distanceMaxKm !== undefined) row.max_distance_km = input.distanceMaxKm;
-  if (input.paysCible !== undefined) row.target_country = input.paysCible;
+  if (input.regions !== undefined) row.regions = input.regions;
+  if (input.langueCommune !== undefined) row.require_common_language = input.langueCommune;
+  if (input.photosMin !== undefined) row.min_photos = input.photosMin;
+  if (input.avecBio !== undefined) row.require_bio = input.avecBio;
+  if (input.verifiesUniquement !== undefined) row.verified_only = input.verifiesUniquement;
 
   const { error } = await supabase
     .from('match_preferences')
