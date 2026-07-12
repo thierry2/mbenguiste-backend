@@ -13,6 +13,11 @@ const REGIONS = {
     'NO', 'DK', 'FI', 'PL', 'GR',
   ],
   americas: ['CA', 'US', 'BR', 'MX', 'AR', 'CL', 'CO', 'HT'],
+  asia: [
+    'IN', 'PK', 'BD', 'LK', 'NP', 'CN', 'JP', 'KR', 'PH', 'VN', 'TH', 'ID',
+    'MY', 'SG', 'KH', 'MM', 'LA', 'TR', 'LB', 'SA', 'AE', 'QA', 'KW', 'JO',
+    'IL', 'IR', 'IQ', 'SY', 'OM', 'BH', 'YE',
+  ],
 };
 
 /** Étend une liste de codes région en liste de pays (dédupliquée). */

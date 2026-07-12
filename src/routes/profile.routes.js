@@ -14,6 +14,7 @@ router.patch('/me', authenticate, validate(schemas.updateMe), c.updateMe);
 router.post('/me/onboarding', authenticate, validate(schemas.completeOnboarding), c.completeOnboarding);
 router.get('/me/preferences', authenticate, c.getPreferences);
 router.put('/me/preferences', authenticate, validate(schemas.preferences), c.setPreferences);
+router.get('/me/entitlements', authenticate, c.getEntitlements);
 router.post('/me/push-token', authenticate, c.savePushToken);
 router.patch('/me/settings', authenticate, c.updateSettings);
 router.delete('/me', authenticate, c.deleteMe);

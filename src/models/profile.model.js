@@ -3,7 +3,7 @@ const supabase = require('../config/supabase');
 // Colonnes + relations imbriquées (photos, intérêts, prompts, libellés de référence).
 const SELECT_PROFILE = `
   id, email, first_name, birth_date, bio, avatar_url,
-  current_country, current_city, target_country, target_city, open_to_relocate,
+  current_country, current_city, target_country, target_city, open_to_relocate, intention,
   primary_language, spoken_languages, is_verified, is_premium, premium_until,
   onboarding_done, last_active_at, created_at, lifestyle,
   notif_push, notif_email, notif_sms, is_discoverable, incognito, hide_online_status,
@@ -46,6 +46,7 @@ function fromRow(row) {
     villeCible:    row.target_city ?? null,
     paysCible:     row.target_country ?? null,
     ouvertAuDepart: row.open_to_relocate ?? false,
+    intention:     row.intention ?? null,   // 'depart' | 'return' | 'any' | null
 
     objectif:      row.goal?.code ?? null,
     objectifLabel: row.goal?.display_name ?? null,
@@ -140,6 +141,7 @@ async function update(id, updates) {
   if (updates.villeCible      !== undefined) row.target_city       = updates.villeCible;
   if (updates.paysCible       !== undefined) row.target_country    = updates.paysCible;
   if (updates.ouvertAuDepart  !== undefined) row.open_to_relocate  = updates.ouvertAuDepart;
+  if (updates.intention       !== undefined) row.intention         = updates.intention;
   if (updates.objectifId      !== undefined) row.relationship_goal_id = updates.objectifId;
   if (updates.languePrincipale!== undefined) row.primary_language  = updates.languePrincipale;
   if (updates.langues         !== undefined) row.spoken_languages  = updates.langues;
@@ -184,6 +186,28 @@ async function setPrompts(profileId, rows) {
   if (error) throw error;
 }
 
+/** Premium actif ? (avec garde-fou : premium_until passé = expiré même si is_premium resté true). */
+async function isPremium(id) {
+  const { data } = await supabase
+    .from('profiles')
+    .select('is_premium, premium_until')
+    .eq('id', id)
+    .maybeSingle();
+  if (!data?.is_premium) return false;
+  if (data.premium_until && new Date(data.premium_until).getTime() < Date.now()) return false;
+  return true;
+}
+
+/** Reflète l'état d'abonnement (appelé par le webhook RevenueCat, jamais par le client). */
+async function setPremiumStatus(id, { isPremium: prem, premiumUntil }) {
+  const { error } = await supabase.from('profiles').update({
+    is_premium: !!prem,
+    premium_until: premiumUntil ?? null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) throw error;
+}
+
 /** Touch last_active_at (présence). Non bloquant, appelé sur /me. */
 async function touchActivity(id) {
   await supabase.from('profiles')
@@ -222,4 +246,4 @@ async function softDelete(id) {
   if (error) throw error;
 }
 
-module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow };
+module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus };

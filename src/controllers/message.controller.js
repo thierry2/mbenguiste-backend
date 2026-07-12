@@ -1,7 +1,10 @@
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
+const config = require('../config');
 const matchModel = require('../models/match.model');
 const messageModel = require('../models/message.model');
+const profileModel = require('../models/profile.model');
+const usage = require('../models/usage.model');
 const { translateMessage } = require('../services/translation.service');
 const { uploadChatImage } = require('../services/upload.service');
 
@@ -25,8 +28,22 @@ const send = catchAsync(async (req, res) => {
   await assertMember(req.params.id, req.user.id);
   const { texte, langueLecteur } = req.body;
 
-  // Traduction éventuelle (fail-open : renvoie le texte tel quel sans clé Gemini).
-  const t = await translateMessage(texte, langueLecteur || 'fr');
+  // Traduction : ILLIMITÉE pour l'Or, sinon dans la limite du quota gratuit.
+  // JAMAIS bloquant — au-delà du quota, le message part simplement non traduit
+  // (on ne casse jamais un envoi pour une histoire de traduction). On ne décompte
+  // le quota que si une traduction a RÉELLEMENT eu lieu (un message déjà en
+  // français ne consomme rien).
+  let t = { body: texte, originalBody: null, sourceLanguage: null, isTranslated: false };
+  const premium = await profileModel.isPremium(req.user.id);
+  const allowed = premium
+    || (await usage.remaining(req.user.id, 'translation', config.limits.freeTranslationsPerDay)).remaining > 0;
+  if (allowed) {
+    t = await translateMessage(texte, langueLecteur || 'fr');
+    if (!premium && t.isTranslated) {
+      await usage.consume(req.user.id, 'translation', config.limits.freeTranslationsPerDay);
+    }
+  }
+
   const message = await messageModel.send(req.params.id, req.user.id, {
     body: t.body,
     originalBody: t.originalBody,

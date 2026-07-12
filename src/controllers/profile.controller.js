@@ -2,6 +2,7 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
 const profileModel = require('../models/profile.model');
 const profileService = require('../services/profile.service');
+const entitlementsService = require('../services/entitlements.service');
 
 const getMe = catchAsync(async (req, res) => {
   profileModel.touchActivity(req.user.id).catch(() => {}); // présence, non bloquant
@@ -40,6 +41,12 @@ const setPreferences = catchAsync(async (req, res) => {
   res.json({ success: true, data: { preferences } });
 });
 
+/** Droits & compteurs (premium, crédits, quotas restants) — source du gating front. */
+const getEntitlements = catchAsync(async (req, res) => {
+  const entitlements = await entitlementsService.forUser(req.user.id);
+  res.json({ success: true, data: { entitlements } });
+});
+
 const savePushToken = catchAsync(async (req, res) => {
   const { pushToken } = req.body;
   if (!pushToken) throw ApiError.badRequest('pushToken requis');
@@ -60,4 +67,4 @@ const deleteMe = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, savePushToken, updateSettings, deleteMe };
+module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, getEntitlements, savePushToken, updateSettings, deleteMe };
