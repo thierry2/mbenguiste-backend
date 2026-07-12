@@ -53,7 +53,7 @@ async function getPreferences(userId) {
   const { data } = await supabase
     .from('match_preferences')
     .select(`
-      seeking_gender_id, min_age, max_age, regions,
+      seeking_gender_id, min_age, max_age, search_country, search_radius_km,
       require_common_language, min_photos, require_bio, verified_only,
       genders:seeking_gender_id(code), goal:seeking_goal_id(code)
     `)
@@ -62,7 +62,7 @@ async function getPreferences(userId) {
   if (!data) {
     return {
       genreRecherche: null, ageMin: 18, ageMax: 60, objectifRecherche: null,
-      regions: [], langueCommune: false, photosMin: 0, avecBio: false, verifiesUniquement: false,
+      paysRecherche: null, rayonKm: null, langueCommune: false, photosMin: 0, avecBio: false, verifiesUniquement: false,
     };
   }
   return {
@@ -70,7 +70,8 @@ async function getPreferences(userId) {
     ageMin: data.min_age,
     ageMax: data.max_age,
     objectifRecherche: data.goal?.code ?? null,
-    regions: data.regions ?? [],
+    paysRecherche: data.search_country ?? null,   // ISO alpha-2, null = partout
+    rayonKm: data.search_radius_km ?? null,        // null = sans limite
     langueCommune: data.require_common_language ?? false,
     photosMin: data.min_photos ?? 0,
     avecBio: data.require_bio ?? false,
@@ -86,7 +87,8 @@ async function setPreferences(userId, input) {
     row.seeking_goal_id = input.objectifRecherche ? await idForCode('relationship_goals', input.objectifRecherche) : null;
   if (input.ageMin !== undefined) row.min_age = input.ageMin;
   if (input.ageMax !== undefined) row.max_age = input.ageMax;
-  if (input.regions !== undefined) row.regions = input.regions;
+  if (input.paysRecherche !== undefined) row.search_country = input.paysRecherche;
+  if (input.rayonKm !== undefined) row.search_radius_km = input.rayonKm;
   if (input.langueCommune !== undefined) row.require_common_language = input.langueCommune;
   if (input.photosMin !== undefined) row.min_photos = input.photosMin;
   if (input.avecBio !== undefined) row.require_bio = input.avecBio;

@@ -208,6 +208,14 @@ async function setPremiumStatus(id, { isPremium: prem, premiumUntil }) {
   if (error) throw error;
 }
 
+/** Enregistre la position (captée par expo-location) pour la recherche par rayon. */
+async function setLocation(id, lat, lng) {
+  const { error } = await supabase.from('profiles')
+    .update({ current_lat: lat, current_lng: lng, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 /** Touch last_active_at (présence). Non bloquant, appelé sur /me. */
 async function touchActivity(id) {
   await supabase.from('profiles')
@@ -246,4 +254,4 @@ async function softDelete(id) {
   if (error) throw error;
 }
 
-module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus };
+module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, setLocation };

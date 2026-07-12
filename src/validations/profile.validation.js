@@ -44,7 +44,8 @@ const preferences = z.object({
     ageMin: z.number().int().min(18).max(99).optional(),
     ageMax: z.number().int().min(18).max(99).optional(),
     objectifRecherche: z.enum(['serious', 'marriage', 'friendship', 'unsure']).nullable().optional(),
-    regions: z.array(z.enum(['africa', 'europe', 'americas', 'asia'])).max(4).optional(),
+    paysRecherche: isoCountry.nullable().optional(),        // ISO alpha-2, null = partout
+    rayonKm: z.number().int().min(1).max(500).nullable().optional(),
     langueCommune: z.boolean().optional(),
     photosMin: z.number().int().min(0).max(6).optional(),
     avecBio: z.boolean().optional(),
@@ -52,4 +53,12 @@ const preferences = z.object({
   }),
 });
 
-module.exports = { updateMe, completeOnboarding, preferences };
+/** Mise à jour de la position (captée par expo-location). */
+const location = z.object({
+  body: z.object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+  }),
+});
+
+module.exports = { updateMe, completeOnboarding, preferences, location };

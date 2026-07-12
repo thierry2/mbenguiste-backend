@@ -1,12 +1,11 @@
 const supabase = require('../config/supabase');
 const { fromRow } = require('./profile.model');
 const { idForCode } = require('./reference.model');
-const { countriesForRegions } = require('../config/regions');
 
 // Version « carte » : mêmes relations que le profil complet, en plus léger.
 const SELECT_CARD = `
   id, first_name, birth_date, bio, avatar_url,
-  current_country, current_city, target_country, target_city, open_to_relocate,
+  current_country, current_city, current_lat, current_lng, target_country, target_city, open_to_relocate,
   primary_language, spoken_languages, is_verified, is_premium, last_active_at, created_at,
   hide_online_status, intention, boost_active_until,
   gender:genders!gender_id(code, display_name),
@@ -26,7 +25,7 @@ async function discoveryContext(userId) {
     supabase.from('blocks').select('blocker_id').eq('blocked_id', userId),
     supabase.from('blocks').select('blocked_id').eq('blocker_id', userId),
     supabase.from('profiles')
-      .select('current_country, current_city, target_country, target_city, spoken_languages, intention')
+      .select('current_country, current_city, current_lat, current_lng, target_country, target_city, spoken_languages, intention')
       .eq('id', userId)
       .maybeSingle(),
     supabase.from('swipes')
@@ -69,11 +68,9 @@ function applyPrefFilters(query, prefs, me) {
   if (prefs?.seeking_gender_id) query = query.eq('gender_id', prefs.seeking_gender_id);
   if (prefs?.seeking_goal_id)   query = query.eq('relationship_goal_id', prefs.seeking_goal_id);
 
-  // Région/Continent → liste de pays autorisés (vide = monde entier).
-  if (prefs?.regions?.length) {
-    const countries = countriesForRegions(prefs.regions);
-    if (countries.length) query = query.in('current_country', countries);
-  }
+  // Pays de recherche (mono, ISO alpha-2) — vide = partout dans le monde.
+  // Le RAYON, lui, se post-filtre en JS (haversine), il n'est pas ici.
+  if (prefs?.search_country) query = query.eq('current_country', prefs.search_country);
 
   // Langue en commun → intersection avec mes langues (opérateur overlap).
   if (prefs?.require_common_language && me?.spoken_languages?.length) {
@@ -111,7 +108,7 @@ async function candidates(userId, { limit = 20 } = {}) {
 
   const { data: prefs } = await supabase
     .from('match_preferences')
-    .select('seeking_gender_id, seeking_goal_id, min_age, max_age, regions, require_common_language, min_photos, require_bio, verified_only')
+    .select('seeking_gender_id, seeking_goal_id, min_age, max_age, search_country, search_radius_km, require_common_language, min_photos, require_bio, verified_only')
     .eq('profile_id', userId)
     .maybeSingle();
 
@@ -125,9 +122,11 @@ async function candidates(userId, { limit = 20 } = {}) {
   if (error) throw error;
   // Nombre de photos minimum : post-filtre (la relation photos est jointe, pas
   // comptable dans la requête). Peut réduire le lot sous `limit` — acceptable.
-  const rows = prefs?.min_photos
+  let rows = prefs?.min_photos
     ? (data || []).filter((r) => (r.photos?.length ?? 0) >= prefs.min_photos)
     : (data || []);
+  // Rayon (km) autour de MA position — post-filtre JS (haversine).
+  rows = filterByRadius(rows, prefs, me);
   const mapped = rows.map((row) => ({
     ...fromRow(row),
     routesCroisees: crossesRoutes(me, row),
@@ -175,6 +174,35 @@ function complementScore(mine, theirs) {
   return mine !== theirs ? 1 : 0;
 }
 
+// ── Distance (rayon en km) — haversine, post-filtre JS ───────────────────────
+const EARTH_KM = 6371;
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return EARTH_KM * 2 * Math.asin(Math.sqrt(a));
+}
+
+/**
+ * Le rayon s'applique AUTOUR DE MA position, et seulement en LOCAL : pas de pays
+ * choisi (partout) ou pays choisi == mon pays. En cross-border (autre pays), un
+ * rayon autour de moi n'aurait pas de sens → on reste à l'échelle du pays.
+ */
+function shouldApplyRadius(prefs, me) {
+  return !!prefs?.search_radius_km
+    && me?.current_lat != null && me?.current_lng != null
+    && (!prefs.search_country || prefs.search_country === me.current_country);
+}
+
+function filterByRadius(rows, prefs, me) {
+  if (!shouldApplyRadius(prefs, me)) return rows;
+  const km = prefs.search_radius_km;
+  return rows.filter((r) => r.current_lat != null && r.current_lng != null
+    && haversineKm(me.current_lat, me.current_lng, r.current_lat, r.current_lng) <= km);
+}
+
 /**
  * Compte les profils qui correspondraient aux préférences EN COURS D'ÉDITION
  * (aperçu live de la page Préférences) — sans les enregistrer. `apiPrefs` est au
@@ -189,21 +217,25 @@ async function countCandidates(userId, apiPrefs = {}) {
     seeking_goal_id: apiPrefs.objectifRecherche ? await idForCode('relationship_goals', apiPrefs.objectifRecherche) : null,
     min_age: apiPrefs.ageMin,
     max_age: apiPrefs.ageMax,
-    regions: apiPrefs.regions,
+    search_country: apiPrefs.paysRecherche ?? null,
+    search_radius_km: apiPrefs.rayonKm ?? null,
     require_common_language: apiPrefs.langueCommune,
     min_photos: apiPrefs.photosMin,
     require_bio: apiPrefs.avecBio,
     verified_only: apiPrefs.verifiesUniquement,
   };
 
-  // Photos minimum : incomptable dans la requête (relation jointe) → on récupère
-  // les ids + nombre de photos et on filtre en JS, comme `candidates`.
-  if (prefs.min_photos) {
-    let q = applyBaseFilters(supabase.from('profiles').select('id, photos:profile_photos(id)'), excluded, likerIds);
+  // Photos minimum OU rayon : incomptables dans la requête → on récupère les
+  // lignes (ids + coords + photos) et on filtre en JS, comme `candidates`.
+  if (prefs.min_photos || shouldApplyRadius(prefs, me)) {
+    let q = applyBaseFilters(supabase.from('profiles').select('id, current_lat, current_lng, photos:profile_photos(id)'), excluded, likerIds);
     q = applyPrefFilters(q, prefs, me);
     const { data, error } = await q;
     if (error) throw error;
-    return (data || []).filter((r) => (r.photos?.length ?? 0) >= prefs.min_photos).length;
+    let rows = data || [];
+    if (prefs.min_photos) rows = rows.filter((r) => (r.photos?.length ?? 0) >= prefs.min_photos);
+    rows = filterByRadius(rows, prefs, me);
+    return rows.length;
   }
 
   // Sinon, comptage exact côté serveur (head = pas de lignes transférées).

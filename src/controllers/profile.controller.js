@@ -67,4 +67,11 @@ const deleteMe = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, getEntitlements, savePushToken, updateSettings, deleteMe };
+/** Enregistre la position de l'utilisateur (expo-location). */
+const updateLocation = catchAsync(async (req, res) => {
+  const { lat, lng } = req.body;
+  await profileModel.setLocation(req.user.id, lat, lng);
+  res.json({ success: true });
+});
+
+module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, getEntitlements, updateLocation, savePushToken, updateSettings, deleteMe };
