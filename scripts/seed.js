@@ -13,6 +13,7 @@
 require('dotenv').config();
 const supabase = require('../src/config/supabase');
 const logger = require('../src/utils/logger');
+const { makeMaskedUrl } = require('../src/services/mask.service');
 
 // Portraits Unsplash haute résolution (URLs stables, vérifiées une à une).
 // randomuser.me ne sert que du 128 px : flou garanti sur une carte plein écran.
@@ -87,11 +88,21 @@ async function main() {
     }, { onConflict: 'id' });
     if (profErr) { logger.warn(`${p.prenom} : profil KO (${profErr.message})`); continue; }
 
-    // 3) Photos (haute résolution), intérêts, prompts, préférences.
+    // 3) Photos (haute résolution) + leur version floutée (contextes masqués),
+    //    intérêts, prompts, préférences.
     await supabase.from('profile_photos').delete().eq('profile_id', userId);
-    await supabase.from('profile_photos').insert(
-      p.photos.map((id, i) => ({ profile_id: userId, url: U(id), position: i })),
-    );
+    const photoRows = [];
+    for (let i = 0; i < p.photos.length; i++) {
+      const url = U(p.photos[i]);
+      let blur_url = null;
+      try {
+        blur_url = await makeMaskedUrl(url);
+      } catch (e) {
+        logger.warn(`${p.prenom} : flou photo KO (${e.message})`);
+      }
+      photoRows.push({ profile_id: userId, url, blur_url, position: i });
+    }
+    await supabase.from('profile_photos').insert(photoRows);
 
     await supabase.from('profile_interests').delete().eq('profile_id', userId);
     const interestRows = p.interests.map((code) => ({ profile_id: userId, interest_id: interests.get(code)?.id })).filter((r) => r.interest_id);
