@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
 const config = require('../config');
@@ -26,28 +27,48 @@ const swipe = catchAsync(async (req, res) => {
   res.json({ success: true, data: { match } });
 });
 
+const ONLINE_MS = 15 * 60 * 1000;
+
 /**
- * « Qui t'a liké ». On renvoie TOUJOURS le total (pour l'accroche), mais les
- * profils UNIQUEMENT aux membres Or — sinon un client bidouillé verrait les
- * identités sans payer. `premiumRequis` dit au front d'afficher la grille floutée.
+ * Jeton OPAQUE d'un liker pour un viewer donné (HMAC — le client ne peut pas en
+ * déduire l'identité). Sert de clé stable ; la résolution (lancer l'aventure) se
+ * fera plus tard en le recomparant à la liste des likers en attente du viewer.
+ */
+function maskToken(viewerId, swiperId) {
+  return crypto
+    .createHmac('sha256', config.supabase.serviceKey)
+    .update(`${viewerId}:${swiperId}`)
+    .digest('base64url');
+}
+
+/**
+ * « Qui t'a liké » — MASQUÉ pour tout le monde (le visage se mérite dans
+ * l'aventure). On ne renvoie AUCUN champ identifiant : juste un jeton opaque, la
+ * photo FLOUTÉE (blur_url) et le statut en ligne. `premiumRequis` gate l'ACTION
+ * sur les likes normaux (les coups de cœur, eux, sont actionnables gratuitement).
  */
 const likesReceived = catchAsync(async (req, res) => {
-  const pending = await discoveryModel.likersPending(req.user.id);
-  const total = pending.length;
+  const viewerId = req.user.id;
+  const pending = await discoveryModel.likersPending(viewerId);
+  const premium = await profileModel.isPremium(viewerId);
 
-  const premium = await profileModel.isPremium(req.user.id);
-  if (!premium) {
-    return res.json({ success: true, data: { total, premiumRequis: true, likes: [] } });
+  if (!pending.length) {
+    return res.json({ success: true, data: { coeurs: [], likes: [], premiumRequis: !premium } });
   }
 
-  const cards = await discoveryModel.cardsByIds(pending.map((p) => p.id));
-  const likes = pending
-    .map((p) => {
-      const c = cards.get(p.id);
-      return c ? { ...c, coupDeCoeur: p.superLike, likeLe: p.likedAt } : null;
-    })
-    .filter(Boolean);
-  res.json({ success: true, data: { total, premiumRequis: false, likes } });
+  const masked = await discoveryModel.maskedCardsByIds(pending.map((p) => p.id));
+  const toItem = (p) => {
+    const m = masked.get(p.id);
+    return {
+      id: maskToken(viewerId, p.id),
+      blurUrl: m?.blurUrl ?? null,
+      enLigne: m?.lastActiveAt ? Date.now() - new Date(m.lastActiveAt).getTime() < ONLINE_MS : false,
+    };
+  };
+
+  const coeurs = pending.filter((p) => p.superLike).map(toItem);
+  const likes = pending.filter((p) => !p.superLike).map(toItem);
+  res.json({ success: true, data: { coeurs, likes, premiumRequis: !premium } });
 });
 
 /** Active un Boost (dépense 1 crédit) : mise en avant en découverte ~30 min. */
