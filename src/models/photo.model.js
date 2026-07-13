@@ -2,8 +2,9 @@ const supabase = require('../config/supabase');
 
 const MAX_PHOTOS = 6;
 
-/** Ajoute une photo au profil (à la fin). Renvoie la liste à jour. */
-async function add(profileId, url) {
+/** Ajoute une photo au profil (à la fin). Renvoie la liste à jour.
+ *  `blurUrl` = version floutée (contextes masqués) ; null si génération échouée. */
+async function add(profileId, url, blurUrl = null) {
   const { data: existing, error: e1 } = await supabase
     .from('profile_photos')
     .select('id, position')
@@ -18,7 +19,7 @@ async function add(profileId, url) {
 
   const { error } = await supabase
     .from('profile_photos')
-    .insert({ profile_id: profileId, url, position: nextPos });
+    .insert({ profile_id: profileId, url, blur_url: blurUrl, position: nextPos });
   if (error) throw error;
 
   // La 1re photo devient l'avatar par défaut si aucun n'est défini.
