@@ -1,5 +1,5 @@
 /**
- * Données de test Mbenguiste.
+ * Données de test Mbenguiste. 
  *
  *   node scripts/seed.js
  *
