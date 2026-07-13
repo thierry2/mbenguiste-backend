@@ -20,6 +20,9 @@ class ApiError extends Error {
   static forbidden(msg = 'Accès refusé') {
     return new ApiError(403, msg);
   }
+  static paymentRequired(msg = 'Paiement requis', details) {
+    return new ApiError(402, msg, details);
+  }
   static notFound(msg = 'Ressource introuvable') {
     return new ApiError(404, msg);
   }

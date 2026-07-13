@@ -28,6 +28,22 @@ const config = {
     apiKey: process.env.GEMINI_API_KEY || '',
     model: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
   },
+
+  // Paiements — RevenueCat est la source de vérité ; son webhook reflète l'état
+  // dans notre base. Le token protège le webhook (en-tête Authorization partagé,
+  // configuré dans le dashboard RC).
+  revenuecat: {
+    webhookAuthToken: process.env.REVENUECAT_WEBHOOK_AUTH || '',
+    entitlementId: process.env.REVENUECAT_ENTITLEMENT || 'or',
+  },
+
+  // Quotas gratuits (le carburant du paywall) + durée d'un Boost.
+  limits: {
+    freeLikesPer12h:        parseInt(process.env.FREE_LIKES_12H, 10)        || 20,
+    freeSuperLikesPerDay:   parseInt(process.env.FREE_SUPERLIKES_DAY, 10)   || 1,
+    freeTranslationsPerDay: parseInt(process.env.FREE_TRANSLATIONS_DAY, 10) || 10,
+    boostDurationMs:        (parseInt(process.env.BOOST_MINUTES, 10) || 30) * 60 * 1000,
+  },
 };
 
 module.exports = config;

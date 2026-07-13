@@ -20,14 +20,15 @@ async function idForCode(table, code) {
 
 /** Toutes les listes nécessaires à l'onboarding (front). */
 async function bootstrap() {
-  const [genders, goals, interests, prompts, plans, reportReasons, lifestyleRows] = await Promise.all([
+  const [genders, goals, interests, prompts, plans, reportReasons, lifestyleRows, consumables] = await Promise.all([
     loadTable('genders'),
     loadTable('relationship_goals'),
     loadTable('interests', 'id, code, display_name, category, display_order'),
     loadTable('prompts', 'id, code, question, display_order'),
-    loadTable('subscription_plans', 'id, code, display_name, months, price_eur, display_order'),
+    loadTable('subscription_plans', 'id, code, store_product_id, display_name, months, price_eur, display_order'),
     loadTable('report_reasons'),
     loadTable('lifestyle_options', 'kind, code, display_name, display_order'),
+    loadTable('consumable_products', 'id, code, store_product_id, kind, quantity, price_eur, display_order'),
   ]);
 
   // Descripteurs mode de vie groupés par type ({astro:[{code,label}], …}).
@@ -41,9 +42,13 @@ async function bootstrap() {
     objectifs: goals.map((g) => ({ id: g.id, code: g.code, label: g.display_name })),
     interets: interests.map((i) => ({ id: i.id, code: i.code, label: i.display_name, categorie: i.category })),
     prompts: prompts.map((p) => ({ id: p.id, code: p.code, question: p.question })),
-    plans: plans.map((p) => ({ id: p.id, code: p.code, label: p.display_name, mois: p.months, prixEur: Number(p.price_eur) })),
+    plans: plans.map((p) => ({ id: p.id, code: p.code, storeProductId: p.store_product_id ?? null, label: p.display_name, mois: p.months, prixEur: Number(p.price_eur) })),
     motifsSignalement: reportReasons.map((r) => ({ id: r.id, code: r.code, label: r.display_name })),
     lifestyle,
+    consommables: consumables.map((c) => ({
+      id: c.id, code: c.code, storeProductId: c.store_product_id, kind: c.kind,
+      quantite: c.quantity, prixEur: Number(c.price_eur),
+    })),
   };
 }
 
