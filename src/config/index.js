@@ -37,6 +37,12 @@ const config = {
     entitlementId: process.env.REVENUECAT_ENTITLEMENT || 'or',
   },
 
+  // Autocomplete des villes (proxy GeoNames, gratuit ~20k crédits/jour). Vide →
+  // l'autocomplete est désactivé et l'app bascule en saisie libre (jamais bloquant).
+  geonames: {
+    username: process.env.GEONAMES_USERNAME || '',
+  },
+
   // Quotas gratuits (le carburant du paywall) + durée d'un Boost.
   limits: {
     freeLikesPer12h:        parseInt(process.env.FREE_LIKES_12H, 10)        || 20,
