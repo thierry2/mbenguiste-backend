@@ -15,7 +15,7 @@ const credits = require('../models/credits.model');
  * En cas de blocage on lève un 402 avec un `code` + une `source` : le front sait
  * quel paywall ouvrir (et on mesure la conversion par surface).
  */
-async function applySwipe(userId, targetId, action) {
+async function applySwipe(userId, targetId, action, cible = null) {
   if (action === 'pass') return swipeModel.record(userId, targetId, action);
 
   const premium = await profileModel.isPremium(userId);
@@ -41,7 +41,7 @@ async function applySwipe(userId, targetId, action) {
     }
   }
 
-  return swipeModel.record(userId, targetId, action);
+  return swipeModel.record(userId, targetId, action, cible);
 }
 
 module.exports = { applySwipe };

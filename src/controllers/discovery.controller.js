@@ -19,11 +19,11 @@ const getCandidates = catchAsync(async (req, res) => {
  * Renvoie le match éventuel (like réciproque) pour déclencher l'écran « C'est réciproque ».
  */
 const swipe = catchAsync(async (req, res) => {
-  const { action } = req.body;
+  const { action, cible } = req.body;
   const targetId = req.params.id;
   if (targetId === req.user.id) throw ApiError.badRequest('On ne peut pas se swiper soi-même');
 
-  const { match } = await swipeService.applySwipe(req.user.id, targetId, action);
+  const { match } = await swipeService.applySwipe(req.user.id, targetId, action, cible ?? null);
   res.json({ success: true, data: { match } });
 });
 

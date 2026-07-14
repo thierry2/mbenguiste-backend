@@ -4,6 +4,12 @@ const swipe = z.object({
   params: z.object({ id: z.string().uuid() }),
   body: z.object({
     action: z.enum(['pass', 'like', 'super_like']),
+    // Like ciblé (« aimer ce détail ») — optionnel, ignoré sur un pass.
+    cible: z.object({
+      type: z.enum(['photo', 'prompt']),
+      ref: z.string().max(120),
+      comment: z.string().max(200).nullable().optional(),
+    }).nullable().optional(),
   }),
 });
 

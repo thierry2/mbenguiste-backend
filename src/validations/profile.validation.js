@@ -15,6 +15,10 @@ const profileBody = z.object({
   ouvertAuDepart: z.boolean().optional(),
   intention: z.enum(['depart', 'return', 'any']).nullable().optional(),
   objectif: z.enum(['serious', 'marriage', 'friendship', 'unsure']).nullable().optional(),
+  // Carte d'identité — descripteurs de la vitrine.
+  taille: z.number().int().min(100).max(250).nullable().optional(),   // cm
+  origine: isoCountry.nullable().optional(),                          // pays d'origine (ISO alpha-2)
+  metier: z.string().max(60).nullable().optional(),
   languePrincipale: z.string().max(20).optional(),
   langues: z.array(z.string().max(20)).max(10).optional(),
   // Descripteurs mode de vie : {kind: code}. Clés/valeurs courtes, contrôle fin côté DB.

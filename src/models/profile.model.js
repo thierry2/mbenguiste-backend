@@ -4,6 +4,7 @@ const supabase = require('../config/supabase');
 const SELECT_PROFILE = `
   id, email, first_name, birth_date, bio, avatar_url,
   current_country, current_city, target_country, target_city, open_to_relocate, intention,
+  height_cm, origin_country, occupation,
   primary_language, spoken_languages, is_verified, is_premium, premium_until,
   onboarding_done, last_active_at, created_at, lifestyle,
   notif_push, notif_email, notif_sms, is_discoverable, incognito, hide_online_status,
@@ -50,6 +51,12 @@ function fromRow(row) {
 
     objectif:      row.goal?.code ?? null,
     objectifLabel: row.goal?.display_name ?? null,
+
+    // Carte d'identité — descripteurs de la vitrine.
+    taille:        row.height_cm ?? null,       // cm
+    origine:       row.origin_country ?? null,  // ISO alpha-2, distinct du pays où l'on vit
+    metier:        row.occupation ?? null,
+
     languePrincipale: row.primary_language ?? null,
     langues:       row.spoken_languages ?? [],
 
@@ -142,6 +149,9 @@ async function update(id, updates) {
   if (updates.paysCible       !== undefined) row.target_country    = updates.paysCible;
   if (updates.ouvertAuDepart  !== undefined) row.open_to_relocate  = updates.ouvertAuDepart;
   if (updates.intention       !== undefined) row.intention         = updates.intention;
+  if (updates.taille          !== undefined) row.height_cm         = updates.taille;
+  if (updates.origine         !== undefined) row.origin_country    = updates.origine;
+  if (updates.metier          !== undefined) row.occupation        = updates.metier;
   if (updates.objectifId      !== undefined) row.relationship_goal_id = updates.objectifId;
   if (updates.languePrincipale!== undefined) row.primary_language  = updates.languePrincipale;
   if (updates.langues         !== undefined) row.spoken_languages  = updates.langues;
@@ -245,6 +255,9 @@ async function softDelete(id) {
     avatar_url: null,
     current_city: null,
     target_city: null,
+    occupation: null,
+    origin_country: null,
+    height_cm: null,
     primary_language: null,
     spoken_languages: [],
     push_token: null,
