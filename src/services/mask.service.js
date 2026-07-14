@@ -32,12 +32,15 @@ async function fetchImageBuffer(url) {
 }
 
 async function blur(buffer) {
+  // Flou LISSE haute résolution (façon Yamo/Tinder) : on garde ~220px — assez pour
+  // sentir une vraie photo (teint, tenue, silhouette) — mais un fort Gaussien rend
+  // le visage NON identifiable. Bien plus joli que l'ancien 40px pâteux.
   return sharp(buffer)
     .rotate() // respecte l'orientation EXIF
-    .resize(40, 56, { fit: 'cover' }) // détruit le détail (irréversible)
-    .resize(360, 504, { fit: 'cover' }) // ré-agrandit
-    .blur(26) // lisse
-    .jpeg({ quality: 60 })
+    .resize(220, 300, { fit: 'cover' })
+    .blur(20) // Gaussien fort → visage illisible, rendu lisse
+    .modulate({ saturation: 1.06 }) // garde les couleurs vivantes
+    .jpeg({ quality: 76 })
     .toBuffer();
 }
 
