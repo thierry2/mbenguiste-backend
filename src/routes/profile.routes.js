@@ -24,7 +24,7 @@ router.delete('/me', authenticate, c.deleteMe);
 router.get('/me/blocks', authenticate, modC.listBlocked);
 router.post('/:id/block', authenticate, modC.blockUser);
 router.delete('/:id/block', authenticate, modC.unblockUser);
-router.post('/:id/report', authenticate, modC.reportUser);
+router.post('/:id/report', authenticate, validate(schemas.report), modC.reportUser);
 
 // Photos de profil (multipart, champ `file`).
 router.post('/me/photos', authenticate, memoryUpload.single('file'), photoC.addPhoto);

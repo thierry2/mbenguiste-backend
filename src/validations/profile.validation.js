@@ -54,6 +54,12 @@ const preferences = z.object({
     photosMin: z.number().int().min(0).max(6).optional(),
     avecBio: z.boolean().optional(),
     verifiesUniquement: z.boolean().optional(),
+    // v2 (migration 015) : ce qu'on renseigne au profil devient filtrable.
+    origineRecherche: isoCountry.nullable().optional(),   // pays d'ORIGINE, pas de résidence
+    tailleMin: z.number().int().min(100).max(250).nullable().optional(),
+    tailleMax: z.number().int().min(100).max(250).nullable().optional(),
+    interetsCommuns: z.boolean().optional(),
+    lifestyleFiltres: z.record(z.string().max(40), z.array(z.string().max(40)).max(12)).optional(),
   }),
 });
 
@@ -65,4 +71,13 @@ const location = z.object({
   }),
 });
 
-module.exports = { updateMe, completeOnboarding, preferences, location };
+/** Signalement d'un profil : motif obligatoire (code report_reasons), détails courts. */
+const report = z.object({
+  params: z.object({ id: z.string().uuid() }),
+  body: z.object({
+    reason: z.string().min(1).max(40),
+    details: z.string().max(1000).optional(),
+  }),
+});
+
+module.exports = { updateMe, completeOnboarding, preferences, location, report };

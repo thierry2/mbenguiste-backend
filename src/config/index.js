@@ -52,6 +52,9 @@ const config = {
     // Réciprocité photos : il faut N photos soi-même pour voir toutes celles des
     // autres (la 1re reste visible). S'applique à TOUT LE MONDE, Or compris.
     photosRequiredToView:   parseInt(process.env.PHOTOS_REQUIRED_VIEW, 10)  || 2,
+    // Signalements : à N signaleurs DISTINCTS avec un dossier ouvert, le profil
+    // est retiré de la découverte en attendant revue (protection automatique).
+    reportsAutoHideThreshold: parseInt(process.env.REPORTS_AUTO_HIDE, 10)   || 3,
   },
 };
 

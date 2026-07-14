@@ -20,7 +20,7 @@ const SELECT_CARD = `
  * likée (laissés passer même en incognito), et ma propre route/langues.
  */
 async function discoveryContext(userId) {
-  const [{ data: swiped }, { data: blockedBy }, { data: iBlocked }, { data: me }, { data: likers }] = await Promise.all([
+  const [{ data: swiped }, { data: blockedBy }, { data: iBlocked }, { data: me }, { data: likers }, { data: mesInterets }] = await Promise.all([
     supabase.from('swipes').select('target_id').eq('swiper_id', userId),
     supabase.from('blocks').select('blocker_id').eq('blocked_id', userId),
     supabase.from('blocks').select('blocked_id').eq('blocker_id', userId),
@@ -31,6 +31,10 @@ async function discoveryContext(userId) {
     supabase.from('swipes')
       .select('swiper_id, action:swipe_actions!action_id(code)')
       .eq('target_id', userId),
+    // Mes intérêts : nécessaires au filtre « au moins un intérêt en commun ».
+    supabase.from('profile_interests')
+      .select('interest:interests(code)')
+      .eq('profile_id', userId),
   ]);
   const excluded = new Set([userId]);
   (swiped || []).forEach((r) => excluded.add(r.target_id));
@@ -41,7 +45,20 @@ async function discoveryContext(userId) {
     .filter((r) => r.action?.code === 'like' || r.action?.code === 'super_like')
     .map((r) => r.swiper_id);
 
-  return { excluded, likerIds, me };
+  const mesInteretsCodes = (mesInterets || []).map((r) => r.interest?.code).filter(Boolean);
+
+  return { excluded, likerIds, me, mesInteretsCodes };
+}
+
+/**
+ * « Au moins un intérêt en commun » — post-filtre (la relation intérêts est jointe,
+ * pas comparable dans la requête). Sans intérêt de MON côté, le filtre ne peut rien
+ * dire : on le laisse passer plutôt que de vider la pile.
+ */
+function filterBySharedInterest(rows, prefs, mesInteretsCodes) {
+  if (!prefs?.require_shared_interest || !mesInteretsCodes?.length) return rows;
+  const mine = new Set(mesInteretsCodes);
+  return rows.filter((r) => (r.interests || []).some((i) => mine.has(i.interest?.code)));
 }
 
 /** Filtres de base : vivant, onboardé, découvrable, non exclu, incognito. */
@@ -81,6 +98,21 @@ function applyPrefFilters(query, prefs, me) {
   if (prefs?.require_bio)   query = query.not('bio', 'is', null);
   if (prefs?.verified_only) query = query.eq('is_verified', true);
 
+  // ── v2 (migration 015) : les champs du profil, devenus filtres ──────────────
+  // Origine — le pays d'où l'on VIENT, pas celui où l'on vit (search_country).
+  if (prefs?.origin_country) query = query.eq('origin_country', prefs.origin_country);
+
+  // Taille : une borne posée exclut les profils sans taille renseignée (sinon on
+  // laisserait passer des profils dont on ne sait rien — ce n'est pas un filtre).
+  if (prefs?.min_height) query = query.gte('height_cm', prefs.min_height);
+  if (prefs?.max_height) query = query.lte('height_cm', prefs.max_height);
+
+  // Mode de vie : {kind: [codes]} → `lifestyle->>kind IN (codes)` par catégorie.
+  for (const [kind, codes] of Object.entries(prefs?.lifestyle_filters ?? {})) {
+    if (Array.isArray(codes) && codes.length) query = query.in(`lifestyle->>${kind}`, codes);
+  }
+  // Les intérêts partagés se post-filtrent (relation jointe, comme min_photos).
+
   // Tranche d'âge → bornes de date de naissance (max_age plus vieux = date la plus ancienne).
   if (prefs?.min_age || prefs?.max_age) {
     const today = new Date();
@@ -104,11 +136,11 @@ function applyPrefFilters(query, prefs, me) {
  * Mbenguiste : aucune barrière de frontière ni d'origine.
  */
 async function candidates(userId, { limit = 20 } = {}) {
-  const { excluded, likerIds, me } = await discoveryContext(userId);
+  const { excluded, likerIds, me, mesInteretsCodes } = await discoveryContext(userId);
 
   const { data: prefs } = await supabase
     .from('match_preferences')
-    .select('seeking_gender_id, seeking_goal_id, min_age, max_age, search_country, search_radius_km, require_common_language, min_photos, require_bio, verified_only')
+    .select('seeking_gender_id, seeking_goal_id, min_age, max_age, search_country, search_radius_km, require_common_language, min_photos, require_bio, verified_only, origin_country, min_height, max_height, require_shared_interest, lifestyle_filters')
     .eq('profile_id', userId)
     .maybeSingle();
 
@@ -127,6 +159,8 @@ async function candidates(userId, { limit = 20 } = {}) {
     : (data || []);
   // Rayon (km) autour de MA position — post-filtre JS (haversine).
   rows = filterByRadius(rows, prefs, me);
+  // Au moins un intérêt en commun — post-filtre JS (relation jointe).
+  rows = filterBySharedInterest(rows, prefs, mesInteretsCodes);
   const mapped = rows.map((row) => ({
     ...fromRow(row),
     routesCroisees: crossesRoutes(me, row),
@@ -210,7 +244,7 @@ function filterByRadius(rows, prefs, me) {
  * on applique EXACTEMENT les mêmes filtres que `candidates` (helpers partagés).
  */
 async function countCandidates(userId, apiPrefs = {}) {
-  const { excluded, likerIds, me } = await discoveryContext(userId);
+  const { excluded, likerIds, me, mesInteretsCodes } = await discoveryContext(userId);
 
   const prefs = {
     seeking_gender_id: apiPrefs.genreRecherche ? await idForCode('genders', apiPrefs.genreRecherche) : null,
@@ -223,18 +257,30 @@ async function countCandidates(userId, apiPrefs = {}) {
     min_photos: apiPrefs.photosMin,
     require_bio: apiPrefs.avecBio,
     verified_only: apiPrefs.verifiesUniquement,
+    origin_country: apiPrefs.origineRecherche ?? null,
+    min_height: apiPrefs.tailleMin ?? null,
+    max_height: apiPrefs.tailleMax ?? null,
+    require_shared_interest: apiPrefs.interetsCommuns,
+    lifestyle_filters: apiPrefs.lifestyleFiltres ?? {},
   };
 
-  // Photos minimum OU rayon : incomptables dans la requête → on récupère les
-  // lignes (ids + coords + photos) et on filtre en JS, comme `candidates`.
-  if (prefs.min_photos || shouldApplyRadius(prefs, me)) {
-    let q = applyBaseFilters(supabase.from('profiles').select('id, current_lat, current_lng, photos:profile_photos(id)'), excluded, likerIds);
+  // Photos minimum, rayon OU intérêt commun : incomptables dans la requête → on
+  // récupère les lignes (ids + coords + photos + intérêts) et on filtre en JS,
+  // exactement comme `candidates` (le compteur ne doit jamais mentir).
+  const postFiltre = prefs.min_photos || shouldApplyRadius(prefs, me)
+    || (prefs.require_shared_interest && mesInteretsCodes.length > 0);
+  if (postFiltre) {
+    let q = applyBaseFilters(
+      supabase.from('profiles').select('id, current_lat, current_lng, photos:profile_photos(id), interests:profile_interests(interest:interests(code))'),
+      excluded, likerIds,
+    );
     q = applyPrefFilters(q, prefs, me);
     const { data, error } = await q;
     if (error) throw error;
     let rows = data || [];
     if (prefs.min_photos) rows = rows.filter((r) => (r.photos?.length ?? 0) >= prefs.min_photos);
     rows = filterByRadius(rows, prefs, me);
+    rows = filterBySharedInterest(rows, prefs, mesInteretsCodes);
     return rows.length;
   }
 

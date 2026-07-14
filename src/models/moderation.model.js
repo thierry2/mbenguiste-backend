@@ -1,5 +1,4 @@
 const supabase = require('../config/supabase');
-const referenceModel = require('./reference.model');
 
 /**
  * Bloque `blockedId` pour `blockerId` : insère le blocage (idempotent) ET désactive
@@ -44,16 +43,50 @@ async function listBlocked(blockerId) {
   }));
 }
 
-/** Signale un profil. `reasonCode` doit correspondre à report_reasons.code. */
-async function report(reporterId, reportedId, reasonCode, details) {
-  const reasonId = reasonCode ? await referenceModel.idForCode('report_reasons', reasonCode) : null;
+/** Dossier OUVERT existant du même signaleur sur la même cible (idempotence). */
+async function findOpenReport(reporterId, reportedId) {
+  const { data, error } = await supabase
+    .from('reports')
+    .select('id')
+    .eq('reporter_id', reporterId)
+    .eq('reported_id', reportedId)
+    .eq('status', 'open')
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+
+/** Insère un signalement. Le doublon (course avec l'index unique) est un succès. */
+async function createReport({ reporterId, reportedId, reasonId, details }) {
   const { error } = await supabase.from('reports').insert({
     reporter_id: reporterId,
     reported_id: reportedId,
     reason_id: reasonId,
     details: details?.slice(0, 1000) || null,
   });
+  // 23505 = violation de l'index unique « un dossier ouvert par paire » : un
+  // double tap ou une course — le signalement existe déjà, ce n'est pas un échec.
+  if (error && error.code !== '23505') throw error;
+}
+
+/** Nombre de signaleurs DISTINCTS ayant un dossier ouvert sur cette cible. */
+async function countOpenReporters(reportedId) {
+  const { data, error } = await supabase
+    .from('reports')
+    .select('reporter_id')
+    .eq('reported_id', reportedId)
+    .eq('status', 'open');
+  if (error) throw error;
+  return new Set((data || []).map((r) => r.reporter_id)).size;
+}
+
+/** Retire un profil de la découverte (protection auto en attendant revue). */
+async function hideFromDiscovery(profileId) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ is_discoverable: false, updated_at: new Date().toISOString() })
+    .eq('id', profileId);
   if (error) throw error;
 }
 
-module.exports = { block, unblock, listBlocked, report };
+module.exports = { block, unblock, listBlocked, findOpenReport, createReport, countOpenReporters, hideFromDiscovery };

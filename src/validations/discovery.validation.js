@@ -28,6 +28,11 @@ const previewCount = z.object({
     photosMin: z.number().int().min(0).max(6).optional(),
     avecBio: z.boolean().optional(),
     verifiesUniquement: z.boolean().optional(),
+    origineRecherche: z.string().length(2).toUpperCase().nullable().optional(),
+    tailleMin: z.number().int().min(100).max(250).nullable().optional(),
+    tailleMax: z.number().int().min(100).max(250).nullable().optional(),
+    interetsCommuns: z.boolean().optional(),
+    lifestyleFiltres: z.record(z.string().max(40), z.array(z.string().max(40)).max(12)).optional(),
   }),
 });
 

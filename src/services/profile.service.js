@@ -55,6 +55,7 @@ async function getPreferences(userId) {
     .select(`
       seeking_gender_id, min_age, max_age, search_country, search_radius_km,
       require_common_language, min_photos, require_bio, verified_only,
+      origin_country, min_height, max_height, require_shared_interest, lifestyle_filters,
       genders:seeking_gender_id(code), goal:seeking_goal_id(code)
     `)
     .eq('profile_id', userId)
@@ -63,6 +64,7 @@ async function getPreferences(userId) {
     return {
       genreRecherche: null, ageMin: 18, ageMax: 60, objectifRecherche: null,
       paysRecherche: null, rayonKm: null, langueCommune: false, photosMin: 0, avecBio: false, verifiesUniquement: false,
+      origineRecherche: null, tailleMin: null, tailleMax: null, interetsCommuns: false, lifestyleFiltres: {},
     };
   }
   return {
@@ -76,6 +78,12 @@ async function getPreferences(userId) {
     photosMin: data.min_photos ?? 0,
     avecBio: data.require_bio ?? false,
     verifiesUniquement: data.verified_only ?? false,
+    // v2 : les champs du profil, devenus filtrables (migration 015).
+    origineRecherche: data.origin_country ?? null,
+    tailleMin: data.min_height ?? null,
+    tailleMax: data.max_height ?? null,
+    interetsCommuns: data.require_shared_interest ?? false,
+    lifestyleFiltres: data.lifestyle_filters ?? {},
   };
 }
 
@@ -93,6 +101,16 @@ async function setPreferences(userId, input) {
   if (input.photosMin !== undefined) row.min_photos = input.photosMin;
   if (input.avecBio !== undefined) row.require_bio = input.avecBio;
   if (input.verifiesUniquement !== undefined) row.verified_only = input.verifiesUniquement;
+  if (input.origineRecherche !== undefined) row.origin_country = input.origineRecherche;
+  if (input.tailleMin !== undefined) row.min_height = input.tailleMin;
+  if (input.tailleMax !== undefined) row.max_height = input.tailleMax;
+  if (input.interetsCommuns !== undefined) row.require_shared_interest = input.interetsCommuns;
+  // On ne garde que les catégories réellement contraintes ({} = indifférent).
+  if (input.lifestyleFiltres !== undefined) {
+    row.lifestyle_filters = Object.fromEntries(
+      Object.entries(input.lifestyleFiltres).filter(([, codes]) => Array.isArray(codes) && codes.length > 0),
+    );
+  }
 
   const { error } = await supabase
     .from('match_preferences')
