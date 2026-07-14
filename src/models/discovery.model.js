@@ -332,6 +332,20 @@ async function cardsByIds(ids) {
 }
 
 /**
+ * Coordonnées (lat/lng) pour une liste d'ids — Map id→{lat,lng}. SERVEUR ONLY :
+ * sert à calculer une distance sans jamais exposer la position brute au client.
+ */
+async function coordsByIds(ids) {
+  if (!ids.length) return new Map();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, current_lat, current_lng')
+    .in('id', ids);
+  if (error) throw error;
+  return new Map((data || []).map((r) => [r.id, { lat: r.current_lat, lng: r.current_lng }]));
+}
+
+/**
  * Cartes MASQUÉES (contexte « qui t'a liké ») : uniquement la photo FLOUTÉE de la
  * photo principale (position 0) + la dernière activité. AUCUN champ identifiant.
  */
@@ -351,4 +365,4 @@ async function maskedCardsByIds(ids) {
   return map;
 }
 
-module.exports = { candidates, countCandidates, likersPending, cardsByIds, maskedCardsByIds };
+module.exports = { candidates, countCandidates, likersPending, cardsByIds, coordsByIds, maskedCardsByIds, haversineKm };

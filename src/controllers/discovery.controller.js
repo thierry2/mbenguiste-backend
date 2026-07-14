@@ -42,11 +42,16 @@ function maskToken(viewerId, swiperId) {
 }
 
 /**
- * « Qui t'a liké » — MASQUÉ pour tout le monde (le visage se mérite dans
- * l'aventure). On ne renvoie AUCUN champ identifiant : juste un jeton opaque, la
- * photo FLOUTÉE (blur_url) et le statut en ligne. `premiumRequis` gate l'ACTION
- * sur les likes normaux (les coups de cœur, eux, sont actionnables gratuitement).
+ * « Qui t'a liké » — modèle classique (Tinder).
+ *   • Coups de cœur (super-like) : TOUJOURS révélés (visage + prénom/âge/ville),
+ *     même en gratuit — c'est la promesse du super-like. On expose le vrai id
+ *     profil pour permettre de liker en retour / ouvrir le profil.
+ *   • Likes ordinaires : révélés seulement en PREMIUM ; en gratuit ils restent
+ *     masqués (jeton opaque + photo floutée) derrière le paywall.
+ * `premiumRequis` (= !premium) gate la révélation des likes ordinaires.
  */
+const online = (lastActiveAt) => !!lastActiveAt && Date.now() - new Date(lastActiveAt).getTime() < ONLINE_MS;
+
 const likesReceived = catchAsync(async (req, res) => {
   const viewerId = req.user.id;
   const pending = await discoveryModel.likersPending(viewerId);
@@ -56,18 +61,62 @@ const likesReceived = catchAsync(async (req, res) => {
     return res.json({ success: true, data: { coeurs: [], likes: [], premiumRequis: !premium } });
   }
 
-  const masked = await discoveryModel.maskedCardsByIds(pending.map((p) => p.id));
-  const toItem = (p) => {
-    const m = masked.get(p.id);
+  const coeursPending = pending.filter((p) => p.superLike);
+  const likesPending = pending.filter((p) => !p.superLike);
+
+  // Cartes RÉVÉLÉES : les coups de cœur pour tous, les likes ordinaires en premium.
+  const revealPending = [...coeursPending, ...(premium ? likesPending : [])];
+  const revealIds = revealPending.map((p) => p.id);
+  const cards = revealIds.length ? await discoveryModel.cardsByIds(revealIds) : new Map();
+  // Coords SERVEUR ONLY → distance en km, sans jamais renvoyer la position brute.
+  const coords = revealIds.length ? await discoveryModel.coordsByIds([viewerId, ...revealIds]) : new Map();
+  const moi = coords.get(viewerId);
+  const distanceKm = (id) => {
+    const c = coords.get(id);
+    if (!moi || moi.lat == null || moi.lng == null || !c || c.lat == null || c.lng == null) return null;
+    return Math.round(discoveryModel.haversineKm(moi.lat, moi.lng, c.lat, c.lng));
+  };
+  // Accroche = 1re réponse de prompt, sinon la bio (contexte humain sur la carte).
+  const accrocheDe = (c) => {
+    const p = (c?.prompts ?? []).find((x) => x.reponse && x.reponse.trim());
+    return (p?.reponse ?? c?.bio ?? null)?.trim() || null;
+  };
+  const toRevealed = (p) => {
+    const c = cards.get(p.id);
     return {
-      id: maskToken(viewerId, p.id),
-      blurUrl: m?.blurUrl ?? null,
-      enLigne: m?.lastActiveAt ? Date.now() - new Date(m.lastActiveAt).getTime() < ONLINE_MS : false,
+      id: p.id,                          // vrai id profil (liker en retour / ouvrir profil)
+      revele: true,
+      superLike: p.superLike,
+      prenom: c?.prenom ?? null,
+      age: c?.age ?? null,
+      ville: c?.villeActuelle ?? null,
+      distanceKm: distanceKm(p.id),
+      accroche: accrocheDe(c),
+      photoUrl: c?.avatarUrl ?? c?.photos?.[0]?.url ?? null,
+      estVerifie: c?.estVerifie ?? false,
+      enLigne: online(c?.lastActiveAt),
     };
   };
 
-  const coeurs = pending.filter((p) => p.superLike).map(toItem);
-  const likes = pending.filter((p) => !p.superLike).map(toItem);
+  const coeurs = coeursPending.map(toRevealed);
+
+  let likes;
+  if (premium) {
+    likes = likesPending.map(toRevealed);
+  } else {
+    const masked = await discoveryModel.maskedCardsByIds(likesPending.map((p) => p.id));
+    likes = likesPending.map((p) => {
+      const m = masked.get(p.id);
+      return {
+        id: maskToken(viewerId, p.id),   // jeton opaque : aucune fuite d'identité
+        revele: false,
+        superLike: false,
+        blurUrl: m?.blurUrl ?? null,
+        enLigne: online(m?.lastActiveAt),
+      };
+    });
+  }
+
   res.json({ success: true, data: { coeurs, likes, premiumRequis: !premium } });
 });
 
