@@ -49,6 +49,9 @@ const config = {
     freeSuperLikesPerDay:   parseInt(process.env.FREE_SUPERLIKES_DAY, 10)   || 1,
     freeTranslationsPerDay: parseInt(process.env.FREE_TRANSLATIONS_DAY, 10) || 10,
     boostDurationMs:        (parseInt(process.env.BOOST_MINUTES, 10) || 30) * 60 * 1000,
+    // Réciprocité photos : il faut N photos soi-même pour voir toutes celles des
+    // autres (la 1re reste visible). S'applique à TOUT LE MONDE, Or compris.
+    photosRequiredToView:   parseInt(process.env.PHOTOS_REQUIRED_VIEW, 10)  || 2,
   },
 };
 

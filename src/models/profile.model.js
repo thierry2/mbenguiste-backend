@@ -226,6 +226,16 @@ async function setLocation(id, lat, lng) {
   if (error) throw error;
 }
 
+/** Nombre de photos d'un profil (verrou de réciprocité photos). */
+async function photoCount(profileId) {
+  const { count, error } = await supabase
+    .from('profile_photos')
+    .select('id', { count: 'exact', head: true })
+    .eq('profile_id', profileId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Touch last_active_at (présence). Non bloquant, appelé sur /me. */
 async function touchActivity(id) {
   await supabase.from('profiles')
@@ -267,4 +277,4 @@ async function softDelete(id) {
   if (error) throw error;
 }
 
-module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, setLocation };
+module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, setLocation, photoCount };

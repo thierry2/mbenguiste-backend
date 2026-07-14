@@ -1,5 +1,6 @@
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
+const config = require('../config');
 const profileModel = require('../models/profile.model');
 const profileService = require('../services/profile.service');
 const entitlementsService = require('../services/entitlements.service');
@@ -28,6 +29,21 @@ const completeOnboarding = catchAsync(async (req, res) => {
 const getById = catchAsync(async (req, res) => {
   const profile = await profileModel.findById(req.params.id);
   if (!profile) throw ApiError.notFound('Profil introuvable');
+
+  // Verrou de réciprocité photos (réf Tinder) : sans N photos soi-même, on ne
+  // voit QUE la 1re photo des autres. Appliqué serveur (incontournable) et à
+  // tout le monde, Or compris. Le front affiche le bloc « Débloquer les photos ».
+  if (req.params.id !== req.user.id) {
+    profile.photosTotal = profile.photos.length;
+    const mine = await profileModel.photoCount(req.user.id);
+    if (mine < config.limits.photosRequiredToView) {
+      profile.photos = profile.photos.slice(0, 1);
+      profile.photosVerrouillees = true;
+    } else {
+      profile.photosVerrouillees = false;
+    }
+  }
+
   res.json({ success: true, data: { profile } });
 });
 
