@@ -90,4 +90,33 @@ async function seedOpeners(matchId, a, b) {
   if (error) throw error;
 }
 
-module.exports = { record };
+/**
+ * Efface le DERNIER swipe de l'utilisateur (Rewind, Lot C). Retourne la cible à
+ * restaurer ({ targetId, action }) ou null s'il n'y avait rien. Pour rester
+ * cohérent, on efface aussi le match que ce swipe aurait formé — un re-swipe le
+ * recréera via le trigger. Best-effort sur le match : ne bloque pas le rewind.
+ */
+async function deleteLast(swiperId) {
+  const { data: last } = await supabase
+    .from('swipes')
+    .select('id, target_id, created_at, action:swipe_actions!action_id(code)')
+    .eq('swiper_id', swiperId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!last) return null;
+
+  const { error } = await supabase.from('swipes').delete().eq('id', last.id);
+  if (error) throw error;
+
+  // Un match éventuellement formé par ce like devient incohérent → on le retire.
+  const targetId = last.target_id;
+  const [low, high] = swiperId < targetId ? [swiperId, targetId] : [targetId, swiperId];
+  try {
+    await supabase.from('matches').delete().eq('user_low', low).eq('user_high', high);
+  } catch { /* silencieux : le rewind du swipe prime */ }
+
+  return { targetId, action: last.action?.code ?? null };
+}
+
+module.exports = { record, deleteLast };

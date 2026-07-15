@@ -1,20 +1,22 @@
+'use strict';
 const supabase = require('../config/supabase');
 
-/** Soldes de consommables de l'utilisateur (Coups de cœur, Boosts). */
+/** Soldes de consommables de l'utilisateur (Super Likes, Boosts, Jokers). */
 async function get(profileId) {
   const { data } = await supabase
     .from('user_credits')
-    .select('superlike_balance, boost_balance')
+    .select('superlike_balance, boost_balance, joker_balance')
     .eq('profile_id', profileId)
     .maybeSingle();
   return {
     superLikes: data?.superlike_balance ?? 0,
     boosts:     data?.boost_balance ?? 0,
+    jokers:     data?.joker_balance ?? 0,
   };
 }
 
-/** Crédite (achat). Lecture-puis-écriture — écritures backend only, pas de course client. */
-async function grant(profileId, { superLikes = 0, boosts = 0 }) {
+/** Crédite (achat ou grant récurrent). Écritures backend only, pas de course client. */
+async function grant(profileId, { superLikes = 0, boosts = 0, jokers = 0 }) {
   const cur = await get(profileId);
   const { error } = await supabase
     .from('user_credits')
@@ -23,6 +25,7 @@ async function grant(profileId, { superLikes = 0, boosts = 0 }) {
         profile_id: profileId,
         superlike_balance: cur.superLikes + superLikes,
         boost_balance: cur.boosts + boosts,
+        joker_balance: cur.jokers + jokers,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'profile_id' },
@@ -31,7 +34,7 @@ async function grant(profileId, { superLikes = 0, boosts = 0 }) {
   return get(profileId);
 }
 
-/** Dépense 1 Coup de cœur si le solde le permet. true si débité, false si vide. */
+/** Dépense 1 Super Like si le solde le permet. true si débité, false si vide. */
 async function spendSuperLike(profileId) {
   const cur = await get(profileId);
   if (cur.superLikes <= 0) return false;
@@ -57,4 +60,16 @@ async function spendBoost(profileId, durationMs) {
   return until;
 }
 
-module.exports = { get, grant, spendSuperLike, spendBoost };
+/** Dépense 1 Joker (rejouer une aventure). true si débité, false si vide. */
+async function spendJoker(profileId) {
+  const cur = await get(profileId);
+  if (cur.jokers <= 0) return false;
+  const { error } = await supabase
+    .from('user_credits')
+    .update({ joker_balance: cur.jokers - 1, updated_at: new Date().toISOString() })
+    .eq('profile_id', profileId);
+  if (error) throw error;
+  return true;
+}
+
+module.exports = { get, grant, spendSuperLike, spendBoost, spendJoker };

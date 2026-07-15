@@ -12,6 +12,8 @@ router.get('/candidates', authenticate, c.getCandidates);
 router.post('/count', authenticate, validate(schemas.previewCount), c.countCandidates);
 // Activer un Boost (dépense 1 crédit).
 router.post('/boost', authenticate, c.boost);
+// Rewind : annuler le dernier swipe (Plus+ — 402 sinon).
+router.post('/rewind', authenticate, c.rewind);
 // « Qui t'a liké » — total toujours, profils réservés à l'Or.
 router.get('/likes', authenticate, c.likesReceived);
 // Swiper un profil : POST /discovery/:id/swipe { action }.

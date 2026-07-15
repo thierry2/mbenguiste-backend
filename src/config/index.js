@@ -43,6 +43,11 @@ const config = {
     username: process.env.GEONAMES_USERNAME || '',
   },
 
+  // Gratuité femmes au lancement (doctrine §3) : quand ce flag est actif, une
+  // femme reçoit l'Or offert MOINS la révélation (calculé à la volée par
+  // access.service, JAMAIS écrit en base → désactivation instantanée et indolore).
+  freeTierWomen: process.env.FREE_TIER_WOMEN === 'on',
+
   // Quotas gratuits (le carburant du paywall) + durée d'un Boost.
   limits: {
     freeLikesPer12h:        parseInt(process.env.FREE_LIKES_12H, 10)        || 20,

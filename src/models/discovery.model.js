@@ -1,6 +1,7 @@
 const supabase = require('../config/supabase');
 const { fromRow } = require('./profile.model');
 const { idForCode } = require('./reference.model');
+const { orderDeck } = require('../domain/deck');
 
 // Version « carte » : mêmes relations que le profil complet, en plus léger.
 const SELECT_CARD = `
@@ -45,9 +46,15 @@ async function discoveryContext(userId) {
     .filter((r) => r.action?.code === 'like' || r.action?.code === 'super_like')
     .map((r) => r.swiper_id);
 
+  // Qui m'a SUPER-likée : leur carte remonte en tête de mon deck, marquée en
+  // clair (le Super Like traverse le paywall par le deck — doctrine 15/07).
+  const superLikerIds = new Set(
+    (likers || []).filter((r) => r.action?.code === 'super_like').map((r) => r.swiper_id),
+  );
+
   const mesInteretsCodes = (mesInterets || []).map((r) => r.interest?.code).filter(Boolean);
 
-  return { excluded, likerIds, me, mesInteretsCodes };
+  return { excluded, likerIds, superLikerIds, me, mesInteretsCodes };
 }
 
 /**
@@ -136,7 +143,7 @@ function applyPrefFilters(query, prefs, me) {
  * Mbenguiste : aucune barrière de frontière ni d'origine.
  */
 async function candidates(userId, { limit = 20 } = {}) {
-  const { excluded, likerIds, me, mesInteretsCodes } = await discoveryContext(userId);
+  const { excluded, likerIds, superLikerIds, me, mesInteretsCodes } = await discoveryContext(userId);
 
   const { data: prefs } = await supabase
     .from('match_preferences')
@@ -166,21 +173,15 @@ async function candidates(userId, { limit = 20 } = {}) {
     routesCroisees: crossesRoutes(me, row),
   }));
 
-  // Profils actuellement « boostés » (crédit dépensé) → tout en haut de la pile.
+  // Profils actuellement « boostés » (crédit dépensé) → haut de la pile.
   const now = Date.now();
-  const boosted = new Set(
+  const boostedIds = new Set(
     rows.filter((r) => r.boost_active_until && new Date(r.boost_active_until).getTime() > now).map((r) => r.id),
   );
 
-  // Ordre : ① boostés d'abord, ② intentions COMPLÉMENTAIRES (l'envol ↔ le retour,
-  // cœur du produit), ③ activité (tri stable → conservée au sein de chaque groupe).
-  mapped.sort((a, b) => {
-    const ba = boosted.has(a.id) ? 1 : 0;
-    const bb = boosted.has(b.id) ? 1 : 0;
-    if (ba !== bb) return bb - ba;
-    return complementScore(me?.intention, b.intention) - complementScore(me?.intention, a.intention);
-  });
-  return mapped;
+  // Ordre & marquage délégués au domaine pur (activité déjà triée en amont → le
+  // tri stable la conserve au sein de chaque groupe de priorité).
+  return orderDeck(mapped, { superLikerIds, boostedIds, myIntention: me?.intention });
 }
 
 /**
@@ -200,12 +201,6 @@ function crossesRoutes(me, other) {
     placeMatch(other.target_city, other.target_country, me.current_city, me.current_country) ||
     placeMatch(me.target_city, me.target_country, other.current_city, other.current_country)
   );
-}
-
-/** 1 si les intentions sont complémentaires (envol ↔ retour), 0 sinon. */
-function complementScore(mine, theirs) {
-  if (!mine || !theirs || mine === 'any' || theirs === 'any') return 0;
-  return mine !== theirs ? 1 : 0;
 }
 
 // ── Distance (rayon en km) — haversine, post-filtre JS ───────────────────────

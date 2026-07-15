@@ -208,14 +208,44 @@ async function isPremium(id) {
   return true;
 }
 
-/** Reflète l'état d'abonnement (appelé par le webhook RevenueCat, jamais par le client). */
-async function setPremiumStatus(id, { isPremium: prem, premiumUntil }) {
-  const { error } = await supabase.from('profiles').update({
+/**
+ * Reflète l'état d'abonnement (appelé par le webhook RevenueCat, jamais par le
+ * client). `tier` = palier vendu ('plus'|'or'|'prestige'|null) ; is_premium
+ * reste maintenu en cache dénormalisé pour la compat des anciens gardes.
+ */
+async function setPremiumStatus(id, { isPremium: prem, tier, premiumUntil }) {
+  const row = {
     is_premium: !!prem,
     premium_until: premiumUntil ?? null,
     updated_at: new Date().toISOString(),
-  }).eq('id', id);
+  };
+  // Le webhook passe toujours `tier` (y compris null à l'expiration) ; on ne
+  // touche premium_tier que s'il est fourni, pour ne pas l'écraser par erreur.
+  if (tier !== undefined) row.premium_tier = tier;
+  const { error } = await supabase.from('profiles').update(row).eq('id', id);
   if (error) throw error;
+}
+
+/**
+ * Ligne d'accès minimale lue par access.service (le point de décision unique
+ * « qui a droit à quoi »). Une seule requête, colonnes strictes.
+ * → { isPremium, premiumTier, premiumUntil, genderCode, boostActiveUntil } | null
+ */
+async function accessRow(id) {
+  const { data } = await supabase
+    .from('profiles')
+    .select('is_premium, premium_tier, premium_until, boost_active_until, gender:genders!gender_id(code)')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    isPremium: data.is_premium ?? false,
+    premiumTier: data.premium_tier ?? null,
+    premiumUntil: data.premium_until ?? null,
+    genderCode: data.gender?.code ?? null,
+    boostActiveUntil: data.boost_active_until ?? null,
+  };
 }
 
 /** Enregistre la position (captée par expo-location) pour la recherche par rayon. */
@@ -277,4 +307,4 @@ async function softDelete(id) {
   if (error) throw error;
 }
 
-module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, setLocation, photoCount };
+module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, accessRow, setLocation, photoCount };

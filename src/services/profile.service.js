@@ -1,51 +1,79 @@
 const supabase = require('../config/supabase');
 const profileModel = require('../models/profile.model');
-const { idForCode } = require('../models/reference.model');
+const { idForCode: defaultIdForCode } = require('../models/reference.model');
 const ApiError = require('../utils/apiError');
 
-/** Met à jour le profil : résout les codes (genre/objectif) en ids avant l'écriture. */
-async function updateProfile(userId, input) {
-  const updates = { ...input };
+// ─────────────────────────────────────────────────────────────────────────────
+// Édition du profil. Le verrou du genre (doctrine §3, garde-fou de la gratuité
+// femmes) vit ici : le genre se pose UNE fois (onboarding) puis devient
+// immuable — sinon un homme se déclare femme pour l'Or offert.
+//
+// `updateProfile` est une factory à dépendances injectées (testable à sec).
+// getPreferences/setPreferences restent des fonctions module (I/O direct
+// Supabase, non concernées par le verrou) et sont ré-exportées telles quelles.
+// ─────────────────────────────────────────────────────────────────────────────
 
-  if (input.genre !== undefined) {
-    updates.genreId = input.genre ? await idForCode('genders', input.genre) : null;
-    delete updates.genre;
-  }
-  if (input.objectif !== undefined) {
-    updates.objectifId = input.objectif ? await idForCode('relationship_goals', input.objectif) : null;
-    delete updates.objectif;
-  }
+function createProfileService({ profiles, idForCode }) {
+  /** Met à jour le profil : résout les codes (genre/objectif) en ids avant l'écriture. */
+  async function updateProfile(userId, input) {
+    const updates = { ...input };
 
-  // Garde-fou âge : Mbenguiste est réservé aux majeurs.
-  if (input.dateNaissance !== undefined) {
-    const age = profileModel.ageFromBirthDate(input.dateNaissance);
-    if (age === null) throw ApiError.badRequest('Date de naissance invalide');
-    if (age < 18) throw ApiError.forbidden('Mbenguiste est réservé aux personnes majeures.');
-  }
+    if (input.genre !== undefined) {
+      // Verrou : on lit le genre courant AVANT toute écriture.
+      const current = await profiles.findById(userId);
+      const currentGenre = current?.genre ?? null;
 
-  const profile = await profileModel.update(userId, updates);
+      if (currentGenre !== null && input.genre !== currentGenre) {
+        // Déjà posé et on tente de le CHANGER (ou de l'effacer) → refus net.
+        throw ApiError.forbidden('Le genre ne peut pas être modifié après l\'inscription.');
+      }
 
-  // Intérêts (liste de codes) → ids.
-  if (Array.isArray(input.interets)) {
-    const ids = [];
-    for (const code of input.interets) {
-      const id = await idForCode('interests', code);
-      if (id) ids.push(id);
+      if (currentGenre === null) {
+        // Premier réglage (onboarding) : autorisé.
+        updates.genreId = input.genre ? await idForCode('genders', input.genre) : null;
+      }
+      // Re-poser la même valeur : no-op idempotent (on n'écrit pas le genre à nouveau).
+      delete updates.genre;
     }
-    await profileModel.setInterests(userId, ids);
-  }
 
-  // Prompts ({code, reponse}) → lignes profile_prompts ordonnées.
-  if (Array.isArray(input.prompts)) {
-    const rows = [];
-    for (const p of input.prompts) {
-      const id = await idForCode('prompts', p.code);
-      if (id) rows.push({ prompt_id: id, answer: p.reponse, position: rows.length });
+    if (input.objectif !== undefined) {
+      updates.objectifId = input.objectif ? await idForCode('relationship_goals', input.objectif) : null;
+      delete updates.objectif;
     }
-    await profileModel.setPrompts(userId, rows);
+
+    // Garde-fou âge : Mbenguiste est réservé aux majeurs.
+    if (input.dateNaissance !== undefined) {
+      const age = profiles.ageFromBirthDate(input.dateNaissance);
+      if (age === null) throw ApiError.badRequest('Date de naissance invalide');
+      if (age < 18) throw ApiError.forbidden('Mbenguiste est réservé aux personnes majeures.');
+    }
+
+    await profiles.update(userId, updates);
+
+    // Intérêts (liste de codes) → ids.
+    if (Array.isArray(input.interets)) {
+      const ids = [];
+      for (const code of input.interets) {
+        const id = await idForCode('interests', code);
+        if (id) ids.push(id);
+      }
+      await profiles.setInterests(userId, ids);
+    }
+
+    // Prompts ({code, reponse}) → lignes profile_prompts ordonnées.
+    if (Array.isArray(input.prompts)) {
+      const rows = [];
+      for (const p of input.prompts) {
+        const id = await idForCode('prompts', p.code);
+        if (id) rows.push({ prompt_id: id, answer: p.reponse, position: rows.length });
+      }
+      await profiles.setPrompts(userId, rows);
+    }
+
+    return profiles.findById(userId);
   }
 
-  return profileModel.findById(userId);
+  return { updateProfile };
 }
 
 /** Préférences de découverte (filtres). */
@@ -90,9 +118,9 @@ async function getPreferences(userId) {
 async function setPreferences(userId, input) {
   const row = { profile_id: userId, updated_at: new Date().toISOString() };
   if (input.genreRecherche !== undefined)
-    row.seeking_gender_id = input.genreRecherche ? await idForCode('genders', input.genreRecherche) : null;
+    row.seeking_gender_id = input.genreRecherche ? await defaultIdForCode('genders', input.genreRecherche) : null;
   if (input.objectifRecherche !== undefined)
-    row.seeking_goal_id = input.objectifRecherche ? await idForCode('relationship_goals', input.objectifRecherche) : null;
+    row.seeking_goal_id = input.objectifRecherche ? await defaultIdForCode('relationship_goals', input.objectifRecherche) : null;
   if (input.ageMin !== undefined) row.min_age = input.ageMin;
   if (input.ageMax !== undefined) row.max_age = input.ageMax;
   if (input.paysRecherche !== undefined) row.search_country = input.paysRecherche;
@@ -119,4 +147,14 @@ async function setPreferences(userId, input) {
   return getPreferences(userId);
 }
 
-module.exports = { updateProfile, getPreferences, setPreferences };
+const defaultService = createProfileService({
+  profiles: profileModel,
+  idForCode: defaultIdForCode,
+});
+
+module.exports = {
+  createProfileService,
+  updateProfile: defaultService.updateProfile,
+  getPreferences,
+  setPreferences,
+};

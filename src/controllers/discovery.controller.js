@@ -27,6 +27,15 @@ const swipe = catchAsync(async (req, res) => {
   res.json({ success: true, data: { match } });
 });
 
+/**
+ * Rewind (Lot C) : annule le dernier swipe. Réservé au palier Plus+ (le service
+ * lève un 402 REWIND_LOCKED sinon). Renvoie la carte à restaurer en tête du deck.
+ */
+const rewind = catchAsync(async (req, res) => {
+  const restore = await swipeService.rewindLast(req.user.id);
+  res.json({ success: true, data: { restore } });
+});
+
 const ONLINE_MS = 15 * 60 * 1000;
 
 /**
@@ -137,4 +146,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, countCandidates, boost, likesReceived };
+module.exports = { getCandidates, swipe, rewind, countCandidates, boost, likesReceived };

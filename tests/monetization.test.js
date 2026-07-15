@@ -23,9 +23,18 @@ test('catalogue : abonnements en .99 avec identifiant store', async () => {
   assert.equal(rows[0].store_product_id, 'com.mbenguiste.or.1m');
 });
 
-test('catalogue : 6 consommables seedés, quantités et prix corrects', async () => {
+test('catalogue : 8 consommables seedés (3 Super Likes, 3 Boosts, 2 Jokers), quantités et prix corrects', async () => {
   const { rows } = await db.query('select count(*)::int as n from consumable_products');
-  assert.equal(rows[0].n, 6);
+  assert.equal(rows[0].n, 8);
+
+  // Jokers (migration 016) : rejeu d'aventure, prix .99.
+  const { rows: jk } = await db.query(
+    "select kind, quantity, price_eur, store_product_id from consumable_products where code = 'joker_1'",
+  );
+  assert.equal(jk[0].kind, 'joker');
+  assert.equal(jk[0].quantity, 1);
+  assert.equal(Number(jk[0].price_eur), 2.99);
+  assert.equal(jk[0].store_product_id, 'com.mbenguiste.joker.1');
 
   const { rows: sl } = await db.query(
     "select kind, quantity, price_eur, store_product_id from consumable_products where code = 'superlike_5'",
