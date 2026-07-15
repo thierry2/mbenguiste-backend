@@ -17,7 +17,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { PGlite } = require('@electric-sql/pglite');
 
-const SCHEMA_PATH = path.join(__dirname, '..', '..', '..', 'db', 'schema.sql');
+const SCHEMA_PATH = path.join(__dirname, '..', '..', 'db', 'schema.sql');
 
 // Rejoue le socle Supabase dont schema.sql dépend.
 const SUPABASE_STUBS = `
