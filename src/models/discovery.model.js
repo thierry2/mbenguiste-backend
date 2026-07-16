@@ -2,6 +2,7 @@ const supabase = require('../config/supabase');
 const { fromRow } = require('./profile.model');
 const { idForCode } = require('./reference.model');
 const { orderDeck } = require('../domain/deck');
+const { resolveTier } = require('../domain/access');
 
 // Version « carte » : mêmes relations que le profil complet, en plus léger.
 const SELECT_CARD = `
@@ -29,8 +30,10 @@ async function discoveryContext(userId) {
       .select('current_country, current_city, current_lat, current_lng, target_country, target_city, spoken_languages, intention')
       .eq('id', userId)
       .maybeSingle(),
+    // Qui m'a likée + le palier du likeur (Priority Likes / mot avant match) et
+    // le mot laissé avec un like ciblé.
     supabase.from('swipes')
-      .select('swiper_id, action:swipe_actions!action_id(code)')
+      .select('swiper_id, like_comment, action:swipe_actions!action_id(code), swiper:profiles!swiper_id(premium_tier, premium_until)')
       .eq('target_id', userId),
     // Mes intérêts : nécessaires au filtre « au moins un intérêt en commun ».
     supabase.from('profile_interests')
@@ -52,9 +55,36 @@ async function discoveryContext(userId) {
     (likers || []).filter((r) => r.action?.code === 'super_like').map((r) => r.swiper_id),
   );
 
+  // Avantages Prestige (Lot F). Le palier du likeur est résolu par le DOMAINE ;
+  // `freeTierWomen: false` volontairement : un palier OFFERT n'atteint jamais
+  // Prestige, donc n'accorde ni Priority Like ni mot avant match.
+  const now = Date.now();
+  const estPrestige = (r) => resolveTier({
+    premiumTier: r.swiper?.premium_tier ?? null,
+    premiumUntil: r.swiper?.premium_until ?? null,
+    genderCode: null,
+    freeTierWomen: false,
+    now,
+  }).tier === 'prestige';
+
+  // Priority Likes : les likes d'un Prestige passent devant, en permanence.
+  const priorityLikerIds = new Set(
+    (likers || [])
+      .filter((r) => (r.action?.code === 'like' || r.action?.code === 'super_like') && estPrestige(r))
+      .map((r) => r.swiper_id),
+  );
+
+  // Mot avant match : ATTACHÉ AU SUPER LIKE d'un Prestige — son mot m'est lisible
+  // avant tout match (pour les autres, il n'arrive qu'au match via seedOpeners).
+  const motsAvantMatch = new Map(
+    (likers || [])
+      .filter((r) => r.action?.code === 'super_like' && r.like_comment && estPrestige(r))
+      .map((r) => [r.swiper_id, r.like_comment]),
+  );
+
   const mesInteretsCodes = (mesInterets || []).map((r) => r.interest?.code).filter(Boolean);
 
-  return { excluded, likerIds, superLikerIds, me, mesInteretsCodes };
+  return { excluded, likerIds, superLikerIds, priorityLikerIds, motsAvantMatch, me, mesInteretsCodes };
 }
 
 /**
@@ -143,7 +173,7 @@ function applyPrefFilters(query, prefs, me) {
  * Mbenguiste : aucune barrière de frontière ni d'origine.
  */
 async function candidates(userId, { limit = 20 } = {}) {
-  const { excluded, likerIds, superLikerIds, me, mesInteretsCodes } = await discoveryContext(userId);
+  const { excluded, likerIds, superLikerIds, priorityLikerIds, motsAvantMatch, me, mesInteretsCodes } = await discoveryContext(userId);
 
   const { data: prefs } = await supabase
     .from('match_preferences')
@@ -171,6 +201,8 @@ async function candidates(userId, { limit = 20 } = {}) {
   const mapped = rows.map((row) => ({
     ...fromRow(row),
     routesCroisees: crossesRoutes(me, row),
+    // Mot avant match (Prestige) : lisible AVANT tout match, sinon null.
+    motAvantMatch: motsAvantMatch.get(row.id) ?? null,
   }));
 
   // Profils actuellement « boostés » (crédit dépensé) → haut de la pile.
@@ -181,7 +213,7 @@ async function candidates(userId, { limit = 20 } = {}) {
 
   // Ordre & marquage délégués au domaine pur (activité déjà triée en amont → le
   // tri stable la conserve au sein de chaque groupe de priorité).
-  return orderDeck(mapped, { superLikerIds, boostedIds, myIntention: me?.intention });
+  return orderDeck(mapped, { superLikerIds, priorityLikerIds, boostedIds, myIntention: me?.intention });
 }
 
 /**

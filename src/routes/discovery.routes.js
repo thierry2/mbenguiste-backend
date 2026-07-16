@@ -14,6 +14,10 @@ router.post('/count', authenticate, validate(schemas.previewCount), c.countCandi
 router.post('/boost', authenticate, c.boost);
 // Rewind : annuler le dernier swipe (Plus+ — 402 sinon).
 router.post('/rewind', authenticate, c.rewind);
+// Coups de cœur du jour : la sélection est visible par tout le monde…
+router.get('/picks', authenticate, c.dailyPicks);
+// …c'est l'ACTION qui se paie : 1 like gratuit/jour, au-delà = Or (402 picks_like).
+router.post('/picks/:id/like', authenticate, validate(schemas.pickLike), c.likePick);
 // « Qui t'a liké » — total toujours, profils réservés à l'Or.
 router.get('/likes', authenticate, c.likesReceived);
 // Swiper un profil : POST /discovery/:id/swipe { action }.

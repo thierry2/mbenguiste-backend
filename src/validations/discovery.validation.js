@@ -13,6 +13,19 @@ const swipe = z.object({
   }),
 });
 
+// Liker un Coup de cœur du jour : pas d'action (toujours un like), juste la
+// cible optionnelle (« aimer ce détail »).
+const pickLike = z.object({
+  params: z.object({ id: z.string().uuid() }),
+  body: z.object({
+    cible: z.object({
+      type: z.enum(['photo', 'prompt']),
+      ref: z.string().max(120),
+      comment: z.string().max(200).nullable().optional(),
+    }).nullable().optional(),
+  }),
+});
+
 // Aperçu live du compteur : mêmes champs que les préférences, tous optionnels
 // (état en cours d'édition, pas encore enregistré). Miroir de la validation
 // `preferences` de profile.validation.js.
@@ -36,4 +49,4 @@ const previewCount = z.object({
   }),
 });
 
-module.exports = { swipe, previewCount };
+module.exports = { swipe, pickLike, previewCount };

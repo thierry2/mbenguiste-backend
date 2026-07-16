@@ -7,6 +7,7 @@ const WINDOWS = {
   like:        12 * 60 * 60 * 1000, // 12 h glissantes
   superlike:   24 * 60 * 60 * 1000, // 1 jour
   translation: 24 * 60 * 60 * 1000, // 1 jour
+  picks_like:  24 * 60 * 60 * 1000, // 1 Coup de cœur interagi / jour
 };
 
 /** État courant du compteur, fenêtre expirée = remise à zéro implicite. */

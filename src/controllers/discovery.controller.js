@@ -5,6 +5,7 @@ const config = require('../config');
 const discoveryModel = require('../models/discovery.model');
 const profileModel = require('../models/profile.model');
 const swipeService = require('../services/swipe.service');
+const picksService = require('../services/picks.service');
 const creditsModel = require('../models/credits.model');
 
 /** File de profils à découvrir. */
@@ -34,6 +35,27 @@ const swipe = catchAsync(async (req, res) => {
 const rewind = catchAsync(async (req, res) => {
   const restore = await swipeService.rewindLast(req.user.id);
   res.json({ success: true, data: { restore } });
+});
+
+/**
+ * Coups de cœur du jour (Lot E) : la sélection algorithmique du jour, visible en
+ * clair par tout le monde. Le paywall est sur l'ACTION de liker (POST picks/:id/like).
+ */
+const dailyPicks = catchAsync(async (req, res) => {
+  const picks = await picksService.dailySelection(req.user.id);
+  res.json({ success: true, data: { picks } });
+});
+
+/**
+ * Liker un Coup de cœur du jour. Gratuit 1×/jour, au-delà = Or (le service lève
+ * un 402 PICKS_LIMIT / picks_like sinon). Renvoie le match éventuel.
+ */
+const likePick = catchAsync(async (req, res) => {
+  const targetId = req.params.id;
+  if (targetId === req.user.id) throw ApiError.badRequest('On ne peut pas se liker soi-même');
+  const { cible } = req.body || {};
+  const { match } = await picksService.likeFromPicks(req.user.id, targetId, cible ?? null);
+  res.json({ success: true, data: { match } });
 });
 
 const ONLINE_MS = 15 * 60 * 1000;
@@ -146,4 +168,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, rewind, countCandidates, boost, likesReceived };
+module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived };
