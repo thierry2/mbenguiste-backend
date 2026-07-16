@@ -639,7 +639,7 @@ alter table public.user_credits
 
 create table if not exists public.usage_counters (
   profile_id    uuid not null references public.profiles(id) on delete cascade,
-  kind          text not null,                 -- 'like' | 'superlike' | 'translation'
+  kind          text not null,                 -- 'like' | 'superlike' | 'translation' | 'picks_like'
   used          integer not null default 0,
   window_start  timestamptz not null default now(),
   primary key (profile_id, kind)
