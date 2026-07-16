@@ -3,8 +3,8 @@ const ApiError = require('../utils/apiError');
 const config = require('../config');
 const matchModel = require('../models/match.model');
 const messageModel = require('../models/message.model');
-const profileModel = require('../models/profile.model');
 const usage = require('../models/usage.model');
+const accessService = require('../services/access.service');
 const { translateMessage } = require('../services/translation.service');
 const { uploadChatImage } = require('../services/upload.service');
 
@@ -25,22 +25,34 @@ const listMessages = catchAsync(async (req, res) => {
 });
 
 const send = catchAsync(async (req, res) => {
-  await assertMember(req.params.id, req.user.id);
-  const { texte, langueLecteur } = req.body;
+  const match = await assertMember(req.params.id, req.user.id);
+  const { texte } = req.body;
 
-  // Traduction : ILLIMITÉE pour l'Or, sinon dans la limite du quota gratuit.
-  // JAMAIS bloquant — au-delà du quota, le message part simplement non traduit
-  // (on ne casse jamais un envoi pour une histoire de traduction). On ne décompte
-  // le quota que si une traduction a RÉELLEMENT eu lieu (un message déjà en
-  // français ne consomme rien).
+  // ── Traduction ────────────────────────────────────────────────────────────
+  // Avantage OR (doctrine 16/07) : chaque message traduit coûte un appel Gemini,
+  // donc on ne l'offre à personne — pas même au palier offert. Le quota gratuit
+  // est à 0 par défaut (FREE_TRANSLATIONS_DAY permet d'en rouvrir un si besoin).
+  //
+  // JAMAIS bloquant : sans le droit, le message part simplement non traduit — on
+  // ne casse pas un envoi pour une histoire de traduction. Le quota n'est décompté
+  // que si une traduction a RÉELLEMENT eu lieu (un message déjà dans la langue de
+  // l'autre ne consomme rien).
+  //
+  // La langue CIBLE est celle du destinataire, lue sur le match (jamais reçue du
+  // client). Repli 'fr' si son profil ne la renseigne pas.
   let t = { body: texte, originalBody: null, sourceLanguage: null, isTranslated: false };
-  const premium = await profileModel.isPremium(req.user.id);
-  const allowed = premium
-    || (await usage.remaining(req.user.id, 'translation', config.limits.freeTranslationsPerDay)).remaining > 0;
+  // On lit la CAPACITÉ, jamais is_premium : un membre Plus est « premium » sans y
+  // avoir droit, et is_premium n'est pas écrit pour un palier offert.
+  const { caps } = await accessService.forUser(req.user.id);
+  const illimitee = caps.traductionIllimitee;
+  const quotaLibre = config.limits.freeTranslationsPerDay;
+  const allowed = illimitee
+    || (quotaLibre > 0
+      && (await usage.remaining(req.user.id, 'translation', quotaLibre)).remaining > 0);
   if (allowed) {
-    t = await translateMessage(texte, langueLecteur || 'fr');
-    if (!premium && t.isTranslated) {
-      await usage.consume(req.user.id, 'translation', config.limits.freeTranslationsPerDay);
+    t = await translateMessage(texte, match.autre?.languePrincipale || 'fr');
+    if (!illimitee && t.isTranslated) {
+      await usage.consume(req.user.id, 'translation', quotaLibre);
     }
   }
 

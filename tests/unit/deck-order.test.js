@@ -5,17 +5,18 @@
 // qui m'a super-likée remonte en tête et porte une marque `superLikedMe`, même
 // si je suis gratuite. Priorités, de la plus forte à la plus faible :
 //   ① super-like reçu (marqué)      ② Priority Like d'un Prestige (marqué)
-//   ③ profil boosté                 ④ intention complémentaire
-//   ⑤ ordre d'entrée conservé (tri stable — l'activité, déjà triée en amont).
+//   ③ profil boosté                 ④ score de pertinence (domaine ranking)
+//   ⑤ ordre d'entrée conservé (tri stable).
 // Un signal DIRIGÉ vers moi (super-like, Priority Like) prime sur un Boost, qui
-// n'est qu'une mise en avant générique achetée.
+// n'est qu'une mise en avant générique achetée. Les rangs ①②③ sont des
+// promesses produit VENDUES : aucun score, si haut soit-il, ne les dépasse.
 // Fonction PURE (zéro I/O) → testable exhaustivement.
 // ─────────────────────────────────────────────────────────────────────────────
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { orderDeck } = require('../../src/domain/deck');
 
-const card = (id, extra = {}) => ({ id, intention: null, ...extra });
+const card = (id, extra = {}) => ({ id, ...extra });
 
 test('super-like reçu : remonte en TÊTE, au-dessus même d\'un boosté', async () => {
   const cards = [card('normal'), card('boosted'), card('superliker')];
@@ -73,16 +74,52 @@ test('un super-likeur QUI EST AUSSI Prestige : reste au rang super-like (pas de 
   assert.equal(out[0].priorityLikedMe, true);
 });
 
-test('à priorités égales : l\'ordre d\'entrée est conservé (tri stable)', async () => {
-  const cards = [card('a'), card('b'), card('c')];
-  const out = orderDeck(cards, {});
-  assert.deepEqual(out.map((c) => c.id), ['a', 'b', 'c']);
+// ── Le score de pertinence (rang ④, domaine ranking) ─────────────────────────
+
+test('sous les rangs payés : tri par score décroissant', async () => {
+  const cards = [card('tiede'), card('brulant'), card('froid')];
+  const out = orderDeck(cards, {
+    scores: new Map([['tiede', 42], ['brulant', 88], ['froid', 7]]),
+  });
+  assert.deepEqual(out.map((c) => c.id), ['brulant', 'tiede', 'froid']);
 });
 
-test('intention complémentaire (envol ↔ retour) passe devant, à défaut de super-like/boost', async () => {
-  const cards = [card('meme', { intention: 'depart' }), card('complement', { intention: 'retour' })];
-  const out = orderDeck(cards, { myIntention: 'depart' });
-  assert.deepEqual(out.map((c) => c.id), ['complement', 'meme']);
+test('AUCUN score ne dépasse un rang payé : un super-likeur à score nul reste en tête', async () => {
+  const cards = [card('parfait'), card('superliker'), card('boosted')];
+  const out = orderDeck(cards, {
+    superLikerIds: new Set(['superliker']),
+    boostedIds: new Set(['boosted']),
+    scores: new Map([['parfait', 9999], ['superliker', 0], ['boosted', 1]]),
+  });
+  assert.deepEqual(out.map((c) => c.id), ['superliker', 'boosted', 'parfait'],
+    'les rangs ①②③ sont des promesses vendues, jamais diluées dans le score');
+});
+
+test('au sein d\'un MÊME rang payé : le score départage (deux boostés)', async () => {
+  const cards = [card('boost-faible'), card('boost-fort')];
+  const out = orderDeck(cards, {
+    boostedIds: new Set(['boost-faible', 'boost-fort']),
+    scores: new Map([['boost-faible', 10], ['boost-fort', 90]]),
+  });
+  assert.deepEqual(out.map((c) => c.id), ['boost-fort', 'boost-faible']);
+});
+
+test('sans scores (Map absente ou vide) : l\'ordre d\'entrée est conservé — dégradation douce', async () => {
+  const cards = [card('a'), card('b'), card('c')];
+  assert.deepEqual(orderDeck(cards, {}).map((c) => c.id), ['a', 'b', 'c']);
+  assert.deepEqual(orderDeck(cards, { scores: new Map() }).map((c) => c.id), ['a', 'b', 'c']);
+});
+
+test('carte sans entrée dans la Map : score 0, se range derrière les scorées', async () => {
+  const cards = [card('inconnu'), card('scoré')];
+  const out = orderDeck(cards, { scores: new Map([['scoré', 5]]) });
+  assert.deepEqual(out.map((c) => c.id), ['scoré', 'inconnu']);
+});
+
+test('à scores égaux : l\'ordre d\'entrée est conservé (tri stable)', async () => {
+  const cards = [card('a'), card('b'), card('c')];
+  const out = orderDeck(cards, { scores: new Map([['a', 5], ['b', 5], ['c', 5]]) });
+  assert.deepEqual(out.map((c) => c.id), ['a', 'b', 'c']);
 });
 
 test('n\'altère pas la liste d\'entrée (pure)', async () => {

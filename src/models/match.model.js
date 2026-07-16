@@ -1,10 +1,12 @@
 const supabase = require('../config/supabase');
 
 // Profil « léger » de l'autre membre du match (pour la liste + l'en-tête de chat).
+// `primary_language` sert à traduire vers SA langue : la cible est déduite ICI,
+// serveur, jamais reçue du client (il n'a pas à en décider, et il pourrait mentir).
 const OTHER_SELECT = `
   id, first_name, birth_date, avatar_url,
   current_city, current_country, target_city, target_country,
-  is_verified, last_active_at
+  primary_language, is_verified, last_active_at
 `.trim();
 
 function otherFromRow(row) {
@@ -17,6 +19,7 @@ function otherFromRow(row) {
     paysActuel:    row.current_country ?? null,
     villeCible:    row.target_city ?? null,
     paysCible:     row.target_country ?? null,
+    languePrincipale: row.primary_language ?? null,
     estVerifie:    row.is_verified ?? false,
     lastActiveAt:  row.last_active_at,
   };

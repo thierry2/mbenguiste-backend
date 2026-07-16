@@ -43,22 +43,29 @@ function resolveTier({ premiumTier, premiumUntil, genderCode, freeTierWomen, now
 
 /**
  * La matrice des droits — chaque palier inclut le précédent.
- * `offert` retire exactement la révélation (invariant n°5), rien d'autre.
+ *
+ * Ce qu'un palier OFFERT ne reçoit PAS, et pourquoi :
+ *  · la RÉVÉLATION (grille défloutée, liker la sélection) — invariant n°5 :
+ *    l'offrir ferait arriver les likes des hommes gratuits en clair → plus
+ *    personne n'a de raison de payer, des deux côtés ;
+ *  · la TRADUCTION illimitée — elle appelle Gemini à chaque message, donc elle a
+ *    un coût marginal RÉEL. On n'offre jamais ce qu'on paie à l'usage ; le reste
+ *    (likes, rewind, incognito) ne coûte rien à offrir.
  */
 function capabilitiesFor(tier, offert = false) {
   const plus = atLeast(tier, 'plus');
   const or = atLeast(tier, 'or');
   const prestige = atLeast(tier, 'prestige');
   return {
-    // Plus — le confort de mon côté de l'écran.
+    // Plus — le confort de mon côté de l'écran (gratuit à offrir).
     likesIllimites: plus,
     peutRewind: plus,
     peutIncognito: plus,
     // Or — voir qui t'aime, affiner, comprendre.
     filtresAvances: or,
-    traductionIllimitee: or,
-    grilleDefloutee: or && !offert,   // la révélation ne s'offre jamais
-    picksIllimites: or && !offert,    // liker depuis la sélection reste vendu
+    traductionIllimitee: or && !offert, // coût Gemini par appel : jamais offerte
+    grilleDefloutee: or && !offert,     // la révélation ne s'offre jamais
+    picksIllimites: or && !offert,      // liker depuis la sélection reste vendu
     // Prestige — passer devant.
     priorityLikes: prestige,
     motAvantMatch: prestige,

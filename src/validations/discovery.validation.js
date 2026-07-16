@@ -5,9 +5,12 @@ const swipe = z.object({
   body: z.object({
     action: z.enum(['pass', 'like', 'super_like']),
     // Like ciblé (« aimer ce détail ») — optionnel, ignoré sur un pass.
+    // `type`/`ref` sont facultatifs : un mot envoyé depuis le DECK (mot avant
+    // match, Prestige) ne vise aucune photo précise — c'est un mot tout court.
+    // seedOpeners sait déjà rendre ce cas (« ❤ {mot} », sans contexte).
     cible: z.object({
-      type: z.enum(['photo', 'prompt']),
-      ref: z.string().max(120),
+      type: z.enum(['photo', 'prompt']).nullable().optional(),
+      ref: z.string().max(120).nullable().optional(),
       comment: z.string().max(200).nullable().optional(),
     }).nullable().optional(),
   }),

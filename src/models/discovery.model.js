@@ -1,14 +1,18 @@
 const supabase = require('../config/supabase');
 const { fromRow } = require('./profile.model');
 const { idForCode } = require('./reference.model');
+const eventsModel = require('./events.model');
 const { orderDeck } = require('../domain/deck');
+const { scoreCandidates } = require('../domain/ranking');
 const { resolveTier } = require('../domain/access');
 
 // Version « carte » : mêmes relations que le profil complet, en plus léger.
+// origin_country / premium_tier / premium_until nourrissent le RANKING
+// (compatibilité d'origine, multiplicateur d'abonné payé) — jamais le client.
 const SELECT_CARD = `
-  id, first_name, birth_date, bio, avatar_url,
+  id, first_name, birth_date, bio, avatar_url, origin_country,
   current_country, current_city, current_lat, current_lng, target_country, target_city, open_to_relocate,
-  primary_language, spoken_languages, is_verified, is_premium, last_active_at, created_at,
+  primary_language, spoken_languages, is_verified, is_premium, premium_tier, premium_until, last_active_at, created_at,
   hide_online_status, intention, boost_active_until,
   gender:genders!gender_id(code, display_name),
   goal:relationship_goals!relationship_goal_id(code, display_name),
@@ -27,7 +31,7 @@ async function discoveryContext(userId) {
     supabase.from('blocks').select('blocker_id').eq('blocked_id', userId),
     supabase.from('blocks').select('blocked_id').eq('blocker_id', userId),
     supabase.from('profiles')
-      .select('current_country, current_city, current_lat, current_lng, target_country, target_city, spoken_languages, intention')
+      .select('current_country, current_city, current_lat, current_lng, target_country, target_city, spoken_languages, intention, origin_country')
       .eq('id', userId)
       .maybeSingle(),
     // Qui m'a likée + le palier du likeur (Priority Likes / mot avant match) et
@@ -184,8 +188,12 @@ async function candidates(userId, { limit = 20 } = {}) {
   let query = applyBaseFilters(supabase.from('profiles').select(SELECT_CARD), excluded, likerIds);
   query = applyPrefFilters(query, prefs, me);
 
-  // Les plus actifs d'abord (proxy de qualité tant qu'on n'a pas de scoring dédié).
-  query = query.order('last_active_at', { ascending: false }).limit(limit);
+  // Le tri SQL par activité n'est plus l'ordre du deck : c'est l'ÉLARGISSEUR DE
+  // POOL du ranking (on retient les POOL plus actifs, le score fait le reste).
+  // Conséquence assumée : les profils au-delà du pool n'apparaissent qu'une
+  // fois le pool swipé — un fond de catalogue inactif peut attendre.
+  const pool = Math.min(Math.max(limit * 5, 100), 200);
+  query = query.order('last_active_at', { ascending: false }).limit(pool);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -211,9 +219,29 @@ async function candidates(userId, { limit = 20 } = {}) {
     rows.filter((r) => r.boost_active_until && new Date(r.boost_active_until).getTime() > now).map((r) => r.id),
   );
 
-  // Ordre & marquage délégués au domaine pur (activité déjà triée en amont → le
-  // tri stable la conserve au sein de chaque groupe de priorité).
-  return orderDeck(mapped, { superLikerIds, priorityLikerIds, boostedIds, myIntention: me?.intention });
+  // Signaux de télémétrie du pool : engagement reçu (qualité) + rotation
+  // (déjà montré à MOI sans swipe). Agrégats seulement — jamais les bruts.
+  const ids = rows.map((r) => r.id);
+  const [engagement, impressions] = await Promise.all([
+    eventsModel.engagementByIds(ids),
+    eventsModel.impressionsFor(userId, ids),
+  ]);
+
+  // Le SCORE se calcule sur les lignes BRUTES (elles portent premium_tier,
+  // origin_country, interests…) ; l'ordre s'applique aux cartes mappées.
+  const scores = scoreCandidates(rows, {
+    viewerId: userId,
+    me,
+    mesInteretsCodes,
+    likerIds: new Set(likerIds),
+    engagement,
+    impressions,
+    now,
+  });
+
+  // Ordre & marquage délégués au domaine pur : rangs payés ①②③ puis score.
+  return orderDeck(mapped, { superLikerIds, priorityLikerIds, boostedIds, scores })
+    .slice(0, limit);
 }
 
 /**

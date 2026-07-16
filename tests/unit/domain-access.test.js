@@ -140,9 +140,12 @@ test('capacités OR OFFERT : tout l\'Or SAUF la révélation (invariant n°5)', 
   assert.equal(c.peutRewind, true);
   assert.equal(c.peutIncognito, true);
   assert.equal(c.filtresAvances, true);
-  assert.equal(c.traductionIllimitee, true);
   assert.equal(c.grilleDefloutee, false, 'JAMAIS offert : les likes des hommes gratuits ne doivent pas arriver en clair');
   assert.equal(c.picksIllimites, false, 'JAMAIS offert : liker depuis la sélection reste vendu');
+  // La traduction appelle Gemini à CHAQUE message : elle a un coût marginal réel,
+  // contrairement au confort (likes, rewind, incognito) qui ne coûte rien à offrir.
+  // On n'offre donc jamais ce qu'on paie à l'usage — même dans la gratuité femmes.
+  assert.equal(c.traductionIllimitee, false, 'JAMAIS offerte : coût Gemini par appel');
 });
 
 test('capacités PRESTIGE payé : Or inclus + priorité + mot avant match', () => {

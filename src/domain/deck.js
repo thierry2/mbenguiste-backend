@@ -5,24 +5,22 @@
 // qui m'a super-likée remonte en tête, marquée `superLikedMe`, même gratuite.
 // Le Priority Like (avantage Prestige) la suit : un signal DIRIGÉ vers moi prime
 // sur un Boost, qui n'est qu'une mise en avant générique achetée.
+// Sous ces trois rangs — des promesses produit VENDUES, qu'aucun score ne
+// dépasse ni ne dilue — c'est le score de pertinence (domaine ranking) qui
+// ordonne. Sans scores : ordre d'entrée (dégradation douce).
+// L'intention/route a quitté le tri le 16/07 (concept abandonné le 14/07).
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** 1 si les intentions sont complémentaires (envol ↔ retour), 0 sinon. */
-function complementScore(mine, theirs) {
-  if (!mine || !theirs || mine === 'any' || theirs === 'any') return 0;
-  return mine !== theirs ? 1 : 0;
-}
 
 /**
  * Marque et ordonne la pile. Retourne une NOUVELLE liste (la source reste
  * intacte) ; chaque carte reçoit `superLikedMe` et `priorityLikedMe`. Tri
  * stable, priorités :
  *   ① super-like reçu  ② Priority Like (Prestige)  ③ boosté
- *   ④ intention complémentaire  ⑤ ordre d'entrée.
+ *   ④ score de pertinence (Map id→score, domaine ranking)  ⑤ ordre d'entrée.
  */
 function orderDeck(cards, {
   superLikerIds = new Set(), priorityLikerIds = new Set(),
-  boostedIds = new Set(), myIntention = null,
+  boostedIds = new Set(), scores = new Map(),
 } = {}) {
   const marked = cards.map((c) => ({
     ...c,
@@ -43,12 +41,12 @@ function orderDeck(cards, {
       const ba = boostedIds.has(a.id) ? 1 : 0;
       const bb = boostedIds.has(b.id) ? 1 : 0;
       if (ba !== bb) return bb - ba;
-      const ca = complementScore(myIntention, a.intention);
-      const cb = complementScore(myIntention, b.intention);
-      if (ca !== cb) return cb - ca;
+      const ra = scores.get(a.id) ?? 0;
+      const rb = scores.get(b.id) ?? 0;
+      if (ra !== rb) return rb - ra;
       return A.i - B.i; // ordre d'entrée conservé
     })
     .map((x) => x.c);
 }
 
-module.exports = { orderDeck, complementScore };
+module.exports = { orderDeck };

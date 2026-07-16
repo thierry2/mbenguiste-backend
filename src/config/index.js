@@ -52,7 +52,9 @@ const config = {
   limits: {
     freeLikesPer12h:        parseInt(process.env.FREE_LIKES_12H, 10)        || 20,
     freeSuperLikesPerDay:   parseInt(process.env.FREE_SUPERLIKES_DAY, 10)   || 1,
-    freeTranslationsPerDay: parseInt(process.env.FREE_TRANSLATIONS_DAY, 10) || 10,
+    // 0 : la traduction est un avantage OR, jamais offert (chaque message traduit
+    // = un appel Gemini facturé). Mettre >0 rouvrirait un quota d'essai gratuit.
+    freeTranslationsPerDay: parseInt(process.env.FREE_TRANSLATIONS_DAY, 10) || 0,
     freePicksLikesPerDay:   parseInt(process.env.FREE_PICKS_LIKES_DAY, 10)  || 1,
     boostDurationMs:        (parseInt(process.env.BOOST_MINUTES, 10) || 30) * 60 * 1000,
     // Réciprocité photos : il faut N photos soi-même pour voir toutes celles des

@@ -4,8 +4,9 @@ const send = z.object({
   params: z.object({ id: z.string().uuid() }),
   body: z.object({
     texte: z.string().min(1).max(2000),
-    // Langue du lecteur (destinataire) pour la traduction éventuelle.
-    langueLecteur: z.string().max(20).optional(),
+    // La langue cible de la traduction n'est PAS reçue du client : le serveur la
+    // lit sur le profil du destinataire (cf. message.controller). Un champ ici
+    // serait falsifiable, et l'outbox oubliait justement de l'envoyer.
   }),
 });
 
