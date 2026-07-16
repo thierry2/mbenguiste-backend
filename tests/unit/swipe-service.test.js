@@ -79,14 +79,25 @@ function fakeAccess(caps) {
 
 const CONFIG = { limits: { freeLikesPer12h: 20, freeSuperLikesPerDay: 1 } };
 
-function makeService({ caps = {}, superLikeCredits = 0, last = null } = {}) {
+function fakeNotifications({ throws = false } = {}) {
+  return {
+    superLikes: [],
+    async onSuperLikeReceived(targetId) {
+      this.superLikes.push(targetId);
+      if (throws) throw new Error('push down');
+    },
+  };
+}
+
+function makeService({ caps = {}, superLikeCredits = 0, last = null, notifThrows = false } = {}) {
   const usage = fakeUsage();
   const credits = fakeCredits(superLikeCredits);
   const swipes = fakeSwipes({ last });
+  const notifications = fakeNotifications({ throws: notifThrows });
   const service = createSwipeService({
-    config: CONFIG, access: fakeAccess(caps), usage, credits, swipes,
+    config: CONFIG, access: fakeAccess(caps), usage, credits, swipes, notifications,
   });
-  return { service, usage, credits, swipes };
+  return { service, usage, credits, swipes, notifications };
 }
 
 // ── PASS ─────────────────────────────────────────────────────────────────────
@@ -187,6 +198,34 @@ test('super_like : le quota gratuit est consommé AVANT les crédits (on ne brû
   const { service, credits } = makeService({ superLikeCredits: 5 });
   await service.applySwipe('u1', 't1', 'super_like');
   assert.equal(credits.balance, 5, 'le gratuit du jour d\'abord, les crédits intacts');
+});
+
+// ── PUSH Super Like (Lot D, step 2) ──────────────────────────────────────────
+
+test('super_like : notifie la destinataire (le teaser qui la ramène dans l\'app)', async () => {
+  const { service, notifications } = makeService();
+  await service.applySwipe('u1', 't1', 'super_like');
+  assert.deepEqual(notifications.superLikes, ['t1']);
+});
+
+test('like et pass : AUCUNE notification (seul le Super Like alerte)', async () => {
+  const { service, notifications } = makeService({ caps: { likesIllimites: true } });
+  await service.applySwipe('u1', 't1', 'like');
+  await service.applySwipe('u1', 't2', 'pass');
+  assert.equal(notifications.superLikes.length, 0);
+});
+
+test('super_like refusé (402) : pas de notification (rien ne s\'est passé)', async () => {
+  const { service, notifications } = makeService();
+  await service.applySwipe('u1', 't1', 'super_like'); // le gratuit du jour
+  await assert.rejects(() => service.applySwipe('u1', 't2', 'super_like'));
+  assert.deepEqual(notifications.superLikes, ['t1'], 'seul le super_like abouti a notifié');
+});
+
+test('push en panne : le swipe aboutit quand même (best-effort)', async () => {
+  const { service, swipes } = makeService({ notifThrows: true });
+  await assert.doesNotReject(() => service.applySwipe('u1', 't1', 'super_like'));
+  assert.equal(swipes.recorded.length, 1, 'le super like est enregistré malgré le push KO');
 });
 
 // ── REWIND (Lot C) ───────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ const defaultSwipes = require('../models/swipe.model');
 const defaultUsage = require('../models/usage.model');
 const defaultCredits = require('../models/credits.model');
 const defaultAccess = require('./access.service');
+const defaultNotifications = require('./notification.service');
 
 /**
  * Applique un swipe en faisant respecter capacités + quotas + crédits. C'est
@@ -19,7 +20,7 @@ const defaultAccess = require('./access.service');
  * En cas de blocage on lève un 402 avec un `code` + une `source` : le front
  * sait quel paywall ouvrir (et on mesure la conversion par surface).
  */
-function createSwipeService({ config, access, usage, credits, swipes }) {
+function createSwipeService({ config, access, usage, credits, swipes, notifications }) {
   async function applySwipe(userId, targetId, action, cible = null) {
     if (action === 'pass') return swipes.record(userId, targetId, action);
     if (action !== 'like' && action !== 'super_like') {
@@ -50,7 +51,16 @@ function createSwipeService({ config, access, usage, credits, swipes }) {
       }
     }
 
-    return swipes.record(userId, targetId, action, cible);
+    const res = await swipes.record(userId, targetId, action, cible);
+
+    // Le Super Like traverse le paywall par le DECK + un push teaser (doctrine).
+    // Best-effort : le push ne doit jamais faire échouer le swipe déjà enregistré.
+    if (action === 'super_like') {
+      try {
+        await notifications.onSuperLikeReceived(targetId);
+      } catch { /* silencieux */ }
+    }
+    return res;
   }
 
   /**
@@ -79,6 +89,7 @@ const defaultService = createSwipeService({
   usage: defaultUsage,
   credits: defaultCredits,
   swipes: defaultSwipes,
+  notifications: defaultNotifications,
 });
 
 module.exports = {

@@ -3,7 +3,7 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
 const config = require('../config');
 const discoveryModel = require('../models/discovery.model');
-const profileModel = require('../models/profile.model');
+const accessService = require('../services/access.service');
 const swipeService = require('../services/swipe.service');
 const picksService = require('../services/picks.service');
 const creditsModel = require('../models/credits.model');
@@ -73,30 +73,36 @@ function maskToken(viewerId, swiperId) {
 }
 
 /**
- * « Qui t'a liké » — modèle classique (Tinder).
- *   • Coups de cœur (super-like) : TOUJOURS révélés (visage + prénom/âge/ville),
- *     même en gratuit — c'est la promesse du super-like. On expose le vrai id
- *     profil pour permettre de liker en retour / ouvrir le profil.
- *   • Likes ordinaires : révélés seulement en PREMIUM ; en gratuit ils restent
- *     masqués (jeton opaque + photo floutée) derrière le paywall.
- * `premiumRequis` (= !premium) gate la révélation des likes ordinaires.
+ * « Qui t'a liké » — LA grille que vend l'Or (doctrine 15/07).
+ *
+ * La révélation est gatée par la CAPACITÉ `grilleDefloutee` (Or payé — jamais un
+ * palier offert : invariant n°5, « la révélation ne s'offre jamais, elle se vend »),
+ * jamais par un nom de palier ni par is_premium.
+ *   • Sans la capacité : TOUT est masqué (jeton opaque + photo floutée). Les
+ *     super-likes restent masqués eux aussi, mais MARQUÉS ⚡ — le teaser qui vend
+ *     l'Or. La destinataire les découvre en clair dans son DECK (carte marquée) et
+ *     par le push : c'est là que le Super Like traverse le paywall, pas ici.
+ *   • Avec la capacité : tout est révélé, les super-likes épinglés en tête ⚡.
+ * `premiumRequis` (= !grilleDefloutee) dit au front d'afficher le paywall.
  */
 const online = (lastActiveAt) => !!lastActiveAt && Date.now() - new Date(lastActiveAt).getTime() < ONLINE_MS;
 
 const likesReceived = catchAsync(async (req, res) => {
   const viewerId = req.user.id;
   const pending = await discoveryModel.likersPending(viewerId);
-  const premium = await profileModel.isPremium(viewerId);
+  const { caps } = await accessService.forUser(viewerId);
+  const revele = caps.grilleDefloutee;
 
   if (!pending.length) {
-    return res.json({ success: true, data: { coeurs: [], likes: [], premiumRequis: !premium } });
+    return res.json({ success: true, data: { coeurs: [], likes: [], premiumRequis: !revele } });
   }
 
   const coeursPending = pending.filter((p) => p.superLike);
   const likesPending = pending.filter((p) => !p.superLike);
 
-  // Cartes RÉVÉLÉES : les coups de cœur pour tous, les likes ordinaires en premium.
-  const revealPending = [...coeursPending, ...(premium ? likesPending : [])];
+  // Cartes RÉVÉLÉES : uniquement si la capacité est là — sinon rien, pas même les
+  // super-likes (leur révélation se joue dans le deck, cf. en-tête).
+  const revealPending = revele ? [...coeursPending, ...likesPending] : [];
   const revealIds = revealPending.map((p) => p.id);
   const cards = revealIds.length ? await discoveryModel.cardsByIds(revealIds) : new Map();
   // Coords SERVEUR ONLY → distance en km, sans jamais renvoyer la position brute.
@@ -129,26 +135,27 @@ const likesReceived = catchAsync(async (req, res) => {
     };
   };
 
-  const coeurs = coeursPending.map(toRevealed);
+  // Sans la capacité : tout est masqué. Les super-likes gardent leur marque ⚡
+  // (le teaser qui vend l'Or), mais AUCUN champ identifiant ne sort d'ici.
+  const masked = revele
+    ? new Map()
+    : await discoveryModel.maskedCardsByIds(pending.map((p) => p.id));
+  const toMasked = (p) => {
+    const m = masked.get(p.id);
+    return {
+      id: maskToken(viewerId, p.id),     // jeton opaque : aucune fuite d'identité
+      revele: false,
+      superLike: p.superLike,            // ⚡ visible, identité non
+      blurUrl: m?.blurUrl ?? null,
+      enLigne: online(m?.lastActiveAt),
+    };
+  };
 
-  let likes;
-  if (premium) {
-    likes = likesPending.map(toRevealed);
-  } else {
-    const masked = await discoveryModel.maskedCardsByIds(likesPending.map((p) => p.id));
-    likes = likesPending.map((p) => {
-      const m = masked.get(p.id);
-      return {
-        id: maskToken(viewerId, p.id),   // jeton opaque : aucune fuite d'identité
-        revele: false,
-        superLike: false,
-        blurUrl: m?.blurUrl ?? null,
-        enLigne: online(m?.lastActiveAt),
-      };
-    });
-  }
+  const rendre = (p) => (revele ? toRevealed(p) : toMasked(p));
+  const coeurs = coeursPending.map(rendre);
+  const likes = likesPending.map(rendre);
 
-  res.json({ success: true, data: { coeurs, likes, premiumRequis: !premium } });
+  res.json({ success: true, data: { coeurs, likes, premiumRequis: !revele } });
 });
 
 /** Active un Boost (dépense 1 crédit) : mise en avant en découverte ~30 min. */
