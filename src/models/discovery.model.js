@@ -400,29 +400,24 @@ async function countCandidates(userId, apiPrefs = {}) {
 
 /**
  * « Qui m'a likée » : les profils qui m'ont envoyé un like/super_like et à qui je
- * n'ai PAS encore répondu (sinon = match ou pass), hors blocages. Triés du plus
- * récent au plus ancien. Renvoie des ids + méta (pas les profils — le contrôleur
- * ne charge les profils que pour les membres Or).
+ * n'ai PAS encore répondu, hors blocages. Triés du plus récent au plus ancien.
+ * Lecture directe de l'agrégat TEMPS RÉEL pending_likes (migration 020) : plus
+ * de NOT IN qui chargeait tous mes swipes — un simple `where target_id` indexé.
+ * Renvoie des ids + méta (pas les profils — le contrôleur ne charge les profils
+ * que pour les membres Or).
  */
 async function likersPending(userId) {
-  const [{ data: likers }, { data: mySwipes }, { data: blockedBy }, { data: iBlocked }] = await Promise.all([
-    supabase.from('swipes')
-      .select('swiper_id, created_at, action:swipe_actions!action_id(code)')
-      .eq('target_id', userId),
-    supabase.from('swipes').select('target_id').eq('swiper_id', userId),
-    supabase.from('blocks').select('blocker_id').eq('blocked_id', userId),
-    supabase.from('blocks').select('blocked_id').eq('blocker_id', userId),
-  ]);
-  const iSwiped = new Set((mySwipes || []).map((r) => r.target_id));
-  const blocked = new Set([
-    ...(blockedBy || []).map((r) => r.blocker_id),
-    ...(iBlocked || []).map((r) => r.blocked_id),
-  ]);
-  return (likers || [])
-    .filter((r) => (r.action?.code === 'like' || r.action?.code === 'super_like')
-      && !iSwiped.has(r.swiper_id) && !blocked.has(r.swiper_id))
-    .map((r) => ({ id: r.swiper_id, superLike: r.action?.code === 'super_like', likedAt: r.created_at }))
-    .sort((a, b) => new Date(b.likedAt).getTime() - new Date(a.likedAt).getTime());
+  const { data, error } = await supabase
+    .from('pending_likes')
+    .select('swiper_id, action_code, created_at')
+    .eq('target_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((r) => ({
+    id: r.swiper_id,
+    superLike: r.action_code === 'super_like',
+    likedAt: r.created_at,
+  }));
 }
 
 /** Profils-cartes pour une liste d'ids (Map id→carte, respecte deleted_at). */

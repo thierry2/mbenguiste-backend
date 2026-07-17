@@ -880,5 +880,62 @@ alter table public.app_settings enable row level security;
 -- Aucune policy : invisible et inécrivable pour authenticated/anon (voulu).
 
 -- =============================================================================
+--  13. PENDING_LIKES  (agrégat temps réel des likes reçus — cf. migration 020)
+-- =============================================================================
+-- Maintenu par triggers (comme le match mutuel) : l'onglet « Likes » lit
+-- `where target_id` (index) au lieu de charger tous mes swipes pour un NOT IN.
+-- Temps réel, pas de fantômes. RLS fermé au client.
+
+create table if not exists public.pending_likes (
+  target_id    uuid not null references public.profiles(id) on delete cascade,
+  swiper_id    uuid not null references public.profiles(id) on delete cascade,
+  action_code  text not null,                 -- 'like' | 'super_like'
+  created_at   timestamptz not null default now(),
+  primary key (target_id, swiper_id)
+);
+
+create or replace function public.sync_pending_likes()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_code text;
+begin
+  select code into v_code from public.swipe_actions where id = new.action_id;
+  delete from public.pending_likes
+   where target_id = new.swiper_id and swiper_id = new.target_id;
+  if v_code in ('like', 'super_like')
+     and not exists (
+       select 1 from public.swipes s
+       where s.swiper_id = new.target_id and s.target_id = new.swiper_id
+     ) then
+    insert into public.pending_likes (target_id, swiper_id, action_code, created_at)
+    values (new.target_id, new.swiper_id, v_code, new.created_at)
+    on conflict (target_id, swiper_id)
+      do update set action_code = excluded.action_code, created_at = excluded.created_at;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_sync_pending_likes on public.swipes;
+create trigger trg_sync_pending_likes
+  after insert on public.swipes
+  for each row execute function public.sync_pending_likes();
+
+create or replace function public.purge_pending_on_block()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.pending_likes
+   where (target_id = new.blocker_id and swiper_id = new.blocked_id)
+      or (target_id = new.blocked_id and swiper_id = new.blocker_id);
+  return new;
+end $$;
+
+drop trigger if exists trg_purge_pending_on_block on public.blocks;
+create trigger trg_purge_pending_on_block
+  after insert on public.blocks
+  for each row execute function public.purge_pending_on_block();
+
+alter table public.pending_likes enable row level security;
+-- Aucune policy : invisible et inécrivable pour authenticated/anon (voulu).
+
+-- =============================================================================
 --  Done. Backend connects with SUPABASE_SERVICE_ROLE_KEY (bypasses RLS).
 -- =============================================================================
