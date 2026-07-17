@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const catchAsync = require('../utils/catchAsync');
+const logger = require('../utils/logger');
 const ApiError = require('../utils/apiError');
 const config = require('../config');
 const discoveryModel = require('../models/discovery.model');
@@ -24,8 +25,18 @@ const swipe = catchAsync(async (req, res) => {
   const targetId = req.params.id;
   if (targetId === req.user.id) throw ApiError.badRequest('On ne peut pas se swiper soi-même');
 
-  const { match } = await swipeService.applySwipe(req.user.id, targetId, action, cible ?? null);
-  res.json({ success: true, data: { match } });
+  // DEBUG_DECK=on : chaque swipe tracé, ENREGISTRÉ ou REFUSÉ (et pourquoi) —
+  // le pendant serveur du deck : si un profil « revient », soit son swipe
+  // n'apparaît jamais ici (perdu avant d'arriver), soit il est REFUSÉ (402).
+  const debug = process.env.DEBUG_DECK === 'on';
+  try {
+    const { match } = await swipeService.applySwipe(req.user.id, targetId, action, cible ?? null);
+    if (debug) logger.info(`[swipe] viewer=${req.user.id} ${action} → ${targetId} ENREGISTRÉ${match ? ' (MATCH)' : ''}`);
+    res.json({ success: true, data: { match } });
+  } catch (err) {
+    if (debug) logger.warn(`[swipe] viewer=${req.user.id} ${action} → ${targetId} REFUSÉ ${err.statusCode ?? ''} ${err.details?.code ?? err.message}`);
+    throw err;
+  }
 });
 
 /**

@@ -270,11 +270,13 @@ async function candidates(userId, { limit = 20 } = {}) {
     .slice(0, limit);
   funnel.servies = deck.length;
 
-  // DEBUG_DECK=on : trace l'entonnoir complet (exclus = déjà swipés + blocages).
-  // Ex. { exclus: 42, pool: 100, …, apresReciprocite: 18, servies: 18 } — si
-  // `servies` < limit, la ligne dit exactement quel filtre a mangé les cartes.
+  // DEBUG_DECK=on : trace l'entonnoir complet (exclus = déjà swipés + blocages)
+  // + les PRÉNOMS servis dans l'ordre. Si `servies` < limit, la ligne dit quel
+  // filtre a mangé les cartes ; si les mêmes prénoms reviennent fournée après
+  // fournée, c'est que les swipes ne s'enregistrent pas (exclus n'augmente pas).
   if (process.env.DEBUG_DECK === 'on') {
-    logger.info(`[deck] viewer=${userId} ${JSON.stringify(funnel)}`);
+    const noms = deck.map((c) => c.prenom).join(', ');
+    logger.info(`[deck] viewer=${userId} ${JSON.stringify(funnel)} cartes=[${noms}]`);
   }
 
   // Verrou de réciprocité photos (réf Tinder) : sans 2 photos soi-même, chaque
