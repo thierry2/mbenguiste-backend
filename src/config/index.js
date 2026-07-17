@@ -46,7 +46,10 @@ const config = {
   // Gratuité femmes au lancement (doctrine §3) : quand ce flag est actif, une
   // femme reçoit l'Or offert MOINS la révélation (calculé à la volée par
   // access.service, JAMAIS écrit en base → désactivation instantanée et indolore).
-  freeTierWomen: process.env.FREE_TIER_WOMEN === 'on',
+  // `.trim().toLowerCase()` : un copier-coller dans Railway laisse facilement une
+  // espace ou un retour ligne invisibles ('on ' !== 'on') — le piège classique
+  // qui laisse le flag « posé » côté dashboard mais inactif dans le process.
+  freeTierWomen: (process.env.FREE_TIER_WOMEN || '').trim().toLowerCase() === 'on',
 
   // Quotas gratuits (le carburant du paywall) + durée d'un Boost.
   limits: {
