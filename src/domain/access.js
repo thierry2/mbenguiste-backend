@@ -74,13 +74,21 @@ function capabilitiesFor(tier, offert = false) {
 
 /**
  * Les avantages récurrents dus à un palier (crédités paresseusement par
- * grants.service, une fois par période). L'offert reçoit les munitions de
- * l'Or : la doctrine offre l'ACCÈS et les munitions, jamais la révélation.
+ * grants.service, une fois par période).
+ *
+ * Ce que l'OFFERT ne reçoit PAS ici (décision 17/07) : les SUPER LIKES.
+ * Un Super Like traverse le paywall du destinataire (carte épinglée en clair
+ * dans son deck → match) — en offrir 5/semaine à toutes les femmes offertes
+ * reviendrait à distribuer de la révélation gratuite côté hommes. La gratuité
+ * reste au régime de base (quota quotidien d'un compte gratuit) + achat.
+ * Le Boost, mise en avant générique qui ne perce aucun paywall, reste offert.
  */
 function grantsDue(tier, offert = false) {
   const due = [];
-  if (atLeast(tier, 'or')) {
+  if (atLeast(tier, 'or') && !offert) {
     due.push({ kind: 'superlike', quantity: 5, period: 'week' });
+  }
+  if (atLeast(tier, 'or')) {
     due.push({ kind: 'boost', quantity: 1, period: 'month' });
   }
   if (atLeast(tier, 'prestige') && !offert) {

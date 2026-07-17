@@ -173,8 +173,16 @@ test('grants OR payé : 5 Super Likes/semaine + 1 Boost/mois', () => {
   ]);
 });
 
-test('grants OR offert : identiques au payé (le contenu offert inclut les munitions)', () => {
-  assert.deepEqual(grantsDue('or', true), grantsDue('or', false));
+test('grants OR offert : le Boost oui, les Super Likes NON (décision 17/07)', () => {
+  // Le Super Like d'une femme TRAVERSE le paywall de l'homme (carte épinglée en
+  // clair dans son deck → match) : en offrir 5/semaine à toutes les femmes
+  // offertes = distribuer de la révélation gratuite côté hommes. La gratuité
+  // n'ajoute donc AUCUN Super Like — elle reste au régime de base (1/jour,
+  // comme un compte gratuit) + achat. Le Boost, lui, ne perce le paywall de
+  // personne (mise en avant générique) : il reste offert.
+  assert.deepEqual(grantsDue('or', true), [
+    { kind: 'boost', quantity: 1, period: 'month' },
+  ]);
 });
 
 test('grants PRESTIGE : Or inclus + 1 Joker/semaine', () => {

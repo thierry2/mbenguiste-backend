@@ -71,10 +71,12 @@ test('or payé : +5 Super Likes (semaine) et +1 Boost (mois)', async () => {
   assert.equal(somme(creditsModel.granted, 'jokers'), 0, 'le Joker est Prestige only');
 });
 
-test('or OFFERT (femme, flag on) : mêmes munitions que l\'Or payé', async () => {
+test('or OFFERT (femme, flag on) : le Boost oui, AUCUN Super Like (décision 17/07)', async () => {
+  // Le Super Like traverse le paywall du destinataire (deck en clair → match) :
+  // la gratuité n'en offre jamais — régime de base (quota du jour) + achat.
   const { service, creditsModel } = makeService();
   await service.ensure('u1', 'or', true, NOW);
-  assert.equal(somme(creditsModel.granted, 'superLikes'), 5);
+  assert.equal(somme(creditsModel.granted, 'superLikes'), 0);
   assert.equal(somme(creditsModel.granted, 'boosts'), 1);
 });
 
