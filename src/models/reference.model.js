@@ -4,10 +4,21 @@ const supabase = require('../config/supabase');
 // Évite un aller-retour DB à chaque swipe / résolution de code.
 const cache = new Map();
 
-async function loadTable(table, columns = 'id, code, display_name, display_order') {
+// Colonnes par table quand le défaut ne colle pas. swipe_actions n'a PAS de
+// display_order (cf. schema.sql : id, code, display_name) — la sélectionner
+// faisait échouer TOUS les swipes en 500 (« column does not exist »).
+const COLUMNS = {
+  swipe_actions: 'id, code, display_name',
+};
+
+async function loadTable(table, columns = COLUMNS[table] ?? 'id, code, display_name, display_order') {
   if (cache.has(table)) return cache.get(table);
-  const { data, error } = await supabase
-    .from(table).select(columns).order('display_order', { ascending: true });
+  let query = supabase.from(table).select(columns);
+  // On ne trie que si la colonne est demandée (donc existante sur la table).
+  if (columns.includes('display_order')) {
+    query = query.order('display_order', { ascending: true });
+  }
+  const { data, error } = await query;
   if (error) throw error;
   cache.set(table, data || []);
   return data || [];
