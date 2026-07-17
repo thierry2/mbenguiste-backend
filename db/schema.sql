@@ -900,8 +900,12 @@ returns trigger language plpgsql security definer set search_path = public as $$
 declare v_code text;
 begin
   select code into v_code from public.swipe_actions where id = new.action_id;
+
+  -- 1. Le swipe S→T est une RÉPONSE au like éventuel de T→S : T quitte les pending de S.
   delete from public.pending_likes
    where target_id = new.swiper_id and swiper_id = new.target_id;
+
+  -- 2. Le swipe S→T définit si S est un like EN ATTENTE pour T (état = dernier swipe).
   if v_code in ('like', 'super_like')
      and not exists (
        select 1 from public.swipes s
@@ -911,13 +915,22 @@ begin
     values (new.target_id, new.swiper_id, v_code, new.created_at)
     on conflict (target_id, swiper_id)
       do update set action_code = excluded.action_code, created_at = excluded.created_at;
+  else
+    -- pass (ou T a déjà répondu) → S n'est PAS/PLUS un like en attente pour T.
+    -- Indispensable au trigger OR UPDATE : un like→pass en UPSERT retire le
+    -- « like fantôme », sinon S resterait dans les Likes de T après l'avoir passé.
+    delete from public.pending_likes
+     where target_id = new.target_id and swiper_id = new.swiper_id;
   end if;
+
   return new;
 end $$;
 
 drop trigger if exists trg_sync_pending_likes on public.swipes;
+-- INSERT OR UPDATE : swipes est un upsert (record) → un changement d'avis sur une
+-- paire déjà swipée est un UPDATE, qui doit resynchroniser pending_likes.
 create trigger trg_sync_pending_likes
-  after insert on public.swipes
+  after insert or update on public.swipes
   for each row execute function public.sync_pending_likes();
 
 create or replace function public.purge_pending_on_block()
