@@ -857,5 +857,28 @@ alter table public.deck_impressions   enable row level security;
 -- Aucune policy : invisible et inécrivable pour authenticated/anon (voulu).
 
 -- =============================================================================
+--  12. RÉGLAGES À CHAUD  (calibrage matching/ranking — cf. migration 019)
+-- =============================================================================
+-- app_settings (clé → valeur jsonb) : curseur liquidité↔rareté + poids du
+-- ranking, changés par UPDATE SQL (effet ~60 s via cache backend), sans
+-- redéploiement ni MAJ appli. Cascade : app_settings → défaut domaine → clamp.
+-- RLS : FERMÉ au client (lecture + écriture backend service_role only).
+
+create table if not exists public.app_settings (
+  key        text primary key,
+  value      jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.app_settings (key, value) values
+  ('deck.admirer_ratio',         '0.5'::jsonb),
+  ('deck.admirer_cap',           '6'::jsonb),
+  ('ranking.reciprocity_weight', '15'::jsonb)
+on conflict (key) do nothing;
+
+alter table public.app_settings enable row level security;
+-- Aucune policy : invisible et inécrivable pour authenticated/anon (voulu).
+
+-- =============================================================================
 --  Done. Backend connects with SUPABASE_SERVICE_ROLE_KEY (bypasses RLS).
 -- =============================================================================

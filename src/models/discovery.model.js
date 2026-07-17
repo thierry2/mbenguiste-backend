@@ -4,7 +4,8 @@ const logger = require('../utils/logger');
 const { fromRow, photoCount } = require('./profile.model');
 const { idForCode } = require('./reference.model');
 const eventsModel = require('./events.model');
-const { orderDeck, lockPhotos, acceptsMe } = require('../domain/deck');
+const settings = require('./settings.model');
+const { orderDeck, lockPhotos, acceptsMe, splitAdmirers } = require('../domain/deck');
 const { ageFromBirthDate } = require('./profile.model');
 const { scoreCandidates } = require('../domain/ranking');
 const { resolveTier } = require('../domain/access');
@@ -193,7 +194,7 @@ function applyPrefFilters(query, prefs, me) {
 async function candidates(userId, { limit = 20 } = {}) {
   const { excluded, likerIds, superLikerIds, priorityLikerIds, motsAvantMatch, me, mesInteretsCodes } = await discoveryContext(userId);
 
-  const [{ data: prefs }, mesPhotos] = await Promise.all([
+  const [{ data: prefs }, mesPhotos, admirerRatio, admirerCap, reciprocityWeight] = await Promise.all([
     supabase
       .from('match_preferences')
       .select('seeking_gender_id, seeking_goal_id, min_age, max_age, search_country, search_radius_km, require_common_language, min_photos, require_bio, verified_only, origin_country, min_height, max_height, require_shared_interest, lifestyle_filters')
@@ -201,7 +202,18 @@ async function candidates(userId, { limit = 20 } = {}) {
       .maybeSingle(),
     // Verrou de réciprocité photos : combien de photos J'AI (cf. lockPhotos).
     photoCount(userId),
+    // Curseur LIQUIDITÉ ↔ RARETÉ, réglable à chaud (app_settings, cf. décision 17/07).
+    settings.getNumber('deck.admirer_ratio', 0.5, { min: 0, max: 1 }),
+    settings.getNumber('deck.admirer_cap', 6, { min: 0, max: 100 }),
+    settings.getNumber('ranking.reciprocity_weight', 15, { min: 0, max: 100 }),
   ]);
+
+  // Rareté : une part des admirateurs ORDINAIRES est RETENUE hors du deck (elle
+  // ne vit que dans l'onglet « Likes », que vend l'Or). Les super-likes restent
+  // toujours au deck. Sélection stable dans la journée (seed jour × viewer).
+  const daySeed = `${new Date().toISOString().slice(0, 10)}:${userId}`;
+  const { heldBack } = splitAdmirers(likerIds, superLikerIds, { ratio: admirerRatio, cap: admirerCap, seed: daySeed });
+  heldBack.forEach((id) => excluded.add(id));
 
   let query = applyBaseFilters(supabase.from('profiles').select(SELECT_CARD), excluded, likerIds);
   query = applyPrefFilters(query, prefs, me);
@@ -216,7 +228,7 @@ async function candidates(userId, { limit = 20 } = {}) {
   const { data, error } = await query;
   if (error) throw error;
   // Entonnoir de diagnostic (DEBUG_DECK=on) : d'où viennent les cartes perdues.
-  const funnel = { exclus: excluded.size - 1, pool: (data || []).length };
+  const funnel = { exclus: excluded.size - 1, admirateursRetenus: heldBack.size, pool: (data || []).length };
   // Nombre de photos minimum : post-filtre (la relation photos est jointe, pas
   // comptable dans la requête). Peut réduire le lot sous `limit` — acceptable.
   let rows = prefs?.min_photos
@@ -263,6 +275,8 @@ async function candidates(userId, { limit = 20 } = {}) {
     engagement,
     impressions,
     now,
+    // Bonus « m'a likée » réglable à chaud (0 = pas de bonus de tête).
+    config: { weights: { reciprocity: reciprocityWeight } },
   });
 
   // Ordre & marquage délégués au domaine pur : rangs payés ①②③ puis score.

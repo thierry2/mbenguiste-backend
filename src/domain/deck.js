@@ -92,4 +92,47 @@ function acceptsMe(candPrefs, { myGenderId, myAge } = {}) {
   return true;
 }
 
-module.exports = { orderDeck, lockPhotos, acceptsMe };
+/** Hash déterministe [0,1) — FNV-1a (même famille que picks/ranking). */
+function fnv01(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+/**
+ * Curseur LIQUIDITÉ ↔ RARETÉ (décision 17/07) : parmi les gens qui m'ont likée,
+ * lesquels entrent dans mon DECK (match gratuit possible) vs restent RÉSERVÉS à
+ * l'onglet « Likes » (que vend l'Or) ?
+ *  - super-likes reçus : TOUJOURS au deck (promesse vendue, hors curseur) ;
+ *  - likes ordinaires : une fraction `ratio` (plafonnée à `cap`) au deck, le
+ *    reste retenu. Sélection déterministe par `seed` (jour × viewer) → deck
+ *    stable dans la journée, rotation des admirateurs montrés d'un jour à l'autre.
+ * Retourne { deckAdmirers:Set, heldBack:Set } (partition des ordinaires + supers
+ * tous côté deck). Fonction PURE.
+ */
+function splitAdmirers(likerIds, superLikerIds = new Set(), { ratio = 0.5, cap = 6, seed = '' } = {}) {
+  const r = Math.min(1, Math.max(0, ratio));
+  const deckAdmirers = new Set();
+  const heldBack = new Set();
+
+  const ordinaires = [];
+  for (const id of likerIds) {
+    if (superLikerIds.has(id)) deckAdmirers.add(id); // super-like : toujours au deck
+    else ordinaires.push(id);
+  }
+
+  // Combien d'ordinaires au deck : fraction du total, plafonnée par le cap.
+  const quota = Math.min(Math.round(ordinaires.length * r), Math.max(0, cap));
+  // Tri déterministe par hash (seed × id) : les `quota` premiers passent au deck.
+  const classe = ordinaires
+    .map((id) => ({ id, h: fnv01(`${seed}:${id}`) }))
+    .sort((a, b) => a.h - b.h);
+  classe.forEach((x, i) => (i < quota ? deckAdmirers.add(x.id) : heldBack.add(x.id)));
+
+  return { deckAdmirers, heldBack };
+}
+
+module.exports = { orderDeck, lockPhotos, acceptsMe, splitAdmirers };
