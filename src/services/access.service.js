@@ -30,6 +30,18 @@ function createAccessService({ config, profiles }) {
       now,
     });
 
+    // TODO(diag) TEMPORAIRE — à retirer : voit le genre lu par le backend, le flag
+    // tel que CE process le voit, et le palier résolu. Tranche flag vs genre vs logique.
+    console.log('[DIAG access]', JSON.stringify({
+      userId,
+      rowFound: !!row,
+      genderCode: row?.genderCode ?? null,
+      premiumTier,
+      freeTierWomen: !!config.freeTierWomen,
+      tier,
+      offert,
+    }));
+
     const boostActiveUntil =
       row?.boostActiveUntil && new Date(row.boostActiveUntil).getTime() > now
         ? row.boostActiveUntil
