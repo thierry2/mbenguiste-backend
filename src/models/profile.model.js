@@ -232,12 +232,16 @@ async function setPremiumStatus(id, { isPremium: prem, tier, premiumUntil }) {
  * → { isPremium, premiumTier, premiumUntil, genderCode, boostActiveUntil } | null
  */
 async function accessRow(id) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('is_premium, premium_tier, premium_until, boost_active_until, gender:genders!gender_id(code)')
     .eq('id', id)
     .is('deleted_at', null)
     .maybeSingle();
+  // NE JAMAIS avaler cette erreur : une colonne manquante (migration 016/017 non
+  // passée) renverrait { data: null } → tout le monde dégradé en `free` EN SILENCE
+  // (paywall partout, gratuité femmes morte). On la fait remonter, bruyamment.
+  if (error) throw error;
   if (!data) return null;
   return {
     isPremium: data.is_premium ?? false,
