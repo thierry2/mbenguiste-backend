@@ -1,5 +1,6 @@
 const supabase = require('../config/supabase');
 const config = require('../config');
+const logger = require('../utils/logger');
 const { fromRow, photoCount } = require('./profile.model');
 const { idForCode } = require('./reference.model');
 const eventsModel = require('./events.model');
@@ -214,17 +215,23 @@ async function candidates(userId, { limit = 20 } = {}) {
 
   const { data, error } = await query;
   if (error) throw error;
+  // Entonnoir de diagnostic (DEBUG_DECK=on) : d'où viennent les cartes perdues.
+  const funnel = { exclus: excluded.size - 1, pool: (data || []).length };
   // Nombre de photos minimum : post-filtre (la relation photos est jointe, pas
   // comptable dans la requête). Peut réduire le lot sous `limit` — acceptable.
   let rows = prefs?.min_photos
     ? (data || []).filter((r) => (r.photos?.length ?? 0) >= prefs.min_photos)
     : (data || []);
+  funnel.apresPhotosMin = rows.length;
   // Rayon (km) autour de MA position — post-filtre JS (haversine).
   rows = filterByRadius(rows, prefs, me);
+  funnel.apresRayon = rows.length;
   // Au moins un intérêt en commun — post-filtre JS (relation jointe).
   rows = filterBySharedInterest(rows, prefs, mesInteretsCodes);
+  funnel.apresInteretCommun = rows.length;
   // Réciprocité : seuls restent les candidats dont les préférences m'acceptent.
   rows = filterByReciprocity(rows, me);
+  funnel.apresReciprocite = rows.length;
   const mapped = rows.map((row) => ({
     ...fromRow(row),
     routesCroisees: crossesRoutes(me, row),
@@ -261,6 +268,14 @@ async function candidates(userId, { limit = 20 } = {}) {
   // Ordre & marquage délégués au domaine pur : rangs payés ①②③ puis score.
   const deck = orderDeck(mapped, { superLikerIds, priorityLikerIds, boostedIds, scores })
     .slice(0, limit);
+  funnel.servies = deck.length;
+
+  // DEBUG_DECK=on : trace l'entonnoir complet (exclus = déjà swipés + blocages).
+  // Ex. { exclus: 42, pool: 100, …, apresReciprocite: 18, servies: 18 } — si
+  // `servies` < limit, la ligne dit exactement quel filtre a mangé les cartes.
+  if (process.env.DEBUG_DECK === 'on') {
+    logger.info(`[deck] viewer=${userId} ${JSON.stringify(funnel)}`);
+  }
 
   // Verrou de réciprocité photos (réf Tinder) : sans 2 photos soi-même, chaque
   // carte ne livre que les 2 premières — la suite devient la slide « Débloquer
