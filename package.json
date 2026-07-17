@@ -22,6 +22,7 @@
   "private": true,
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@huggingface/transformers": "^4.2.0",
     "@supabase/supabase-js": "^2.108.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -35,10 +36,16 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
+    "@electric-sql/pglite-pgvector": "^0.0.5",
     "eslint": "^9.7.0",
     "nodemon": "^3.1.4"
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "overrides": {
+    "@huggingface/transformers": {
+      "sharp": "$sharp"
+    }
   }
 }

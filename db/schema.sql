@@ -13,6 +13,7 @@
 
 create extension if not exists "pgcrypto";      -- gen_random_uuid()
 create extension if not exists "postgis";        -- geography(Point) for distance (optional, see note)
+create extension if not exists vector;           -- pgvector : halfvec + HNSW (embeddings photo, cf. §14)
 
 -- =============================================================================
 --  1. REFERENCE TABLES (lookup / enums-as-tables, same style as AfrikMoms)
@@ -935,6 +936,25 @@ create trigger trg_purge_pending_on_block
 
 alter table public.pending_likes enable row level security;
 -- Aucune policy : invisible et inécrivable pour authenticated/anon (voulu).
+
+-- =============================================================================
+--  14. EMBEDDINGS PHOTO  (similarité visuelle — cf. migration 021)
+-- =============================================================================
+-- Empreinte SigLIP 2 (768 dims, générée en LOCAL, pas de reconnaissance faciale)
+-- par photo + signature visuelle du profil (moyenne pondérée, photo principale
+-- double). Comparées au goût appris du viewer par cosinus (deck/picks/Mystère).
+
+alter table public.profile_photos
+  add column if not exists embedding halfvec(768);
+
+alter table public.profiles
+  add column if not exists photo_vec halfvec(768);
+
+create index if not exists idx_profiles_photo_vec_hnsw
+  on public.profiles using hnsw (photo_vec halfvec_cosine_ops);
+
+create index if not exists idx_profile_photos_embedding_hnsw
+  on public.profile_photos using hnsw (embedding halfvec_cosine_ops);
 
 -- =============================================================================
 --  Done. Backend connects with SUPABASE_SERVICE_ROLE_KEY (bypasses RLS).

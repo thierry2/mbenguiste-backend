@@ -266,6 +266,14 @@ async function photoCount(profileId) {
   return count ?? 0;
 }
 
+/** Signature visuelle du profil (halfvec, littéral '[…]' ou null). Cf. cahier §2. */
+async function setPhotoVec(profileId, vecLiteral) {
+  const { error } = await supabase.from('profiles')
+    .update({ photo_vec: vecLiteral })
+    .eq('id', profileId);
+  if (error) throw error; // supabase.update() ne rejette pas tout seul : on vérifie
+}
+
 /** Touch last_active_at (présence). Non bloquant, appelé sur /me. */
 async function touchActivity(id) {
   await supabase.from('profiles')
@@ -307,4 +315,4 @@ async function softDelete(id) {
   if (error) throw error;
 }
 
-module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, accessRow, setLocation, photoCount };
+module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, accessRow, setLocation, photoCount, setPhotoVec };

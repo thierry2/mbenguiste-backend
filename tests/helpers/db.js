@@ -16,6 +16,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { PGlite } = require('@electric-sql/pglite');
+// pgvector (halfvec + HNSW) : la VRAIE extension, embarquée pour PGlite —
+// schema.sql exécute `create extension if not exists vector;` verbatim.
+const { vector } = require('@electric-sql/pglite-pgvector');
 
 const SCHEMA_PATH = path.join(__dirname, '..', '..', 'db', 'schema.sql');
 
@@ -41,7 +44,7 @@ grant execute on function auth.uid() to authenticated;
 
 /** Base neuve : socle auth factice + schema.sql verbatim (adapté, cf. en-tête). */
 async function createDb() {
-  const db = await PGlite.create();
+  const db = await PGlite.create({ extensions: { vector } });
   await db.exec(SUPABASE_STUBS);
   const schema = fs
     .readFileSync(SCHEMA_PATH, 'utf8')
