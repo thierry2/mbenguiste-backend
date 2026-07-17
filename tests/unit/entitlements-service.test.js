@@ -17,7 +17,7 @@ const { capabilitiesFor } = require('../../src/domain/access');
 
 const FUTUR = new Date(Date.now() + 86_400_000).toISOString();
 
-const CONFIG = { limits: { freeLikesPer12h: 20, freeSuperLikesPerDay: 1, freeTranslationsPerDay: 10 } };
+const CONFIG = { limits: { freeLikesPer12h: 20, freeSuperLikesPerDay: 1, freeTranslationsPerDay: 10, freePicksLikesPerDay: 1 } };
 
 function makeService({ tier = 'free', offert = false, premiumUntil = null, boostActiveUntil = null, credits = {}, used = {} } = {}) {
   const journal = { grantCalls: [], readOrder: [] };
@@ -64,6 +64,7 @@ test('gratuit : tous les quotas comptés, capacités à false, crédits à zéro
   assert.equal(e.offert, false);
   assert.deepEqual(e.quotas.likes, { illimite: false, restants: 15, limite: 20, resetLe: '2026-07-16T00:00:00.000Z' });
   assert.deepEqual(e.quotas.superLikes, { illimite: false, restants: 0, limite: 1, resetLe: '2026-07-16T00:00:00.000Z' });
+  assert.deepEqual(e.quotas.picks, { illimite: false, restants: 1, limite: 1, resetLe: '2026-07-16T00:00:00.000Z' }, 'quota picks exposé');
   assert.deepEqual(e.quotas.translations, { illimite: false, restants: 7, limite: 10, resetLe: '2026-07-16T00:00:00.000Z' });
   assert.equal(e.capacites.grilleDefloutee, false);
   assert.deepEqual(e.credits, { coupsDeCoeur: 0, boosts: 0, jokers: 0 });
@@ -81,6 +82,7 @@ test('or payé : likes/traduction illimités, Super Likes RESTENT comptés (jama
   assert.equal(e.palier, 'or');
   assert.deepEqual(e.quotas.likes, { illimite: true });
   assert.deepEqual(e.quotas.translations, { illimite: true });
+  assert.deepEqual(e.quotas.picks, { illimite: true }, 'Or : picks illimités (picksIllimites)');
   assert.equal(e.quotas.superLikes.illimite, false, 'doctrine 15/07 : l\'Or n\'a PLUS de Super Likes illimités');
   assert.equal(e.quotas.superLikes.restants, 0);
   assert.equal(e.credits.coupsDeCoeur, 5, 'ses munitions viennent du grant hebdo');

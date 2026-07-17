@@ -35,6 +35,11 @@ function createEntitlementsService({ config, access, grants, usage, credits }) {
         : await counted(userId, 'like', L.freeLikesPer12h),
       // Le Super Like reste un consommable rare : compté même en premium.
       superLikes: await counted(userId, 'superlike', L.freeSuperLikesPerDay),
+      // Like d'un Coup de cœur : 1 gratuit/jour, illimité en Or (picksIllimites).
+      // Exposé pour que le front décompte le cœur des picks de façon déterministe.
+      picks: a.caps.picksIllimites
+        ? { illimite: true }
+        : await counted(userId, 'picks_like', L.freePicksLikesPerDay),
       translations: a.caps.traductionIllimitee
         ? { illimite: true }
         : await counted(userId, 'translation', L.freeTranslationsPerDay),
