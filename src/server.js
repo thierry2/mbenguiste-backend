@@ -18,6 +18,10 @@ async function start() {
 
   server = app.listen(config.port, () => {
     logger.info(`Mbenguiste API démarrée sur le port ${config.port} (${config.env})`);
+    // Flag de gratuité femmes lu au boot : si Railway n'a pas redéployé après
+    // l'ajout de la variable, on verra 'off' ici alors qu'elle est bien posée
+    // dans le dashboard — c'est LE signe que le process n'a pas la variable.
+    logger.info(`FREE_TIER_WOMEN=${config.freeTierWomen ? 'on' : 'off'}`);
   });
 }
 
