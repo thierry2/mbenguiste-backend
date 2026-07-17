@@ -49,4 +49,47 @@ function orderDeck(cards, {
     .map((x) => x.c);
 }
 
-module.exports = { orderDeck };
+/**
+ * Verrou de réciprocité photos, appliqué à la PILE (réf Tinder, spec 16/07) :
+ * sans `required` photos soi-même, chaque carte ne livre que les `visible`
+ * premières photos — `photosVerrouillees` + `photosTotal` disent au front de
+ * rendre la slide « Débloquer les photos » à la place du reste. Le flag n'est
+ * posé que s'il y a RÉELLEMENT des photos cachées (≤ visible = rien à vendre).
+ * Nouvelle liste, source intacte (pure).
+ */
+function lockPhotos(cards, { myPhotoCount = 0, required = 2, visible = 2 } = {}) {
+  const unlocked = myPhotoCount >= required;
+  return cards.map((c) => {
+    const total = c.photos?.length ?? 0;
+    if (unlocked || total <= visible) {
+      return { ...c, photosVerrouillees: false, photosTotal: total };
+    }
+    return {
+      ...c,
+      photos: (c.photos ?? []).slice(0, visible),
+      photosVerrouillees: true,
+      photosTotal: total,
+    };
+  });
+}
+
+/**
+ * Réciprocité (spec 16/07) : les préférences du CANDIDAT m'acceptent-elles ?
+ * Filtre DUR, symétrique du filtre genre/âge que j'applique de mon côté —
+ * sans lui, on sert des profils qui ne me verront jamais (like à fonds perdus).
+ * Doctrine de tolérance : l'INCONNU laisse passer (pas de ligne de préférences,
+ * borne absente, mon genre/âge non renseigné) — on ne filtre que sur du certain.
+ */
+function acceptsMe(candPrefs, { myGenderId, myAge } = {}) {
+  if (!candPrefs) return true;
+  if (candPrefs.seeking_gender_id && myGenderId && candPrefs.seeking_gender_id !== myGenderId) {
+    return false;
+  }
+  if (myAge != null) {
+    if (candPrefs.min_age != null && myAge < candPrefs.min_age) return false;
+    if (candPrefs.max_age != null && myAge > candPrefs.max_age) return false;
+  }
+  return true;
+}
+
+module.exports = { orderDeck, lockPhotos, acceptsMe };

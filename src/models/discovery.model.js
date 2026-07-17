@@ -1,8 +1,10 @@
 const supabase = require('../config/supabase');
-const { fromRow } = require('./profile.model');
+const config = require('../config');
+const { fromRow, photoCount } = require('./profile.model');
 const { idForCode } = require('./reference.model');
 const eventsModel = require('./events.model');
-const { orderDeck } = require('../domain/deck');
+const { orderDeck, lockPhotos, acceptsMe } = require('../domain/deck');
+const { ageFromBirthDate } = require('./profile.model');
 const { scoreCandidates } = require('../domain/ranking');
 const { resolveTier } = require('../domain/access');
 
@@ -18,7 +20,8 @@ const SELECT_CARD = `
   goal:relationship_goals!relationship_goal_id(code, display_name),
   photos:profile_photos(id, url, position),
   interests:profile_interests(interest:interests(code, display_name)),
-  prompts:profile_prompts(answer, position, prompt:prompts(code, question))
+  prompts:profile_prompts(answer, position, prompt:prompts(code, question)),
+  prefs:match_preferences(seeking_gender_id, min_age, max_age)
 `.trim();
 
 /**
@@ -31,7 +34,7 @@ async function discoveryContext(userId) {
     supabase.from('blocks').select('blocker_id').eq('blocked_id', userId),
     supabase.from('blocks').select('blocked_id').eq('blocker_id', userId),
     supabase.from('profiles')
-      .select('current_country, current_city, current_lat, current_lng, target_country, target_city, spoken_languages, intention, origin_country')
+      .select('current_country, current_city, current_lat, current_lng, target_country, target_city, spoken_languages, intention, origin_country, gender_id, birth_date')
       .eq('id', userId)
       .maybeSingle(),
     // Qui m'a likée + le palier du likeur (Priority Likes / mot avant match) et
@@ -89,6 +92,16 @@ async function discoveryContext(userId) {
   const mesInteretsCodes = (mesInterets || []).map((r) => r.interest?.code).filter(Boolean);
 
   return { excluded, likerIds, superLikerIds, priorityLikerIds, motsAvantMatch, me, mesInteretsCodes };
+}
+
+/**
+ * Réciprocité (post-filtre JS, relation jointe) : ne garder que les candidats
+ * dont les préférences M'ACCEPTENT (genre + tranche d'âge). L'embed one-to-one
+ * peut arriver en objet ou en tableau selon la détection PostgREST → normalisé.
+ */
+function filterByReciprocity(rows, me) {
+  const ctx = { myGenderId: me?.gender_id ?? null, myAge: ageFromBirthDate(me?.birth_date) };
+  return rows.filter((r) => acceptsMe(Array.isArray(r.prefs) ? r.prefs[0] : r.prefs, ctx));
 }
 
 /**
@@ -179,11 +192,15 @@ function applyPrefFilters(query, prefs, me) {
 async function candidates(userId, { limit = 20 } = {}) {
   const { excluded, likerIds, superLikerIds, priorityLikerIds, motsAvantMatch, me, mesInteretsCodes } = await discoveryContext(userId);
 
-  const { data: prefs } = await supabase
-    .from('match_preferences')
-    .select('seeking_gender_id, seeking_goal_id, min_age, max_age, search_country, search_radius_km, require_common_language, min_photos, require_bio, verified_only, origin_country, min_height, max_height, require_shared_interest, lifestyle_filters')
-    .eq('profile_id', userId)
-    .maybeSingle();
+  const [{ data: prefs }, mesPhotos] = await Promise.all([
+    supabase
+      .from('match_preferences')
+      .select('seeking_gender_id, seeking_goal_id, min_age, max_age, search_country, search_radius_km, require_common_language, min_photos, require_bio, verified_only, origin_country, min_height, max_height, require_shared_interest, lifestyle_filters')
+      .eq('profile_id', userId)
+      .maybeSingle(),
+    // Verrou de réciprocité photos : combien de photos J'AI (cf. lockPhotos).
+    photoCount(userId),
+  ]);
 
   let query = applyBaseFilters(supabase.from('profiles').select(SELECT_CARD), excluded, likerIds);
   query = applyPrefFilters(query, prefs, me);
@@ -206,6 +223,8 @@ async function candidates(userId, { limit = 20 } = {}) {
   rows = filterByRadius(rows, prefs, me);
   // Au moins un intérêt en commun — post-filtre JS (relation jointe).
   rows = filterBySharedInterest(rows, prefs, mesInteretsCodes);
+  // Réciprocité : seuls restent les candidats dont les préférences m'acceptent.
+  rows = filterByReciprocity(rows, me);
   const mapped = rows.map((row) => ({
     ...fromRow(row),
     routesCroisees: crossesRoutes(me, row),
@@ -240,8 +259,18 @@ async function candidates(userId, { limit = 20 } = {}) {
   });
 
   // Ordre & marquage délégués au domaine pur : rangs payés ①②③ puis score.
-  return orderDeck(mapped, { superLikerIds, priorityLikerIds, boostedIds, scores })
+  const deck = orderDeck(mapped, { superLikerIds, priorityLikerIds, boostedIds, scores })
     .slice(0, limit);
+
+  // Verrou de réciprocité photos (réf Tinder) : sans 2 photos soi-même, chaque
+  // carte ne livre que les 2 premières — la suite devient la slide « Débloquer
+  // les photos ». Appliqué SERVEUR (incontournable) et APRÈS le scoring : le
+  // ranking juge le vrai profil, pas la version tronquée.
+  return lockPhotos(deck, {
+    myPhotoCount: mesPhotos,
+    required: config.limits.photosRequiredToView,
+    visible: config.limits.photosRequiredToView,
+  });
 }
 
 /**
@@ -319,32 +348,23 @@ async function countCandidates(userId, apiPrefs = {}) {
     lifestyle_filters: apiPrefs.lifestyleFiltres ?? {},
   };
 
-  // Photos minimum, rayon OU intérêt commun : incomptables dans la requête → on
-  // récupère les lignes (ids + coords + photos + intérêts) et on filtre en JS,
-  // exactement comme `candidates` (le compteur ne doit jamais mentir).
-  const postFiltre = prefs.min_photos || shouldApplyRadius(prefs, me)
-    || (prefs.require_shared_interest && mesInteretsCodes.length > 0);
-  if (postFiltre) {
-    let q = applyBaseFilters(
-      supabase.from('profiles').select('id, current_lat, current_lng, photos:profile_photos(id), interests:profile_interests(interest:interests(code))'),
-      excluded, likerIds,
-    );
-    q = applyPrefFilters(q, prefs, me);
-    const { data, error } = await q;
-    if (error) throw error;
-    let rows = data || [];
-    if (prefs.min_photos) rows = rows.filter((r) => (r.photos?.length ?? 0) >= prefs.min_photos);
-    rows = filterByRadius(rows, prefs, me);
-    rows = filterBySharedInterest(rows, prefs, mesInteretsCodes);
-    return rows.length;
-  }
-
-  // Sinon, comptage exact côté serveur (head = pas de lignes transférées).
-  let q = applyBaseFilters(supabase.from('profiles').select('id', { count: 'exact', head: true }), excluded, likerIds);
+  // La réciprocité (préférences du candidat) est une relation jointe, comme les
+  // photos minimum, le rayon et l'intérêt commun : incomptable dans la requête.
+  // On récupère donc TOUJOURS les lignes et on filtre en JS, exactement comme
+  // `candidates` (le compteur ne doit jamais mentir).
+  let q = applyBaseFilters(
+    supabase.from('profiles').select('id, current_lat, current_lng, photos:profile_photos(id), interests:profile_interests(interest:interests(code)), prefs:match_preferences(seeking_gender_id, min_age, max_age)'),
+    excluded, likerIds,
+  );
   q = applyPrefFilters(q, prefs, me);
-  const { count, error } = await q;
+  const { data, error } = await q;
   if (error) throw error;
-  return count ?? 0;
+  let rows = data || [];
+  if (prefs.min_photos) rows = rows.filter((r) => (r.photos?.length ?? 0) >= prefs.min_photos);
+  rows = filterByRadius(rows, prefs, me);
+  rows = filterBySharedInterest(rows, prefs, mesInteretsCodes);
+  rows = filterByReciprocity(rows, me);
+  return rows.length;
 }
 
 /**

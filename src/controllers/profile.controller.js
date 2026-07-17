@@ -31,13 +31,15 @@ const getById = catchAsync(async (req, res) => {
   if (!profile) throw ApiError.notFound('Profil introuvable');
 
   // Verrou de réciprocité photos (réf Tinder) : sans N photos soi-même, on ne
-  // voit QUE la 1re photo des autres. Appliqué serveur (incontournable) et à
-  // tout le monde, Or compris. Le front affiche le bloc « Débloquer les photos ».
+  // voit que les 2 PREMIÈRES photos des autres (aligné sur le deck — spec
+  // 16/07). Appliqué serveur (incontournable) et à tout le monde, Or compris.
+  // Le flag n'est posé que s'il y a réellement des photos cachées.
   if (req.params.id !== req.user.id) {
+    const visible = config.limits.photosRequiredToView;
     profile.photosTotal = profile.photos.length;
     const mine = await profileModel.photoCount(req.user.id);
-    if (mine < config.limits.photosRequiredToView) {
-      profile.photos = profile.photos.slice(0, 1);
+    if (mine < config.limits.photosRequiredToView && profile.photos.length > visible) {
+      profile.photos = profile.photos.slice(0, visible);
       profile.photosVerrouillees = true;
     } else {
       profile.photosVerrouillees = false;
