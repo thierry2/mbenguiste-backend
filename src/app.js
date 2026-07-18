@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -12,6 +13,31 @@ const app = express();
 
 // Derrière le reverse proxy Railway.
 app.set('trust proxy', 1);
+
+// ── Pages web servies par CE service (même backend) ──────────────────────────
+// Le portail partenaire (/partenaires) et la console admin (/admin). Montés
+// AVANT helmet : ces pages embarquent styles/scripts inline + Supabase Auth, que
+// la CSP par défaut de helmet casserait. En-têtes de discrétion posés à la main.
+const WEB_DIR = path.join(__dirname, '..', 'web');
+function pageHeaders(_req, res, next) {
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.set('X-Frame-Options', 'DENY');
+  res.set('Referrer-Policy', 'no-referrer');
+  next();
+}
+// Config publique du portail (URL + clé anon Supabase) pour l'auth côté navigateur.
+app.get('/partenaires/config.json', pageHeaders, (_req, res) => {
+  res.json({ supabaseUrl: config.supabase.url, supabaseAnonKey: config.supabase.anonKey });
+});
+// `redirect: false` : sans ça, /partenaires renvoie un 301 vers /partenaires/
+// (redirection de dossier) au lieu d'être servi directement par le repli.
+const staticOpts = { redirect: false };
+app.use('/partenaires', pageHeaders, express.static(path.join(WEB_DIR, 'portal'), staticOpts));
+app.get(/^\/partenaires(\/.*)?$/, pageHeaders, (_req, res) =>
+  res.sendFile(path.join(WEB_DIR, 'portal', 'index.html')));
+app.use('/admin', pageHeaders, express.static(path.join(WEB_DIR, 'admin'), staticOpts));
+app.get(/^\/admin(\/.*)?$/, pageHeaders, (_req, res) =>
+  res.sendFile(path.join(WEB_DIR, 'admin', 'index.html')));
 
 app.use(helmet());
 app.use(cors({ origin: config.cors.origins, credentials: true }));

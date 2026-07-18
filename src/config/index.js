@@ -13,6 +13,8 @@ const config = {
     // vraies credentials. Les requêtes réelles échoueront tant qu'elles ne sont pas définies.
     url: process.env.SUPABASE_URL || 'http://127.0.0.1:54321',
     serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-key',
+    // Clé anon (PUBLIQUE) — servie au portail partenaire pour Supabase Auth côté navigateur.
+    anonKey: process.env.SUPABASE_ANON_KEY || '',
   },
 
   cors: {
