@@ -321,8 +321,13 @@ create table if not exists public.reports (
   reason_id    uuid references public.report_reasons(id),
   details      text,
   status       text not null default 'open',              -- 'open' | 'reviewing' | 'closed'
-  created_at   timestamptz not null default now()
+  created_at   timestamptz not null default now(),
+  -- Traçabilité de la décision (migration 025, console de modération).
+  admin_note   text,
+  admin_action text,                                      -- 'retirer' | 'restaurer' | 'rejeter'
+  treated_at   timestamptz
 );
+create index if not exists idx_reports_status_created on public.reports (status, created_at desc);
 -- Idempotence : un seul dossier OUVERT par (signaleur, signalé) — cf. migration 014.
 create unique index if not exists uniq_open_report_per_pair
   on public.reports (reporter_id, reported_id) where status = 'open';
@@ -337,6 +342,10 @@ create table if not exists public.freeform_reports (
   body         text not null,
   status       text not null default 'open',              -- 'open' | 'reviewing' | 'closed'
   created_at   timestamptz not null default now(),
+  -- Traçabilité de la décision (migration 025, console de modération).
+  admin_note   text,
+  admin_action text,
+  treated_at   timestamptz,
   constraint chk_freeform_body_len check (char_length(body) between 20 and 2000)
 );
 create index if not exists idx_freeform_reports_status on public.freeform_reports (status, created_at);

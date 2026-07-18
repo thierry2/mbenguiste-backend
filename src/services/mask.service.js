@@ -7,9 +7,20 @@ const supabase = require('../config/supabase');
 // trahit pas l'identité). On sert cette image dans les contextes masqués
 // (« qui t'a liké », aventures) ; l'originale ne part jamais au client là-bas.
 //
-// Sécurité du flou : on passe d'abord par un TRÈS fort downscale (~40 px) qui
-// DÉTRUIT l'information (irréversible, contrairement à un flou gaussien léger),
-// puis on ré-agrandit + adoucit pour un rendu lisse « photo hors-focus ».
+// Sécurité du flou (⚠ relire AVANT de toucher aux réglages de `blur()`) : le
+// masque n'est PLUS le downscale ~40 px d'origine — il a été desserré à 220 px
+// pour le rendu, et l'ancien argument « le downscale détruit l'information »
+// ne décrit donc plus ce code. Ce qui rend aujourd'hui le visage non
+// identifiable, c'est le gaussien sigma 20 SUR une image de 220 px de large :
+// le noyau déborde sur plus d'un quart de la largeur, et la quantification
+// JPEG achève les hautes fréquences. Adoucir ce couple (agrandir la taille OU
+// baisser le sigma) rendrait des visages reconnaissables.
+//
+// Ce masque est la PREMIÈRE de deux couches indépendantes. L'écran Mystère
+// ajoute par-dessus un flou client qui ne descend jamais sous un plancher —
+// voir `frontend/src/lib/mystereReveal.ts`, dont les tests verrouillent ce
+// plancher. L'indépendance est voulue : desserrer une couche ne suffit pas à
+// créer une fuite. Ce n'est pas une invitation à desserrer celle-ci.
 const BUCKET = 'photos';
 const PUBLIC_MARKER = '/object/public/photos/';
 
