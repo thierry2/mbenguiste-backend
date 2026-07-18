@@ -33,10 +33,14 @@ app.get('/partenaires/config.json', pageHeaders, (_req, res) => {
 // (redirection de dossier) au lieu d'être servi directement par le repli.
 const staticOpts = { redirect: false };
 app.use('/partenaires', pageHeaders, express.static(path.join(WEB_DIR, 'portal'), staticOpts));
-app.get(/^\/partenaires(\/.*)?$/, pageHeaders, (_req, res) =>
-  res.sendFile(path.join(WEB_DIR, 'portal', 'index.html')));
 app.use('/admin', pageHeaders, express.static(path.join(WEB_DIR, 'admin'), staticOpts));
-app.get(/^\/admin(\/.*)?$/, pageHeaders, (_req, res) =>
+
+// Chemins EXACTS seulement : un sous-chemin inventé (/admin/nimporte-quoi) doit
+// tomber en 404, pas servir la console. Le retour d'auth Supabase arrive sur
+// /partenaires avec un fragment (#access_token), jamais un sous-chemin.
+app.get(['/partenaires', '/partenaires/'], pageHeaders, (_req, res) =>
+  res.sendFile(path.join(WEB_DIR, 'portal', 'index.html')));
+app.get(['/admin', '/admin/'], pageHeaders, (_req, res) =>
   res.sendFile(path.join(WEB_DIR, 'admin', 'index.html')));
 
 app.use(helmet());
