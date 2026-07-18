@@ -49,15 +49,18 @@ test('abonnement expiré → free (le garde-fou du domaine s\'applique)', async 
   assert.equal(acc.tier, 'free');
 });
 
-test('femme + flag → or offert, générosité silencieuse (grille JAMAIS défloutée)', async () => {
+test('femme + flag → PLUS offert (confort seul, aucune capacité Or)', async () => {
   const acc = await makeService(
     { premiumTier: null, premiumUntil: null, isPremium: false, genderCode: 'woman', boostActiveUntil: null },
     { freeTierWomen: true },
   ).forUser('u1');
-  assert.equal(acc.tier, 'or');
+  assert.equal(acc.tier, 'plus');
   assert.equal(acc.offert, true);
-  assert.equal(acc.caps.likesIllimites, true);
-  assert.equal(acc.caps.grilleDefloutee, false);
+  assert.equal(acc.caps.likesIllimites, true);   // confort offert
+  assert.equal(acc.caps.peutRewind, true);
+  assert.equal(acc.caps.peutIncognito, true);
+  assert.equal(acc.caps.grilleDefloutee, false); // pas Or : jamais de révélation
+  assert.equal(acc.caps.filtresAvances, false);
 });
 
 test('boost actif : l\'échéance future est exposée, une échéance passée devient null', async () => {

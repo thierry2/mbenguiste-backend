@@ -36,7 +36,13 @@ function resolveTier({ premiumTier, premiumUntil, genderCode, freeTierWomen, now
     (!premiumUntil || new Date(premiumUntil).getTime() > now);
   if (paidValid) return { tier: premiumTier, offert: false };
 
-  if (freeTierWomen && genderCode === 'woman') return { tier: 'or', offert: true };
+  // Gratuité femmes = le palier PLUS offert (décision 18/07), PAS Or : likes ∞,
+  // rewind ∞, incognito — le confort de son côté de l'écran, rien de plus. Tout
+  // ce qui fabrique du match gratuit côté homme est exclu : Super Like (traverse
+  // son deck en clair → match), grille défloutée (ses likes reçus en clair → elle
+  // like → match), Boost (si toutes boostent, il ne vaut plus rien). Ces trois-là
+  // sont Or/consommables, donc hors du palier offert.
+  if (freeTierWomen && genderCode === 'woman') return { tier: 'plus', offert: true };
 
   return { tier: 'free', offert: false };
 }
@@ -76,22 +82,21 @@ function capabilitiesFor(tier, offert = false) {
  * Les avantages récurrents dus à un palier (crédités paresseusement par
  * grants.service, une fois par période).
  *
- * Ce que l'OFFERT ne reçoit PAS ici (décision 17/07) : les SUPER LIKES.
- * Un Super Like traverse le paywall du destinataire (carte épinglée en clair
- * dans son deck → match) — en offrir 5/semaine à toutes les femmes offertes
- * reviendrait à distribuer de la révélation gratuite côté hommes. La gratuité
- * reste au régime de base (quota quotidien d'un compte gratuit) + achat.
- * Le Boost, mise en avant générique qui ne perce aucun paywall, reste offert.
+ * Un palier OFFERT ne reçoit AUCUN grant (décision 18/07) : Super Like et grille
+ * défloutée fabriquent du match gratuit côté homme, et un Boost offert à toutes
+ * les femmes ne vaut plus rien. La gratuité femmes = le confort de Plus (qui n'a
+ * de toute façon aucun grant) et point. Le garde `offert` reste une défense en
+ * profondeur : même si un jour un palier ≥ Or était offert, zéro munition ne
+ * partirait.
  */
 function grantsDue(tier, offert = false) {
+  if (offert) return [];
   const due = [];
-  if (atLeast(tier, 'or') && !offert) {
-    due.push({ kind: 'superlike', quantity: 5, period: 'week' });
-  }
   if (atLeast(tier, 'or')) {
+    due.push({ kind: 'superlike', quantity: 5, period: 'week' });
     due.push({ kind: 'boost', quantity: 1, period: 'month' });
   }
-  if (atLeast(tier, 'prestige') && !offert) {
+  if (atLeast(tier, 'prestige')) {
     due.push({ kind: 'joker', quantity: 1, period: 'week' });
   }
   return due;

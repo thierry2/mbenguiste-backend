@@ -54,7 +54,11 @@ const config = {
   // Quotas gratuits (le carburant du paywall) + durée d'un Boost.
   limits: {
     freeLikesPer12h:        parseInt(process.env.FREE_LIKES_12H, 10)        || 20,
-    freeSuperLikesPerDay:   parseInt(process.env.FREE_SUPERLIKES_DAY, 10)   || 1,
+    // 0 : le Super Like n'a AUCUN quota gratuit quotidien (décision 18/07). Le
+    // « 1 gratuit / jour » qu'on lui prêtait par erreur, c'est le COUP DE CŒUR
+    // (freePicksLikesPerDay ci-dessous). Un Super Like s'obtient par achat (packs)
+    // ou par le grant Or PAYÉ (5/sem) — jamais offert, jamais quotidien gratuit.
+    freeSuperLikesPerDay:   parseInt(process.env.FREE_SUPERLIKES_DAY, 10)   || 0,
     // 0 : la traduction est un avantage OR, jamais offert (chaque message traduit
     // = un appel Gemini facturé). Mettre >0 rouvrirait un quota d'essai gratuit.
     freeTranslationsPerDay: parseInt(process.env.FREE_TRANSLATIONS_DAY, 10) || 0,

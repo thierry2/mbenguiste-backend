@@ -61,9 +61,14 @@ test('resolveTier : palier inconnu en base → ignoré (free)', () => {
 
 // ── Gratuité femmes (flag) ───────────────────────────────────────────────────
 
-test('femme + flag ON → or offert', () => {
+test('femme + flag ON → PLUS offert (décision 18/07 : gratuité = Plus, pas Or)', () => {
+  // La gratuité femmes = le palier Plus (likes ∞, rewind ∞, incognito) et RIEN
+  // d'autre : ni Super Like (traverse le paywall de l'homme → match gratuit), ni
+  // grille défloutée (idem via ses likes reçus), ni Boost (si toutes boostent,
+  // le Boost ne vaut plus rien). Tout ce qui fabrique du match gratuit côté homme
+  // est exclu — donc pas Or.
   const r = resolveTier({ premiumTier: null, premiumUntil: null, genderCode: 'woman', freeTierWomen: true, now: NOW });
-  assert.deepEqual(r, { tier: 'or', offert: true });
+  assert.deepEqual(r, { tier: 'plus', offert: true });
 });
 
 test('femme + flag OFF → free (désactivation instantanée)', () => {
@@ -87,9 +92,9 @@ test('femme + flag ON + abonnement payé → le PAYÉ gagne (jamais rétrogradé
   assert.deepEqual(r, { tier: 'prestige', offert: false });
 });
 
-test('femme + flag ON + abonnement Or EXPIRÉ → retombe sur or offert (pas free)', () => {
+test('femme + flag ON + abonnement Or EXPIRÉ → retombe sur PLUS offert (pas free)', () => {
   const r = resolveTier({ premiumTier: 'or', premiumUntil: PASSE, genderCode: 'woman', freeTierWomen: true, now: NOW });
-  assert.deepEqual(r, { tier: 'or', offert: true });
+  assert.deepEqual(r, { tier: 'plus', offert: true });
 });
 
 // ── Matrice des capacités : doctrine §1/§2 + invariant n°5 ───────────────────
@@ -148,6 +153,17 @@ test('capacités OR OFFERT : tout l\'Or SAUF la révélation (invariant n°5)', 
   assert.equal(c.traductionIllimitee, false, 'JAMAIS offerte : coût Gemini par appel');
 });
 
+test('capacités PLUS OFFERT (ce que reçoit une femme) : confort seul, zéro Or', () => {
+  const c = capabilitiesFor('plus', true);
+  assert.equal(c.likesIllimites, true);
+  assert.equal(c.peutRewind, true);
+  assert.equal(c.peutIncognito, true);
+  assert.equal(c.filtresAvances, false);
+  assert.equal(c.grilleDefloutee, false);
+  assert.equal(c.picksIllimites, false);
+  assert.equal(c.traductionIllimitee, false);
+});
+
 test('capacités PRESTIGE payé : Or inclus + priorité + mot avant match', () => {
   const c = capabilitiesFor('prestige', false);
   assert.equal(c.grilleDefloutee, true);
@@ -173,16 +189,13 @@ test('grants OR payé : 5 Super Likes/semaine + 1 Boost/mois', () => {
   ]);
 });
 
-test('grants OR offert : le Boost oui, les Super Likes NON (décision 17/07)', () => {
-  // Le Super Like d'une femme TRAVERSE le paywall de l'homme (carte épinglée en
-  // clair dans son deck → match) : en offrir 5/semaine à toutes les femmes
-  // offertes = distribuer de la révélation gratuite côté hommes. La gratuité
-  // n'ajoute donc AUCUN Super Like — elle reste au régime de base (1/jour,
-  // comme un compte gratuit) + achat. Le Boost, lui, ne perce le paywall de
-  // personne (mise en avant générique) : il reste offert.
-  assert.deepEqual(grantsDue('or', true), [
-    { kind: 'boost', quantity: 1, period: 'month' },
-  ]);
+test('grants OFFERT : AUCUN grant récurrent, quel que soit le palier (décision 18/07)', () => {
+  // Un palier offert ne reçoit JAMAIS de munitions ni de Boost : Super Like et
+  // grille défloutée fabriquent du match gratuit côté homme, et un Boost offert
+  // à toutes les femmes ne vaut plus rien. La gratuité = Plus (confort) et point.
+  assert.deepEqual(grantsDue('plus', true), []);
+  assert.deepEqual(grantsDue('or', true), []);      // défense en profondeur (aucun Or offert n'existe)
+  assert.deepEqual(grantsDue('prestige', true), []);
 });
 
 test('grants PRESTIGE : Or inclus + 1 Joker/semaine', () => {
