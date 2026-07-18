@@ -55,20 +55,76 @@ async function blur(buffer) {
     .toBuffer();
 }
 
+// ── Variante HÉROS (carte Mystère plein écran) ───────────────────────────────
+// Le masque ci-dessus est taillé pour des tuiles. En plein cadre il est agrandi
+// ~7× au lieu de ~2× : le flou triple à l'œil et il ne reste qu'un halo, plus
+// aucune silhouette. D'où une variante plus grande, donc moins agrandie, et
+// moins floutée — pour rendre la FORME sans rendre le VISAGE.
+const HERO_W = 720;
+const HERO_H = 1280;
+
+/**
+ * ⚙️ LE réglage à calibrer À L'ŒIL — `node scripts/calibrate-hero-blur.js <url>`,
+ * variantes à juger EN PLEIN ÉCRAN SUR TÉLÉPHONE.
+ *
+ * Repère de sécurité : à rapport égal avec la grille (20/220 ≈ 0,091), il
+ * faudrait 65 ici. Toute valeur en dessous laisse passer plus de forme ET plus
+ * de risque — c'est un arbitrage assumé, pas un calcul.
+ *
+ * ⚠ Ce fichier vit sur un bucket PUBLIC : il doit être sûr TOUT SEUL. Le flou
+ * ajouté côté client (écran Mystère) est esthétique et ne protège rien ici.
+ * Critère de validation : on voit tête/épaules/teint, on ne peut pas décrire le
+ * visage, on ne reconnaîtrait pas un proche.
+ */
+const HERO_SIGMA = 42;
+
+async function blurHero(buffer) {
+  return sharp(buffer)
+    .rotate()
+    .resize(HERO_W, HERO_H, { fit: 'cover' })
+    .blur(HERO_SIGMA)
+    .modulate({ saturation: 1.06 })
+    .jpeg({ quality: 82 })
+    .toBuffer();
+}
+
 /**
  * Produit + stocke la version floutée d'une photo → renvoie son URL publique
  * (ou null si la source est illisible — l'appelant retombe sur le placeholder).
  */
 async function makeMaskedUrl(sourceUrl) {
   const src = await fetchImageBuffer(sourceUrl);
-  const out = await blur(src);
+  return upload(await blur(src));
+}
+
+/** Idem pour la variante héros (carte Mystère plein écran). */
+async function makeHeroMaskedUrl(sourceUrl) {
+  const src = await fetchImageBuffer(sourceUrl);
+  return upload(await blurHero(src));
+}
+
+/**
+ * Les DEUX variantes en une seule lecture de la source — c'est ce que doit
+ * appeler l'upload d'une photo (sinon on télécharge deux fois l'originale).
+ */
+async function makeMaskedUrls(sourceUrl) {
+  const src = await fetchImageBuffer(sourceUrl);
+  const [blurUrl, blurHeroUrl] = await Promise.all([
+    blur(src).then(upload),
+    blurHero(src).then(upload),
+  ]);
+  return { blurUrl, blurHeroUrl };
+}
+
+/** Stocke un JPEG masqué à un chemin ALÉATOIRE → URL publique. */
+async function upload(bytes) {
   const path = `masked/${crypto.randomUUID()}.jpg`;
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, out, { contentType: 'image/jpeg', upsert: false });
+    .upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
   if (error) throw Object.assign(new Error(`Stockage flou échoué : ${error.message}`), { statusCode: 500 });
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }
 
-module.exports = { makeMaskedUrl };
+module.exports = { makeMaskedUrl, makeHeroMaskedUrl, makeMaskedUrls, HERO_SIGMA };

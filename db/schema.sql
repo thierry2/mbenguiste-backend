@@ -1007,6 +1007,18 @@ alter table public.pending_likes enable row level security;
 alter table public.profile_photos
   add column if not exists embedding halfvec(768);
 
+-- Versions FLOUTÉES (contextes masqués). Deux variantes, deux usages (migr 011 + 027) :
+--   • blur_url       — masque tuile (220×300, sigma 20), grille « qui t'a liké » ;
+--   • blur_hero_url  — masque plein écran (720×1280, sigma calibré à l'œil), carte
+--                      Mystère. Laisse passer plus de FORME sans rendre le VISAGE ;
+--                      sur un bucket public → doit être sûr tout seul.
+-- Nullable : best-effort à l'upload, le backfill rattrape (scripts/backfill-*).
+alter table public.profile_photos
+  add column if not exists blur_url text;
+
+alter table public.profile_photos
+  add column if not exists blur_hero_url text;
+
 alter table public.profiles
   add column if not exists photo_vec halfvec(768);
 

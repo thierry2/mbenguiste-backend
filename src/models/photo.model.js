@@ -4,10 +4,11 @@ const { fromSqlVector } = require('../domain/similarity');
 const MAX_PHOTOS = 6;
 
 /** Ajoute une photo au profil (à la fin). Renvoie la liste à jour.
- *  `blurUrl` = version floutée (contextes masqués) ; null si génération échouée.
+ *  `blurUrl` = masque tuile (grille « qui t'a liké ») ; null si génération échouée.
+ *  `blurHeroUrl` = masque plein écran (carte Mystère) ; null si génération échouée.
  *  `embedding` = empreinte visuelle (littéral pgvector) ; null si génération
  *  échouée — best-effort, le backfill rattrape (même doctrine que le flou). */
-async function add(profileId, url, blurUrl = null, embedding = null) {
+async function add(profileId, url, blurUrl = null, blurHeroUrl = null, embedding = null) {
   const { data: existing, error: e1 } = await supabase
     .from('profile_photos')
     .select('id, position')
@@ -22,7 +23,7 @@ async function add(profileId, url, blurUrl = null, embedding = null) {
 
   const { error } = await supabase
     .from('profile_photos')
-    .insert({ profile_id: profileId, url, blur_url: blurUrl, position: nextPos, embedding });
+    .insert({ profile_id: profileId, url, blur_url: blurUrl, blur_hero_url: blurHeroUrl, position: nextPos, embedding });
   if (error) throw error;
 
   // La 1re photo devient l'avatar par défaut si aucun n'est défini.
