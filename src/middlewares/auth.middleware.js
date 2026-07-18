@@ -72,4 +72,22 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { authenticate, requireAdmin };
+/**
+ * Portail partenaire : après `authenticate` (jeton Supabase), le compte doit
+ * correspondre à un partenaire. Charge le partenaire dans req.partner ; 403 si
+ * le compte n'est pas partenaire ou s'il est suspendu (frozen).
+ */
+async function requirePartner(req, res, next) {
+  try {
+    const partnersModel = require('../models/partners.model');
+    const partner = await partnersModel.findByAuthUser(req.user.id);
+    if (!partner) throw ApiError.forbidden('Accès partenaire refusé');
+    if (partner.status === 'frozen') throw ApiError.forbidden('Compte partenaire suspendu');
+    req.partner = partner;
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { authenticate, requireAdmin, requirePartner };

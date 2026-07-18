@@ -9,6 +9,7 @@ const geoRoutes = require('./geo.routes');
 const webhookRoutes = require('./webhook.routes');
 const eventsRoutes = require('./events.routes');
 const adminRoutes = require('./admin.routes');
+const partnerRoutes = require('./partner.routes');
 
 const router = express.Router();
 
@@ -21,5 +22,6 @@ router.use('/matches', matchRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/events', eventsRoutes);
 router.use('/admin', adminRoutes);
+router.use('/partner', partnerRoutes);
 
 module.exports = router;

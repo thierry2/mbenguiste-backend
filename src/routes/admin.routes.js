@@ -1,6 +1,9 @@
 const express = require('express');
 const adminService = require('../services/adminModeration.service');
 const adminModel = require('../models/adminModeration.model');
+const partnerAdminService = require('../services/partnerAdmin.service');
+const partnersModel = require('../models/partners.model');
+const partnerStats = require('../models/partnerStats.model');
 const { requireAdmin } = require('../middlewares/auth.middleware');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
@@ -48,6 +51,42 @@ router.post('/moderation/dossiers-libres/:id', catchAsync(async (req, res) => {
     throw ApiError.badRequest(`Action invalide. Valeurs acceptées : ${ACTIONS.join(', ')}`);
   }
   const result = await adminService.traiterDossierLibre(req.params.id, { action, note });
+  res.json({ success: true, data: result });
+}));
+
+// ── Programme Partenaires ────────────────────────────────────────────────────
+
+const PARTNER_STATUSES = ['invited', 'active', 'frozen'];
+
+// GET /api/v1/admin/partners — liste des partenaires (+ code).
+router.get('/partners', catchAsync(async (_req, res) => {
+  res.json({ success: true, data: { partners: await partnersModel.list() } });
+}));
+
+// POST /api/v1/admin/partners  body: { displayName, email, code?, isFounder?, rateBps?, redirectTo? }
+router.post('/partners', catchAsync(async (req, res) => {
+  const { displayName, email, code, isFounder, rateBps, redirectTo } = req.body ?? {};
+  if (!displayName || !email) throw ApiError.badRequest('displayName et email sont requis');
+  if (rateBps != null && (rateBps < 0 || rateBps > 10000)) throw ApiError.badRequest('rateBps hors bornes (0..10000)');
+  const result = await partnerAdminService.createAndInvite({ displayName, email, code, isFounder, rateBps, redirectTo });
+  res.status(201).json({ success: true, data: result });
+}));
+
+// PATCH /api/v1/admin/partners/:id  body: { status }
+router.patch('/partners/:id', catchAsync(async (req, res) => {
+  const { status } = req.body ?? {};
+  if (!PARTNER_STATUSES.includes(status)) {
+    throw ApiError.badRequest(`Statut invalide. Valeurs : ${PARTNER_STATUSES.join(', ')}`);
+  }
+  await partnersModel.setStatus(req.params.id, status);
+  res.json({ success: true, data: { status } });
+}));
+
+// POST /api/v1/admin/partners/:id/payout  body: { method?, reference?, currency? }
+// Verse (à la main) toutes les commissions payables (validées / hold écoulé).
+router.post('/partners/:id/payout', catchAsync(async (req, res) => {
+  const { method, reference, currency } = req.body ?? {};
+  const result = await partnerStats.recordPayout(req.params.id, { method, reference, currency });
   res.json({ success: true, data: result });
 }));
 
