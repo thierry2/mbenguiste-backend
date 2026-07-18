@@ -157,3 +157,33 @@ test('dossier libre : traçable lui aussi', async () => {
   assert.equal(res.rows[0].status, 'closed');
   assert.equal(res.rows[0].admin_action, 'rejeter');
 });
+
+// ── RLS : les dossiers ne sont JAMAIS lisibles par la clé anon ───────────────
+// Le frontend se connecte à Supabase en direct (Realtime) : la clé anon est
+// donc DANS l'app, entre toutes les mains. Une table sans RLS est exposée via
+// PostgREST à qui la possède. `reports` et `freeform_reports` contiennent des
+// récits d'agressions : RLS active + aucune policy = refus total, seule la clé
+// service (le backend) y accède.
+
+async function rlsActive(table) {
+  const res = await db.query(
+    `select relrowsecurity from pg_class where oid = ('public.' || $1)::regclass`, [table],
+  );
+  return res.rows[0]?.relrowsecurity === true;
+}
+
+test('RLS active sur reports', async () => {
+  assert.equal(await rlsActive('reports'), true);
+});
+
+test('RLS active sur freeform_reports', async () => {
+  assert.equal(await rlsActive('freeform_reports'), true);
+});
+
+test('aucune policy permissive sur les tables de signalement', async () => {
+  const res = await db.query(
+    `select tablename, policyname from pg_policies
+     where schemaname = 'public' and tablename in ('reports', 'freeform_reports')`,
+  );
+  assert.deepEqual(res.rows, [], `Policy inattendue : ${JSON.stringify(res.rows)}`);
+});

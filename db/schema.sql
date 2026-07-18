@@ -349,6 +349,10 @@ create table if not exists public.freeform_reports (
   constraint chk_freeform_body_len check (char_length(body) between 20 and 2000)
 );
 create index if not exists idx_freeform_reports_status on public.freeform_reports (status, created_at);
+-- RLS sans aucune policy = refus total côté clé anon (celle embarquée dans
+-- l'app). Seule la clé service, côté backend, lit ces récits. Même régime que
+-- `reports` : ces deux tables ne doivent JAMAIS être joignables depuis le client.
+alter table public.freeform_reports enable row level security;
 
 create table if not exists public.subscriptions (
   id           uuid primary key default gen_random_uuid(),
