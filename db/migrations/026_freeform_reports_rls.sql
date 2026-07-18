@@ -1,0 +1,23 @@
+-- =============================================================================
+--  Migration 026 — RLS manquante sur freeform_reports  (CORRECTIF DE SÉCURITÉ)
+-- =============================================================================
+--  À exécuter dans Supabase. Idempotente. À passer MÊME SI la migration 024 a
+--  déjà été appliquée — c'est précisément ce cas qu'elle répare.
+--
+--  Ce qui manquait : la table `freeform_reports`, créée en 024, n'avait pas de
+--  row level security. Toutes ses voisines en ont (`reports` comprise).
+--
+--  Pourquoi c'est grave : le frontend se connecte à Supabase en direct pour le
+--  Realtime, donc la clé anon est embarquée dans l'app — entre les mains de
+--  tous ses utilisateurs. Une table sans RLS est servie par PostgREST à qui
+--  détient cette clé. `freeform_reports` contient des récits libres de
+--  rencontres qui se sont mal passées, écrits par des femmes à qui l'app a
+--  promis la confidentialité.
+--
+--  Le correctif : RLS active et AUCUNE policy. C'est le régime de `reports` :
+--  refus total pour anon et authenticated ; seule la clé service (le backend,
+--  qui applique ses propres règles) traverse. Ajouter une policy ici serait une
+--  erreur — personne ne doit lire ces lignes depuis un client.
+-- =============================================================================
+
+alter table public.freeform_reports enable row level security;
