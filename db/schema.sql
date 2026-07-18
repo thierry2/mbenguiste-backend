@@ -347,6 +347,10 @@ create index if not exists idx_subscriptions_profile on public.subscriptions(pro
 -- create the match (canonical order). Runs with definer rights so it can read
 -- the reciprocal swipe regardless of RLS.
 
+-- (023) swipes est un UPSERT (swipe.model.record) : un changement d'avis sur une
+-- paire déjà swipée est un UPDATE — le trigger doit aussi l'écouter, sinon un
+-- « pass puis re-like » face à un like en attente ne crée JAMAIS le match (même
+-- classe de bug que le « like fantôme » corrigé en 022 pour pending_likes).
 create or replace function public.handle_swipe() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
@@ -369,16 +373,24 @@ begin
       and a.code in ('like', 'super_like')
   ) into v_reciprocal;
 
-  if v_reciprocal then
+  if v_reciprocal
+     -- Jamais de match (ni de résurrection) entre bloqués, quel que soit le sens.
+     and not exists (
+       select 1 from public.blocks b
+       where (b.blocker_id = new.swiper_id and b.blocked_id = new.target_id)
+          or (b.blocker_id = new.target_id and b.blocked_id = new.swiper_id)
+     ) then
     if new.swiper_id < new.target_id then
       v_low := new.swiper_id; v_high := new.target_id;
     else
       v_low := new.target_id; v_high := new.swiper_id;
     end if;
 
+    -- Réactivation voulue : si la paire avait un match désactivé par un unmatch
+    -- (pas un block — exclu ci-dessus), un like frais rouvre le MÊME fil.
     insert into public.matches (user_low, user_high, last_message_at)
     values (v_low, v_high, now())
-    on conflict (user_low, user_high) do nothing;
+    on conflict (user_low, user_high) do update set is_active = true;
   end if;
 
   return new;
@@ -387,7 +399,7 @@ $$;
 
 drop trigger if exists trg_handle_swipe on public.swipes;
 create trigger trg_handle_swipe
-  after insert on public.swipes
+  after insert or update on public.swipes
   for each row execute function public.handle_swipe();
 
 -- Bump matches.last_message_at on each new message (drives the conversation list order).

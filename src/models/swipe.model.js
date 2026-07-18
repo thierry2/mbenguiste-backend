@@ -33,13 +33,18 @@ async function record(swiperId, targetId, actionCode, cible = null) {
   if (actionCode === 'pass') return { match: null };
 
   // Le like est-il réciproque ? (le trigger a déjà créé le match le cas échéant)
+  // is_active = true OBLIGATOIRE : listForUser filtre dessus — sans ce filtre,
+  // on annoncerait « c'est un match » sur un fil coupé (unmatch/block) que la
+  // liste des conversations cacherait ensuite.
   const [low, high] = swiperId < targetId ? [swiperId, targetId] : [targetId, swiperId];
-  const { data: match } = await supabase
+  const { data: match, error: matchError } = await supabase
     .from('matches')
     .select('id, created_at')
     .eq('user_low', low)
     .eq('user_high', high)
+    .eq('is_active', true)
     .maybeSingle();
+  if (matchError) throw matchError;
 
   // Le payoff du like ciblé : les mots laissés avec les likes deviennent les
   // premiers messages du chat. Best-effort : un échec ici ne casse pas le swipe.

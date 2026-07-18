@@ -39,7 +39,9 @@ async function listForUser(userId) {
 
   const otherIds = rows.map((m) => (m.user_low === userId ? m.user_high : m.user_low));
 
-  const [{ data: profiles }, { data: lastMsgs }] = await Promise.all([
+  // Erreurs LEVÉES, jamais avalées : un select qui échoue ici rendrait tous les
+  // profils null (liste de fantômes) sans le moindre bruit.
+  const [profilesRes, lastMsgsRes] = await Promise.all([
     supabase.from('profiles').select(OTHER_SELECT).in('id', otherIds),
     // Dernier message par match (on récupère large puis on réduit côté JS).
     supabase.from('messages')
@@ -47,6 +49,10 @@ async function listForUser(userId) {
       .in('match_id', rows.map((m) => m.id))
       .order('created_at', { ascending: false }),
   ]);
+  if (profilesRes.error) throw profilesRes.error;
+  if (lastMsgsRes.error) throw lastMsgsRes.error;
+  const { data: profiles } = profilesRes;
+  const { data: lastMsgs } = lastMsgsRes;
 
   const profById = new Map((profiles || []).map((p) => [p.id, otherFromRow(p)]));
   const lastByMatch = new Map();
