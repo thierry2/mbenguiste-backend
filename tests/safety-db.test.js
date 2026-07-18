@@ -106,3 +106,54 @@ test('dossier libre : supprimé en cascade avec le profil du signaleur', async (
   const res = await db.query('select id from freeform_reports where reporter_id = $1::uuid', [a]);
   assert.equal(res.rows.length, 0);
 });
+
+// ── Console de modération (migration 025) ────────────────────────────────────
+
+test('traçabilité : un dossier peut être clos avec action et note', async () => {
+  const a = await addUser(db); const b = await addUser(db);
+  await db.query(
+    `insert into reports (reporter_id, reported_id, reason_id)
+     values ($1::uuid, $2::uuid, (select id from report_reasons where code = 'scam'))`,
+    [a, b],
+  );
+  await db.query(
+    `update reports set status = 'closed', admin_action = 'retirer',
+       admin_note = 'Profil retiré, 3 signalantes', treated_at = now()
+     where reported_id = $1::uuid and status = 'open'`, [b],
+  );
+  const res = await db.query(
+    'select status, admin_action, admin_note, treated_at from reports where reported_id = $1::uuid', [b],
+  );
+  assert.equal(res.rows[0].status, 'closed');
+  assert.equal(res.rows[0].admin_action, 'retirer');
+  assert.ok(res.rows[0].treated_at);
+});
+
+test('clore libère la paire : la personne peut re-signaler si ça recommence', async () => {
+  const a = await addUser(db); const b = await addUser(db);
+  const insert = () => db.query(
+    `insert into reports (reporter_id, reported_id, reason_id)
+     values ($1::uuid, $2::uuid, (select id from report_reasons where code = 'harassment'))`,
+    [a, b],
+  );
+  await insert();
+  // Tant que le dossier est ouvert, l'index unique interdit le doublon.
+  await assert.rejects(insert);
+  await db.query(`update reports set status = 'closed' where reported_id = $1::uuid`, [b]);
+  // Une fois clos, un nouveau dossier redevient possible.
+  await insert();
+  const res = await db.query('select count(*)::int as n from reports where reported_id = $1::uuid', [b]);
+  assert.equal(res.rows[0].n, 2);
+});
+
+test('dossier libre : traçable lui aussi', async () => {
+  const a = await addUser(db);
+  await db.query(
+    `insert into freeform_reports (reporter_id, body, admin_action, admin_note, treated_at, status)
+     values ($1::uuid, $2, 'rejeter', 'Aucun profil retrouvé', now(), 'closed')`,
+    [a, 'Un homme rencontré en mars, prénom Karim, ville de Lyon.'],
+  );
+  const res = await db.query('select status, admin_action from freeform_reports where reporter_id = $1::uuid', [a]);
+  assert.equal(res.rows[0].status, 'closed');
+  assert.equal(res.rows[0].admin_action, 'rejeter');
+});

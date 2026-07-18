@@ -1,5 +1,15 @@
+const crypto = require('crypto');
 const supabase = require('../config/supabase');
+const config = require('../config');
 const ApiError = require('../utils/apiError');
+
+// Comparaison à temps constant : un `===` sur un secret le fuit caractère par
+// caractère à qui mesure le temps de réponse. False si l'un est vide ou de
+// longueur différente (timingSafeEqual exige des buffers de même taille).
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length || !a) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 /**
  * Authentification déléguée à Supabase Auth.
@@ -46,4 +56,20 @@ async function authenticate(req, res, next) {
   }
 }
 
-module.exports = { authenticate };
+/**
+ * Console de modération : secret partagé (en-tête `x-admin-secret`) + allowlist
+ * IP optionnelle. Sans ADMIN_SECRET défini, TOUT est refusé — un secret vide ne
+ * doit jamais ouvrir la porte à une console qui lit des récits d'agressions.
+ * `req.ip` reflète le vrai client car `trust proxy` est actif (Railway).
+ */
+function requireAdmin(req, res, next) {
+  if (config.admin.allowedIps.length && !config.admin.allowedIps.includes(req.ip)) {
+    return next(ApiError.unauthorized('Accès admin refusé'));
+  }
+  if (!config.admin.secret || !safeEqual(req.headers['x-admin-secret'], config.admin.secret)) {
+    return next(ApiError.unauthorized('Accès admin refusé'));
+  }
+  next();
+}
+
+module.exports = { authenticate, requireAdmin };

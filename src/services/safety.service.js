@@ -79,4 +79,28 @@ async function reportFreeform(reporterId, body) {
   await moderationModel.createFreeformReport(reporterId, body.trim());
 }
 
-module.exports = { buildPastConnections, pastConnections, reportFreeform };
+/**
+ * Un blocage existe-t-il entre ces deux membres, DANS UN SENS OU DANS L'AUTRE ?
+ * PURE. Bloquer veut dire « ne plus jamais se voir » : le sens du geste n'y
+ * change rien, celle qui bloque disparaît pour l'autre autant que l'inverse.
+ */
+function isBlockedBetween(blockRows, viewerId, targetId) {
+  if (viewerId === targetId) return false; // son propre profil, toujours
+  return blockRows.some(
+    (b) =>
+      (b.blocker_id === viewerId && b.blocked_id === targetId) ||
+      (b.blocker_id === targetId && b.blocked_id === viewerId),
+  );
+}
+
+/** Garde de consultation : `true` si la fiche doit rester inaccessible. */
+async function profileHiddenFor(viewerId, targetId) {
+  if (viewerId === targetId) return false;
+  const rows = await moderationModel.blocksBetween(viewerId, targetId);
+  return isBlockedBetween(rows, viewerId, targetId);
+}
+
+module.exports = {
+  buildPastConnections, pastConnections, reportFreeform,
+  isBlockedBetween, profileHiddenFor,
+};

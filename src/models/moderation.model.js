@@ -135,6 +135,16 @@ async function createFreeformReport(reporterId, body) {
   if (error) throw error;
 }
 
+/** Blocages entre deux membres, dans les DEUX sens (garde de consultation). */
+async function blocksBetween(userA, userB) {
+  const { data, error } = await supabase
+    .from('blocks')
+    .select('blocker_id, blocked_id')
+    .or(`and(blocker_id.eq.${userA},blocked_id.eq.${userB}),and(blocker_id.eq.${userB},blocked_id.eq.${userA})`);
+  if (error) throw error;
+  return data || [];
+}
+
 /** Retire un profil de la découverte (protection auto en attendant revue). */
 async function hideFromDiscovery(profileId) {
   const { error } = await supabase
@@ -146,5 +156,5 @@ async function hideFromDiscovery(profileId) {
 
 module.exports = {
   block, unblock, listBlocked, findOpenReport, createReport, countOpenReporters,
-  hideFromDiscovery, listConnectionsRaw, createFreeformReport,
+  hideFromDiscovery, listConnectionsRaw, createFreeformReport, blocksBetween,
 };

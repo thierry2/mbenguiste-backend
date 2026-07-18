@@ -4,6 +4,7 @@ const config = require('../config');
 const profileModel = require('../models/profile.model');
 const profileService = require('../services/profile.service');
 const entitlementsService = require('../services/entitlements.service');
+const safetyService = require('../services/safety.service');
 
 const getMe = catchAsync(async (req, res) => {
   profileModel.touchActivity(req.user.id).catch(() => {}); // présence, non bloquant
@@ -27,6 +28,13 @@ const completeOnboarding = catchAsync(async (req, res) => {
 });
 
 const getById = catchAsync(async (req, res) => {
+  // Garde de blocage AVANT tout : la découverte excluait déjà les bloqués et la
+  // conversation était close, mais cette route servait encore la fiche à qui
+  // avait gardé l'identifiant. 404 et non 403 — un 403 confirmerait le compte.
+  if (await safetyService.profileHiddenFor(req.user.id, req.params.id)) {
+    throw ApiError.notFound('Profil introuvable');
+  }
+
   const profile = await profileModel.findById(req.params.id);
   if (!profile) throw ApiError.notFound('Profil introuvable');
 

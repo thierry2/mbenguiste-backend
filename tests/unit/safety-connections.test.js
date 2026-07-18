@@ -97,3 +97,29 @@ test('un profil manquant (compte supprimé entre deux requêtes) est ignoré san
   assert.equal(out.enCours.length, 1);
   assert.equal(out.anciennes.length, 0);
 });
+
+// ── Garde-fou de consultation de profil ──────────────────────────────────────
+// Un bloqué gardait l'accès à GET /profiles/:id : la découverte l'excluait, le
+// chat était clos, mais l'API servait encore la fiche à qui avait l'identifiant.
+
+const { isBlockedBetween } = require('../../src/services/safety.service');
+
+test('blocage : je l\'ai bloqué → profil refusé', () => {
+  assert.equal(isBlockedBetween([{ blocker_id: 'moi', blocked_id: 'lui' }], 'moi', 'lui'), true);
+});
+
+test('blocage : IL m\'a bloquée → profil refusé aussi (l\'autre sens compte)', () => {
+  assert.equal(isBlockedBetween([{ blocker_id: 'lui', blocked_id: 'moi' }], 'moi', 'lui'), true);
+});
+
+test('aucun blocage entre les deux → profil servi', () => {
+  assert.equal(isBlockedBetween([], 'moi', 'lui'), false);
+});
+
+test('un blocage qui ne concerne PAS la paire ne bloque rien', () => {
+  assert.equal(isBlockedBetween([{ blocker_id: 'moi', blocked_id: 'tiers' }], 'moi', 'lui'), false);
+});
+
+test('mon propre profil reste toujours consultable', () => {
+  assert.equal(isBlockedBetween([{ blocker_id: 'moi', blocked_id: 'moi' }], 'moi', 'moi'), false);
+});

@@ -71,6 +71,16 @@ const config = {
     // est retiré de la découverte en attendant revue (protection automatique).
     reportsAutoHideThreshold: parseInt(process.env.REPORTS_AUTO_HIDE, 10)   || 3,
   },
+
+  // Console de modération. Secret partagé + allowlist IP optionnelle (vide = le
+  // secret seul). Sans ADMIN_SECRET, les routes /admin restent toutes fermées.
+  admin: {
+    secret: process.env.ADMIN_SECRET || '',
+    allowedIps: (process.env.ADMIN_ALLOWED_IPS || '')
+      .split(',')
+      .map((ip) => ip.trim())
+      .filter(Boolean),
+  },
 };
 
 module.exports = config;
