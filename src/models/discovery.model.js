@@ -454,14 +454,18 @@ async function maskedCardsByIds(ids) {
   if (!ids.length) return new Map();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, last_active_at, photos:profile_photos(blur_url, position)')
+    .select('id, last_active_at, photos:profile_photos(blur_url, blur_hero_url, position)')
     .in('id', ids)
     .is('deleted_at', null);
   if (error) throw error;
   const map = new Map();
   for (const row of data || []) {
     const photos = (row.photos || []).slice().sort((a, b) => a.position - b.position);
-    map.set(row.id, { blurUrl: photos[0]?.blur_url ?? null, lastActiveAt: row.last_active_at });
+    map.set(row.id, {
+      blurUrl: photos[0]?.blur_url ?? null,
+      blurHeroUrl: photos[0]?.blur_hero_url ?? null,
+      lastActiveAt: row.last_active_at,
+    });
   }
   return map;
 }

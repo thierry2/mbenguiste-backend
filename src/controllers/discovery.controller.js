@@ -121,16 +121,20 @@ const mystere = catchAsync(async (req, res) => {
 
   const masked = await discoveryModel.maskedCardsByIds([cible.id]);
   const m = masked.get(cible.id);
-  // Pas de photo floutée en base → pas de Mystère. On ne retombe JAMAIS sur la
-  // photo nette : mieux vaut un écran sans photo qu'un visage révélé par accident.
-  if (!m?.blurUrl) return res.json({ success: true, data: { mystere: null } });
+  // On sert en priorité le masque HÉROS (plein écran, calibré pour montrer la
+  // forme sans le visage). Repli sur le masque tuile tant que le backfill héros
+  // n'est pas passé : plus flou, mais MASQUÉ tout autant — jamais la photo nette.
+  // Aucune des deux → pas de Mystère : mieux vaut un écran sans photo qu'un
+  // visage révélé par accident.
+  const blurUrl = m?.blurHeroUrl ?? m?.blurUrl ?? null;
+  if (!blurUrl) return res.json({ success: true, data: { mystere: null } });
 
   res.json({
     success: true,
     data: {
       mystere: {
         id: maskToken(viewerId, cible.id), // jeton opaque : aucune fuite d'identité
-        blurUrl: m.blurUrl,
+        blurUrl,
         enLigne: online(m.lastActiveAt),
       },
     },

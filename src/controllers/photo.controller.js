@@ -3,7 +3,7 @@ const ApiError = require('../utils/apiError');
 const photoModel = require('../models/photo.model');
 const logger = require('../utils/logger');
 const { uploadProfilePhoto } = require('../services/upload.service');
-const { makeMaskedUrl } = require('../services/mask.service');
+const { makeMaskedUrls } = require('../services/mask.service');
 const embedding = require('../services/embedding.service');
 const { toSqlVector } = require('../domain/similarity');
 
@@ -21,12 +21,14 @@ const addPhoto = catchAsync(async (req, res) => {
   if (!req.file) throw ApiError.badRequest('Aucun fichier reçu');
   const { url } = await uploadProfilePhoto(req.file, req.user.id);
 
-  // Version floutée pour les contextes masqués — best-effort : si ça échoue, la
-  // photo est quand même ajoutée (blur_url null → placeholder côté app), et le
+  // Versions floutées pour les contextes masqués — les DEUX en une seule lecture
+  // de la source (tuile grille + plein écran Mystère). Best-effort : si ça échoue,
+  // la photo est quand même ajoutée (blur null → placeholder côté app), et le
   // backfill pourra rattraper plus tard.
   let blurUrl = null;
+  let blurHeroUrl = null;
   try {
-    blurUrl = await makeMaskedUrl(url);
+    ({ blurUrl, blurHeroUrl } = await makeMaskedUrls(url));
   } catch (err) {
     logger.error?.(`Flou photo échoué (${req.user.id}) : ${err.message}`);
   }
@@ -40,7 +42,7 @@ const addPhoto = catchAsync(async (req, res) => {
     logger.error?.(`Embedding photo échoué (${req.user.id}) : ${err.message}`);
   }
 
-  const photos = await photoModel.add(req.user.id, url, blurUrl, vec);
+  const photos = await photoModel.add(req.user.id, url, blurUrl, blurHeroUrl, vec);
   await refreshPhotoVec(req.user.id);
   res.status(201).json({ success: true, data: { photos } });
 });
