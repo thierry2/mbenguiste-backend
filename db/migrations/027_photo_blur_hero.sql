@@ -15,3 +15,4 @@
 -- le flou ajouté côté client ne compte pas dans la sécurité. Le réglage a été
 -- choisi à l'œil (scripts/calibrate-hero-blur.js), pas calculé.
 alter table public.profile_photos add column if not exists blur_hero_url text;
+

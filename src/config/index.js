@@ -72,6 +72,13 @@ const config = {
     reportsAutoHideThreshold: parseInt(process.env.REPORTS_AUTO_HIDE, 10)   || 3,
   },
 
+  // Suppression de compte : délai de grâce avant la purge définitive. Tant que
+  // la purge n'a pas tourné, l'utilisateur peut annuler et retrouver son compte
+  // intact (exigence stores + RGPD : une fenêtre d'annulation claire, jamais un
+  // effacement immédiat et irréversible).
+  accountDeletionDelayMs:
+    (parseInt(process.env.ACCOUNT_DELETION_DELAY_DAYS, 10) || 30) * 24 * 60 * 60 * 1000,
+
   // Console de modération. Secret partagé + allowlist IP optionnelle (vide = le
   // secret seul). Sans ADMIN_SECRET, les routes /admin restent toutes fermées.
   admin: {

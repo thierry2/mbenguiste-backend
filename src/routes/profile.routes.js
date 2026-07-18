@@ -19,6 +19,7 @@ router.patch('/me/location', authenticate, validate(schemas.location), c.updateL
 router.post('/me/push-token', authenticate, c.savePushToken);
 router.patch('/me/settings', authenticate, c.updateSettings);
 router.delete('/me', authenticate, c.deleteMe);
+router.post('/me/cancel-deletion', authenticate, c.cancelDeleteMe);
 
 // Modération (store-required) : bloquer / débloquer / signaler.
 router.get('/me/blocks', authenticate, modC.listBlocked);

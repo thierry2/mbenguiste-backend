@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const config = require('../config');
 
 // Colonnes + relations imbriquées (photos, intérêts, prompts, libellés de référence).
 const SELECT_PROFILE = `
@@ -6,7 +7,7 @@ const SELECT_PROFILE = `
   current_country, current_city, target_country, target_city, open_to_relocate, intention,
   height_cm, origin_country, occupation,
   primary_language, spoken_languages, is_verified, is_premium, premium_until,
-  onboarding_done, last_active_at, created_at, lifestyle,
+  onboarding_done, last_active_at, created_at, lifestyle, scheduled_deletion_at,
   notif_push, notif_email, notif_sms, is_discoverable, incognito, hide_online_status,
   gender:genders!gender_id(code, display_name),
   goal:relationship_goals!relationship_goal_id(code, display_name),
@@ -64,6 +65,10 @@ function fromRow(row) {
     estPremium:    row.is_premium ?? false,
     premiumJusquau: row.premium_until ?? null,
     onboardingFait: row.onboarding_done ?? false,
+
+    // Suppression programmée : ISO tant qu'un délai de grâce court, null sinon.
+    // Le front s'en sert pour la bannière « ton compte sera supprimé le… ».
+    programmationSuppression: row.scheduled_deletion_at ?? null,
 
     // Réglages (n'apparaissent que sur /me — pas exposés sur le profil d'autrui,
     // mais inoffensifs : booléens sans PII).
@@ -286,20 +291,45 @@ async function touchActivity(id) {
 }
 
 /**
- * Suppression douce (RGPD / stores). On NE supprime JAMAIS via auth.admin.deleteUser :
- * on pose `deleted_at` (le middleware auth renverra 403, findById l'exclut déjà) et on
- * anonymise les données personnelles + on coupe la découverte (retiré des files, photos
- * effacées). L'utilisateur reste techniquement en base le temps de purger proprement les
- * relations, mais n'est plus joignable ni visible.
+ * Programme la suppression du compte (RGPD / stores). On NE supprime JAMAIS via
+ * auth.admin.deleteUser : on pose seulement `scheduled_deletion_at = maintenant + délai
+ * de grâce`. Pendant ce délai le compte reste PLEINEMENT actif — l'utilisateur peut se
+ * reconnecter et annuler sans rien perdre. La purge définitive (anonymisation +
+ * deleted_at) n'a lieu qu'à l'expiration, via purgeExpiredAccounts.
  */
-async function softDelete(id) {
-  // Purge des contenus qui exposeraient encore l'utilisateur.
+async function scheduleDeleteAccount(id) {
+  const deletionAt = new Date(Date.now() + config.accountDeletionDelayMs);
+  const { error } = await supabase
+    .from('profiles')
+    .update({ scheduled_deletion_at: deletionAt.toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+  return deletionAt;
+}
+
+/** Annule une suppression programmée tant que la purge n'a pas tourné. */
+async function cancelDeleteAccount(id) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ scheduled_deletion_at: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * Purge définitive d'UN compte dont le délai de grâce a expiré : on efface les
+ * contenus qui l'exposeraient encore, on anonymise les PII de la ligne et on pose
+ * `deleted_at` (le middleware auth renverra alors 403, findById l'exclut déjà).
+ * `scheduled_deletion_at` repasse à null — c'est deleted_at qui bloque désormais.
+ */
+async function purgeAccount(id) {
   await supabase.from('profile_photos').delete().eq('profile_id', id);
   await supabase.from('profile_interests').delete().eq('profile_id', id);
   await supabase.from('profile_prompts').delete().eq('profile_id', id);
 
   const { error } = await supabase.from('profiles').update({
     deleted_at: new Date().toISOString(),
+    scheduled_deletion_at: null,
     // Anonymisation des PII : plus rien d'identifiant ne subsiste dans la ligne.
     first_name: 'Membre',
     email: null,
@@ -319,4 +349,27 @@ async function softDelete(id) {
   if (error) throw error;
 }
 
-module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, softDelete, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, accessRow, setLocation, photoCount, setPhotoVec };
+/**
+ * Balaie les comptes dont la suppression programmée est échue et les purge un à un.
+ * Appelée périodiquement par le serveur (setInterval). Un échec sur un compte
+ * n'interrompt pas les autres.
+ */
+async function purgeExpiredAccounts() {
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .is('deleted_at', null)
+    .not('scheduled_deletion_at', 'is', null)
+    .lte('scheduled_deletion_at', new Date().toISOString());
+  if (error || !profiles?.length) return;
+
+  for (const { id } of profiles) {
+    try {
+      await purgeAccount(id);
+    } catch {
+      // On continue les autres même si l'un échoue.
+    }
+  }
+}
+
+module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, scheduleDeleteAccount, cancelDeleteAccount, purgeExpiredAccounts, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, accessRow, setLocation, photoCount, setPhotoVec };

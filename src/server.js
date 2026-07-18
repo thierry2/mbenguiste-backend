@@ -2,6 +2,7 @@ const app = require('./app');
 const config = require('./config');
 const { verifyConnection } = require('./config/db');
 const logger = require('./utils/logger');
+const { purgeExpiredAccounts } = require('./models/profile.model');
 
 let server;
 
@@ -23,6 +24,13 @@ async function start() {
     // dans le dashboard — c'est LE signe que le process n'a pas la variable.
     logger.info(`FREE_TIER_WOMEN=${config.freeTierWomen ? 'on' : 'off'}`);
   });
+
+  // Purge des comptes dont la suppression programmée est échue (toutes les minutes).
+  // Le délai de grâce laisse à l'utilisateur le temps d'annuler ; passé ce délai,
+  // la ligne est anonymisée et deleted_at posé (voir profile.model).
+  setInterval(async () => {
+    try { await purgeExpiredAccounts(); } catch (e) { logger.warn(`Purge comptes : ${e.message}`); }
+  }, 60 * 1000);
 }
 
 function shutdown(signal) {
