@@ -10,14 +10,23 @@ const supabase = require('../config/supabase');
 /**
  * Réserve le grant de la période. true = première réclamation (il faut créditer),
  * false = déjà versé (ou réclamé par une requête concurrente : l'unicité tranche).
+ *
+ * `ignoreDuplicates` (= ON CONFLICT DO NOTHING) et pas un insert nu : l'ensure
+ * tourne à CHAQUE lecture des entitlements, et laisser la contrainte péter
+ * inondait les logs Supabase d'erreurs 23505/409 « normales » (bruit repéré le
+ * 18/07). Ligne rendue par le select = on vient de la poser (on a gagné la
+ * réclamation) ; rien = déjà versé cette période.
  */
 async function claim(profileId, kind, periodKey) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('recurring_grants')
-    .insert({ profile_id: profileId, kind, period_key: periodKey });
-  if (!error) return true;
-  if (error.code === '23505') return false; // conflit d'unicité = déjà réclamé
-  throw error;
+    .upsert(
+      { profile_id: profileId, kind, period_key: periodKey },
+      { onConflict: 'profile_id,kind,period_key', ignoreDuplicates: true },
+    )
+    .select('profile_id');
+  if (error) throw error;
+  return (data?.length ?? 0) > 0;
 }
 
 /** Rend une réservation dont le versement a échoué (le prochain passage retentera). */

@@ -13,7 +13,10 @@ async function record(swiperId, targetId, actionCode, cible = null) {
   const actionId = await idForCode('swipe_actions', actionCode);
   if (!actionId) throw new Error(`Action de swipe inconnue : ${actionCode}`);
 
-  const row = { swiper_id: swiperId, target_id: targetId, action_id: actionId };
+  // created_at rafraîchi AUSSI au re-swipe (upsert) : « le dernier swipe » du
+  // rewind se lit sur created_at — sans ça, re-swiper garderait l'ancienne date
+  // et le rewind annulerait le mauvais swipe.
+  const row = { swiper_id: swiperId, target_id: targetId, action_id: actionId, created_at: new Date().toISOString() };
   // Un pass n'aime rien : on n'attache jamais de cible.
   if (actionCode !== 'pass' && cible) {
     row.like_target_type = cible.type ?? null;
@@ -97,16 +100,24 @@ async function seedOpeners(matchId, a, b) {
  * recréera via le trigger. Best-effort sur le match : ne bloque pas le rewind.
  */
 async function deleteLast(swiperId) {
-  const { data: last } = await supabase
+  // ⚠ `swipes` n'a PAS de colonne `id` (PK composite swiper_id+target_id).
+  // L'ancien select('id, …') échouait à CHAQUE appel et l'erreur était avalée
+  // (catch muet) → « Aucun swipe à annuler » systématique. On sélectionne par
+  // la vraie clé et on LÈVE toute erreur.
+  const { data: last, error: selError } = await supabase
     .from('swipes')
-    .select('id, target_id, created_at, action:swipe_actions!action_id(code)')
+    .select('target_id, created_at, action:swipe_actions!action_id(code)')
     .eq('swiper_id', swiperId)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (selError) throw selError;
   if (!last) return null;
 
-  const { error } = await supabase.from('swipes').delete().eq('id', last.id);
+  const { error } = await supabase.from('swipes')
+    .delete()
+    .eq('swiper_id', swiperId)
+    .eq('target_id', last.target_id);
   if (error) throw error;
 
   // Un match éventuellement formé par ce like devient incohérent → on le retire.
