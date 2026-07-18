@@ -87,9 +87,19 @@ const updateSettings = catchAsync(async (req, res) => {
   res.json({ success: true, data: { profile } });
 });
 
-/** Suppression du compte (soft delete + anonymisation). Le client se déconnecte ensuite. */
+/**
+ * Programme la suppression du compte (délai de grâce). Le compte reste actif : le
+ * client affiche une bannière d'annulation, il ne se déconnecte PAS. La purge
+ * définitive (anonymisation) a lieu à l'expiration, côté serveur.
+ */
 const deleteMe = catchAsync(async (req, res) => {
-  await profileModel.softDelete(req.user.id);
+  const programmationSuppression = await profileModel.scheduleDeleteAccount(req.user.id);
+  res.json({ success: true, data: { programmationSuppression } });
+});
+
+/** Annule une suppression programmée tant que le délai de grâce n'est pas échu. */
+const cancelDeleteMe = catchAsync(async (req, res) => {
+  await profileModel.cancelDeleteAccount(req.user.id);
   res.json({ success: true });
 });
 
@@ -100,4 +110,4 @@ const updateLocation = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, getEntitlements, updateLocation, savePushToken, updateSettings, deleteMe };
+module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, getEntitlements, updateLocation, savePushToken, updateSettings, deleteMe, cancelDeleteMe };
