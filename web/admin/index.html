@@ -127,14 +127,37 @@
   <div class="tabs">
     <div class="tab on" data-tab="dossiers">Dossiers</div>
     <div class="tab" data-tab="libres">Dossiers libres</div>
+    <div class="tab" data-tab="partenaires">Partenaires</div>
   </div>
 
-  <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
+  <div id="filtre-status" style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
     <select id="status" style="max-width:200px;">
       <option value="open">À traiter</option>
       <option value="closed">Traités</option>
       <option value="all">Tous</option>
     </select>
+  </div>
+
+  <!-- Créer & inviter un partenaire (Programme Partenaires) -->
+  <div id="panel-partenaires" class="card pad" style="display:none; margin-bottom:14px;">
+    <div class="row">
+      <div><label>Nom du créateur</label><input id="p-name" placeholder="Aminata Diallo" /></div>
+      <div><label>Email d'invitation</label><input id="p-email" type="email" placeholder="aminata@exemple.com" /></div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div><label>Code (vide = 1er prénom)</label><input id="p-code" placeholder="AMINATA" /></div>
+      <div><label>Taux en % (vide = 30, ou 40 si Fondateur)</label><input id="p-rate" type="number" min="0" max="100" placeholder="30" /></div>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+      <label style="display:flex; align-items:center; gap:7px; margin:0; text-transform:none; letter-spacing:0; font-family:inherit; font-size:14px; color:var(--ink);">
+        <input id="p-founder" type="checkbox" style="width:auto;" /> Cercle Fondateur
+      </label>
+      <button id="p-create" class="primary">Créer &amp; inviter</button>
+    </div>
+    <div class="note" style="margin-top:10px;">
+      Aucun mot de passe n'est créé ici : le partenaire reçoit un lien et choisit
+      lui-même lien magique ou mot de passe sur <b>/partenaires</b>.
+    </div>
   </div>
 
   <div id="out"></div>
@@ -193,6 +216,9 @@
       Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) { t.classList.remove('on'); });
       el.classList.add('on');
       tab = el.dataset.tab;
+      var estPartenaires = tab === 'partenaires';
+      $('filtre-status').style.display = estPartenaires ? 'none' : 'flex';
+      $('panel-partenaires').style.display = estPartenaires ? 'block' : 'none';
       charger();
     };
   });
@@ -201,6 +227,7 @@
     if (!api()) return erreur('Renseigne l\'URL de l\'API.');
     $('out').innerHTML = '<div class="empty">Chargement…</div>';
     try {
+      if (tab === 'partenaires') { await chargerPartenaires(); return; }
       await compteurs();
       if (tab === 'dossiers') await chargerDossiers();
       else await chargerLibres();
@@ -208,6 +235,86 @@
       erreur('Échec : ' + e.message);
     }
   }
+
+  // ── Programme Partenaires ─────────────────────────────────────────────────
+  var EUR = function (cents) {
+    return (Number(cents || 0) / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  };
+
+  async function chargerPartenaires() {
+    var res = await fetch(api() + '/api/v1/admin/partners', { headers: headers() });
+    if (!res.ok) throw new Error(res.status === 401 ? 'secret refusé' : 'HTTP ' + res.status);
+    var partenaires = (await res.json()).data.partners || [];
+    if (!partenaires.length) {
+      $('out').innerHTML = '<div class="empty">Aucun partenaire pour l\'instant.</div>';
+      return;
+    }
+    var html = '<div class="card"><div class="pad">';
+    partenaires.forEach(function (p) {
+      var gele = p.status === 'frozen';
+      html += '<div style="display:flex; justify-content:space-between; gap:12px; align-items:center;'
+        + ' flex-wrap:wrap; padding:12px 0; border-bottom:1px solid var(--line);">'
+        + '<div><div style="font-weight:600;">' + esc(p.displayName)
+        + (p.isFounder ? ' <span style="font-size:11px;color:var(--accent);">Fondateur</span>' : '')
+        + '</div><div style="font-size:12.5px;color:var(--ink3);">' + esc(p.email)
+        + ' · code <b>' + esc(p.code || '—') + '</b> · ' + (p.rateBps / 100) + ' %'
+        + ' · <span style="color:' + (gele ? 'var(--danger)' : 'var(--accent)') + ';">'
+        + esc(p.status) + '</span></div></div>'
+        + '<div style="display:flex; gap:6px; flex-wrap:wrap;">'
+        + '<button class="ok" data-act="payout" data-id="' + p.id + '">Verser</button>'
+        + '<button class="' + (gele ? 'ok' : 'danger') + '" data-act="' + (gele ? 'active' : 'frozen')
+        + '" data-id="' + p.id + '">' + (gele ? 'Réactiver' : 'Geler') + '</button>'
+        + '</div></div>';
+    });
+    $('out').innerHTML = html + '</div></div>';
+
+    Array.prototype.forEach.call($('out').querySelectorAll('button[data-act]'), function (btn) {
+      btn.onclick = async function () {
+        var id = btn.dataset.id, act = btn.dataset.act;
+        btn.disabled = true;
+        try {
+          if (act === 'payout') {
+            var r = await fetch(api() + '/api/v1/admin/partners/' + id + '/payout', {
+              method: 'POST', headers: headers(),
+              body: JSON.stringify({ method: 'Versement manuel' }),
+            });
+            var d = (await r.json()).data;
+            alert(d.count ? 'Versé : ' + EUR(d.amountCents) + ' (' + d.count + ' commissions).'
+                          : 'Rien à verser pour l\'instant.');
+          } else {
+            await fetch(api() + '/api/v1/admin/partners/' + id, {
+              method: 'PATCH', headers: headers(), body: JSON.stringify({ status: act }),
+            });
+          }
+          await chargerPartenaires();
+        } catch (e) { erreur('Échec : ' + e.message); }
+        btn.disabled = false;
+      };
+    });
+  }
+
+  $('p-create').onclick = async function () {
+    var name = $('p-name').value.trim(), email = $('p-email').value.trim();
+    if (!name || !email) return erreur('Nom et email sont requis.');
+    var body = { displayName: name, email: email, isFounder: $('p-founder').checked };
+    if ($('p-code').value.trim()) body.code = $('p-code').value.trim();
+    if ($('p-rate').value) body.rateBps = Math.round(Number($('p-rate').value) * 100);
+    body.redirectTo = window.location.origin + '/partenaires';
+    $('p-create').disabled = true;
+    try {
+      var r = await fetch(api() + '/api/v1/admin/partners', {
+        method: 'POST', headers: headers(), body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var d = (await r.json()).data;
+      alert('Partenaire créé. Code : ' + d.partner.code
+        + (d.invited ? '\nInvitation envoyée par email.' : '\n⚠ Invitation NON envoyée (à relancer).'));
+      $('p-name').value = ''; $('p-email').value = ''; $('p-code').value = ''; $('p-rate').value = '';
+      $('p-founder').checked = false;
+      await chargerPartenaires();
+    } catch (e) { erreur('Création impossible : ' + e.message); }
+    $('p-create').disabled = false;
+  };
 
   async function compteurs() {
     var res = await fetch(api() + '/api/v1/admin/moderation/counts', { headers: headers() });
