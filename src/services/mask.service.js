@@ -76,7 +76,7 @@ const HERO_H = 1280;
  * Critère de validation : on voit tête/épaules/teint, on ne peut pas décrire le
  * visage, on ne reconnaîtrait pas un proche.
  */
-const HERO_SIGMA = 42;
+const HERO_SIGMA = 52;
 
 async function blurHero(buffer) {
   return sharp(buffer)
