@@ -2,6 +2,7 @@ const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
 const moderationModel = require('../models/moderation.model');
 const moderationService = require('../services/moderation.service');
+const safetyService = require('../services/safety.service');
 
 const blockUser = catchAsync(async (req, res) => {
   if (req.params.id === req.user.id) throw ApiError.badRequest('Impossible de se bloquer soi-même');
@@ -26,4 +27,17 @@ const reportUser = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { blockUser, unblockUser, listBlocked, reportUser };
+/** Centre de sécurité : conversations en cours + anciennes connexions (matchs
+ *  défaits, blocages) — pour signaler même une personne disparue des matchs. */
+const pastConnections = catchAsync(async (req, res) => {
+  const data = await safetyService.pastConnections(req.user.id);
+  res.json({ success: true, data });
+});
+
+/** Dossier libre : la personne n'apparaît dans aucune connexion. */
+const reportFreeform = catchAsync(async (req, res) => {
+  await safetyService.reportFreeform(req.user.id, req.body.body);
+  res.json({ success: true });
+});
+
+module.exports = { blockUser, unblockUser, listBlocked, reportUser, pastConnections, reportFreeform };

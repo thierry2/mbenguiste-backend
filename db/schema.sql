@@ -278,6 +278,7 @@ create table if not exists public.matches (
   created_at    timestamptz not null default now(),
   last_message_at timestamptz,
   is_active     boolean not null default true,            -- set false on unmatch/block
+  ended_at      timestamptz,                              -- date de l'unmatch/blocage (null = avant migration 024)
   constraint chk_match_order check (user_low < user_high),
   unique (user_low, user_high)
 );
@@ -326,6 +327,19 @@ create table if not exists public.reports (
 create unique index if not exists uniq_open_report_per_pair
   on public.reports (reporter_id, reported_id) where status = 'open';
 create index if not exists idx_reports_reported on public.reports (reported_id);
+
+-- Dossier LIBRE (migration 024) : signaler une personne introuvable dans ses
+-- connexions (« son profil n'apparaît pas ici ») — texte descriptif, l'équipe
+-- retrouve le profil à la main. Même anonymat que reports.
+create table if not exists public.freeform_reports (
+  id           uuid primary key default gen_random_uuid(),
+  reporter_id  uuid not null references public.profiles(id) on delete cascade,
+  body         text not null,
+  status       text not null default 'open',              -- 'open' | 'reviewing' | 'closed'
+  created_at   timestamptz not null default now(),
+  constraint chk_freeform_body_len check (char_length(body) between 20 and 2000)
+);
+create index if not exists idx_freeform_reports_status on public.freeform_reports (status, created_at);
 
 create table if not exists public.subscriptions (
   id           uuid primary key default gen_random_uuid(),
@@ -567,13 +581,21 @@ insert into public.prompts (code, question, display_order) values
   ('first_date','Notre premier rendez-vous, je l''imagine…',4)
 on conflict (code) do nothing;
 
+-- Motifs v2 (migration 024, Centre de sécurité) : les codes historiques restent
+-- valides (FK des anciens dossiers), leurs libellés sont réalignés ; `do update`
+-- pour que libellés et ordre suivent ce fichier, source de vérité.
 insert into public.report_reasons (code, display_name, display_order) values
-  ('fake','Faux profil / arnaque',1),
-  ('inappropriate','Contenu inapproprié',2),
-  ('harassment','Harcèlement',3),
-  ('underage','Utilisateur mineur',4),
-  ('other','Autre',5)
-on conflict (code) do nothing;
+  ('scam','Demande d''argent ou arnaque',1),
+  ('fake','Faux profil ou usurpation',2),
+  ('harassment','Harcèlement ou insistance',3),
+  ('threats','Menaces ou violence',4),
+  ('inappropriate','Contenu sexuel non sollicité',5),
+  ('hate','Propos haineux',6),
+  ('offline_behavior','Une rencontre en personne',7),
+  ('underage','Personne mineure',8),
+  ('other','Autre chose',9)
+on conflict (code) do update
+  set display_name = excluded.display_name, display_order = excluded.display_order;
 
 insert into public.lifestyle_options (kind, code, display_name, display_order) values
   ('astro','aries','Bélier',1),('astro','taurus','Taureau',2),('astro','gemini','Gémeaux',3),

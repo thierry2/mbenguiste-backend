@@ -26,6 +26,10 @@ router.post('/:id/block', authenticate, modC.blockUser);
 router.delete('/:id/block', authenticate, modC.unblockUser);
 router.post('/:id/report', authenticate, validate(schemas.report), modC.reportUser);
 
+// Centre de sécurité : signaler même une personne disparue des matchs.
+router.get('/me/past-connections', authenticate, modC.pastConnections);
+router.post('/reports/freeform', authenticate, validate(schemas.freeformReport), modC.reportFreeform);
+
 // Photos de profil (multipart, champ `file`).
 router.post('/me/photos', authenticate, memoryUpload.single('file'), photoC.addPhoto);
 router.delete('/me/photos/:photoId', authenticate, photoC.deletePhoto);

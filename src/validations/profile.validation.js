@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { REPORT_DETAILS_MAX, FREEFORM_MIN, FREEFORM_MAX } = require('../constants/safety');
 
 const isoCountry = z.string().length(2).toUpperCase();
 
@@ -71,13 +72,24 @@ const location = z.object({
   }),
 });
 
-/** Signalement d'un profil : motif obligatoire (code report_reasons), détails courts. */
+/** Signalement d'un profil : motif obligatoire (code report_reasons) + récit.
+ *  2000 caractères comme le dossier libre et comme l'écran : depuis le centre de
+ *  sécurité, le récit d'une rencontre en personne est la SEULE trace que l'app
+ *  n'a pas — le borner à 1000 coupait des dossiers en plein milieu. */
 const report = z.object({
   params: z.object({ id: z.string().uuid() }),
   body: z.object({
     reason: z.string().min(1).max(40),
-    details: z.string().max(1000).optional(),
+    details: z.string().max(REPORT_DETAILS_MAX).optional(),
   }),
 });
 
-module.exports = { updateMe, completeOnboarding, preferences, location, report };
+/** Dossier libre (centre de sécurité) : assez de texte pour que l'équipe puisse
+ *  retrouver le profil (20 min), borné comme la contrainte DB (2000 max). */
+const freeformReport = z.object({
+  body: z.object({
+    body: z.string().trim().min(FREEFORM_MIN).max(FREEFORM_MAX),
+  }),
+});
+
+module.exports = { updateMe, completeOnboarding, preferences, location, report, freeformReport };

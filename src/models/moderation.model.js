@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { REPORT_DETAILS_MAX } = require('../constants/safety');
 
 /**
  * Bloque `blockedId` pour `blockerId` : insère le blocage (idempotent) ET désactive
@@ -12,10 +13,11 @@ async function block(blockerId, blockedId) {
     .from('blocks')
     .upsert({ blocker_id: blockerId, blocked_id: blockedId }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true });
 
-  // Coupe la conversation : le match (peu importe l'ordre canonique) passe inactif.
+  // Coupe la conversation : le match (peu importe l'ordre canonique) passe
+  // inactif, DATÉ (ended_at) — l'écran « Anciennes connexions » s'en sert.
   await supabase
     .from('matches')
-    .update({ is_active: false })
+    .update({ is_active: false, ended_at: new Date().toISOString() })
     .or(`and(user_low.eq.${blockerId},user_high.eq.${blockedId}),and(user_low.eq.${blockedId},user_high.eq.${blockerId})`);
 }
 
@@ -62,7 +64,9 @@ async function createReport({ reporterId, reportedId, reasonId, details }) {
     reporter_id: reporterId,
     reported_id: reportedId,
     reason_id: reasonId,
-    details: details?.slice(0, 1000) || null,
+    // Filet de sécurité seulement : zod a déjà refusé au-delà. La borne vient de
+    // la constante partagée pour qu'elle ne puisse plus diverger de la validation.
+    details: details?.slice(0, REPORT_DETAILS_MAX) || null,
   });
   // 23505 = violation de l'index unique « un dossier ouvert par paire » : un
   // double tap ou une course — le signalement existe déjà, ce n'est pas un échec.
@@ -80,6 +84,57 @@ async function countOpenReporters(reportedId) {
   return new Set((data || []).map((r) => r.reporter_id)).size;
 }
 
+/**
+ * Lignes brutes pour « Signaler quelqu'un » : TOUS les matchs (actifs ET
+ * défaits — le soft delete les garde) + mes blocages + les profils légers des
+ * autres membres. Le façonnage (sections, tri, dédup) est dans
+ * safety.service.buildPastConnections, pur et testé à sec.
+ */
+async function listConnectionsRaw(userId) {
+  const [matchesRes, blocksRes] = await Promise.all([
+    supabase
+      .from('matches')
+      .select('id, user_low, user_high, created_at, ended_at, is_active')
+      .or(`user_low.eq.${userId},user_high.eq.${userId}`),
+    supabase
+      .from('blocks')
+      .select('blocked_id, created_at')
+      .eq('blocker_id', userId),
+  ]);
+  // Erreurs LEVÉES, jamais avalées (leçon accessRow) : un échec silencieux ici
+  // rendrait l'écran vide en cachant la vraie panne.
+  if (matchesRes.error) throw matchesRes.error;
+  if (blocksRes.error) throw blocksRes.error;
+  const matchRows = matchesRes.data || [];
+  const blockRows = blocksRes.data || [];
+
+  const otherIds = new Set(blockRows.map((b) => b.blocked_id));
+  for (const m of matchRows) otherIds.add(m.user_low === userId ? m.user_high : m.user_low);
+
+  let profilesById = new Map();
+  if (otherIds.size) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, first_name, avatar_url')
+      .in('id', [...otherIds]);
+    if (error) throw error;
+    profilesById = new Map((data || []).map((p) => [p.id, {
+      id: p.id, prenom: p.first_name, avatarUrl: p.avatar_url ?? null,
+    }]));
+  }
+
+  return { matchRows, blockRows, profilesById };
+}
+
+/** Dossier libre (« son profil n'apparaît pas ici ») — la contrainte de longueur
+ *  (20–2000) est portée par la table, la validation zod filtre avant. */
+async function createFreeformReport(reporterId, body) {
+  const { error } = await supabase
+    .from('freeform_reports')
+    .insert({ reporter_id: reporterId, body });
+  if (error) throw error;
+}
+
 /** Retire un profil de la découverte (protection auto en attendant revue). */
 async function hideFromDiscovery(profileId) {
   const { error } = await supabase
@@ -89,4 +144,7 @@ async function hideFromDiscovery(profileId) {
   if (error) throw error;
 }
 
-module.exports = { block, unblock, listBlocked, findOpenReport, createReport, countOpenReporters, hideFromDiscovery };
+module.exports = {
+  block, unblock, listBlocked, findOpenReport, createReport, countOpenReporters,
+  hideFromDiscovery, listConnectionsRaw, createFreeformReport,
+};

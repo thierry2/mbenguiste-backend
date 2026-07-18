@@ -96,11 +96,15 @@ async function getForUser(matchId, userId) {
   return { id: m.id, actif: m.is_active, createdAt: m.created_at, autre: otherFromRow(other) };
 }
 
-/** Défaire un match (les deux membres ne se reverront plus). */
+/** Défaire un match (les deux membres ne se reverront plus). Soft delete DATÉ :
+ *  la ligne survit et « Signaler quelqu'un » (centre de sécurité) la relit. */
 async function unmatch(matchId, userId) {
   const m = await getForUser(matchId, userId);
   if (!m) return false;
-  const { error } = await supabase.from('matches').update({ is_active: false }).eq('id', matchId);
+  const { error } = await supabase
+    .from('matches')
+    .update({ is_active: false, ended_at: new Date().toISOString() })
+    .eq('id', matchId);
   if (error) throw error;
   return true;
 }
