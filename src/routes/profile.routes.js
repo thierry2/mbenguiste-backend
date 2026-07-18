@@ -12,6 +12,9 @@ const router = express.Router();
 router.get('/me', authenticate, c.getMe);
 router.patch('/me', authenticate, validate(schemas.updateMe), c.updateMe);
 router.post('/me/onboarding', authenticate, validate(schemas.completeOnboarding), c.completeOnboarding);
+// Programme Partenaires : valider un code (live) + le rattacher (cadeau de bienvenue).
+router.get('/me/referral/lookup', authenticate, c.lookupReferral);
+router.post('/me/referral', authenticate, validate(schemas.redeemReferral), c.redeemReferral);
 router.get('/me/preferences', authenticate, c.getPreferences);
 router.put('/me/preferences', authenticate, validate(schemas.preferences), c.setPreferences);
 router.get('/me/entitlements', authenticate, c.getEntitlements);
