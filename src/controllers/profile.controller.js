@@ -5,6 +5,7 @@ const profileModel = require('../models/profile.model');
 const profileService = require('../services/profile.service');
 const entitlementsService = require('../services/entitlements.service');
 const safetyService = require('../services/safety.service');
+const referralService = require('../services/referral.service');
 
 const getMe = catchAsync(async (req, res) => {
   profileModel.touchActivity(req.user.id).catch(() => {}); // présence, non bloquant
@@ -25,6 +26,24 @@ const completeOnboarding = catchAsync(async (req, res) => {
     onboardingFait: true,
   });
   res.json({ success: true, data: { profile } });
+});
+
+// ── Programme Partenaires : code d'invitation saisi à l'onboarding ───────────
+
+/** Valide un code en direct (puce de confirmation) → { valid, partnerName }. */
+const lookupReferral = catchAsync(async (req, res) => {
+  const result = await referralService.lookup(req.query.code);
+  res.json({ success: true, data: result });
+});
+
+/** Rattache le membre au code et verse le cadeau de bienvenue (1er code gagne). */
+const redeemReferral = catchAsync(async (req, res) => {
+  const result = await referralService.redeem({
+    profileId: req.user.id,
+    code: req.body.code,
+    source: req.body.source || 'manual',
+  });
+  res.json({ success: true, data: result });
 });
 
 const getById = catchAsync(async (req, res) => {
@@ -110,4 +129,4 @@ const updateLocation = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { getMe, updateMe, completeOnboarding, getById, getPreferences, setPreferences, getEntitlements, updateLocation, savePushToken, updateSettings, deleteMe, cancelDeleteMe };
+module.exports = { getMe, updateMe, completeOnboarding, lookupReferral, redeemReferral, getById, getPreferences, setPreferences, getEntitlements, updateLocation, savePushToken, updateSettings, deleteMe, cancelDeleteMe };

@@ -45,12 +45,12 @@ async function findByAuthUser(authUserId) {
 async function findByPromoCode(code) {
   const { data } = await supabase
     .from('promo_codes')
-    .select('is_active, partners:partner_id (id, rate_bps, status, is_founder)')
+    .select('is_active, partners:partner_id (id, display_name, rate_bps, status, is_founder)')
     .eq('code', code)
     .maybeSingle();
   if (!data || !data.is_active || !data.partners) return null;
   const p = data.partners;
-  return { partnerId: p.id, rateBps: p.rate_bps, status: p.status, isFounder: p.is_founder };
+  return { partnerId: p.id, displayName: p.display_name, rateBps: p.rate_bps, status: p.status, isFounder: p.is_founder };
 }
 
 module.exports = { findById, findByAuthUser, findByPromoCode };

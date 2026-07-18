@@ -33,6 +33,14 @@ const profileBody = z.object({
 
 const updateMe = z.object({ body: profileBody });
 
+// Code partenaire saisi à l'onboarding (normalisé en MAJUSCULES côté service).
+const redeemReferral = z.object({
+  body: z.object({
+    code: z.string().min(2).max(40),
+    source: z.enum(['link', 'manual', 'deferred']).optional(),
+  }),
+});
+
 const completeOnboarding = z.object({
   body: profileBody.extend({
     // À l'onboarding, quelques champs deviennent requis.
@@ -92,4 +100,4 @@ const freeformReport = z.object({
   }),
 });
 
-module.exports = { updateMe, completeOnboarding, preferences, location, report, freeformReport };
+module.exports = { updateMe, completeOnboarding, redeemReferral, preferences, location, report, freeformReport };
