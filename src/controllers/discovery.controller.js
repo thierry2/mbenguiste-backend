@@ -98,6 +98,45 @@ function maskToken(viewerId, swiperId) {
  */
 const online = (lastActiveAt) => !!lastActiveAt && Date.now() - new Date(lastActiveAt).getTime() < ONLINE_MS;
 
+/**
+ * Le Mystère — la personne à découvrir, TOUJOURS masquée, à TOUS les paliers.
+ *
+ * Endpoint SÉPARÉ de `/likes`, et c'est le fond du sujet. La grille des likes
+ * cesse volontairement de produire des photos floutées dès que le membre a
+ * `grilleDefloutee` : elle renvoie alors les photos EN CLAIR, sans `blurUrl`.
+ * Y puiser la photo du Mystère la faisait donc disparaître pour tout compte Or
+ * — et, plus grave, exposait à servir un jour une photo nette dans un écran qui
+ * doit rester masqué. Ici la seule source atteignable est `maskedCardsByIds` :
+ * le clair n'existe pas sur cette route.
+ *
+ * ⚠ SÉLECTION INTERIM : l'appariement quotidien n'est pas encore arrêté (il ne
+ * reposera PAS sur les likes reçus). En attendant on prend le premier candidat
+ * du deck — donc quelqu'un que les préférences et le score ont déjà retenu, ce
+ * qui est la bonne forme. Seul ce choix bougera ; le contrat de sortie, non.
+ */
+const mystere = catchAsync(async (req, res) => {
+  const viewerId = req.user.id;
+  const [cible] = await discoveryModel.candidates(viewerId, { limit: 1 });
+  if (!cible) return res.json({ success: true, data: { mystere: null } });
+
+  const masked = await discoveryModel.maskedCardsByIds([cible.id]);
+  const m = masked.get(cible.id);
+  // Pas de photo floutée en base → pas de Mystère. On ne retombe JAMAIS sur la
+  // photo nette : mieux vaut un écran sans photo qu'un visage révélé par accident.
+  if (!m?.blurUrl) return res.json({ success: true, data: { mystere: null } });
+
+  res.json({
+    success: true,
+    data: {
+      mystere: {
+        id: maskToken(viewerId, cible.id), // jeton opaque : aucune fuite d'identité
+        blurUrl: m.blurUrl,
+        enLigne: online(m.lastActiveAt),
+      },
+    },
+  });
+});
+
 const likesReceived = catchAsync(async (req, res) => {
   const viewerId = req.user.id;
   const pending = await discoveryModel.likersPending(viewerId);
@@ -186,4 +225,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived };
+module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere };

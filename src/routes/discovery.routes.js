@@ -18,6 +18,9 @@ router.post('/rewind', authenticate, c.rewind);
 router.get('/picks', authenticate, c.dailyPicks);
 // …c'est l'ACTION qui se paie : 1 like gratuit/jour, au-delà = Or (402 picks_like).
 router.post('/picks/:id/like', authenticate, validate(schemas.pickLike), c.likePick);
+// Le Mystère — la personne à découvrir, TOUJOURS masquée (jamais /likes, qui
+// renvoie du clair aux comptes Or).
+router.get('/mystere', authenticate, c.mystere);
 // « Qui t'a liké » — total toujours, profils réservés à l'Or.
 router.get('/likes', authenticate, c.likesReceived);
 // Swiper un profil : POST /discovery/:id/swipe { action }.
