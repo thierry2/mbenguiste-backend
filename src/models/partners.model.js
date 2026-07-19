@@ -42,6 +42,25 @@ async function findByAuthUser(authUserId) {
 }
 
 /**
+ * → partenaire par email (+ son code et son éventuel compte déjà lié).
+ * Sert au rattachement de secours : un partenaire invité dont le compte Supabase
+ * existe mais n'a jamais été relié à sa fiche (invitation dont l'email n'est pas
+ * parti : Supabase crée le compte quand même).
+ */
+async function findByEmail(email) {
+  const { data } = await supabase
+    .from('partners')
+    .select('id, display_name, email, rate_bps, is_founder, status, auth_user_id, promo_codes(code)')
+    .eq('email', String(email || '').trim().toLowerCase())
+    .maybeSingle();
+  if (!data) return null;
+  const partner = toPartner(data);
+  partner.code = data.promo_codes?.[0]?.code || null;
+  partner.authUserId = data.auth_user_id || null;
+  return partner;
+}
+
+/**
  * Résout un code ACTIF en partenaire { partnerId, rateBps, status, isFounder }.
  * null si le code est inconnu, inactif, ou le partenaire absent.
  */
@@ -119,6 +138,6 @@ async function list() {
 }
 
 module.exports = {
-  findById, findByAuthUser, findByPromoCode,
+  findById, findByAuthUser, findByEmail, findByPromoCode,
   create, createCode, linkAuthUser, attachAuthUser, setStatus, list,
 };

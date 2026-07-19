@@ -40,12 +40,33 @@ async function sendInvite(email, redirectTo) {
     const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, opts);
     if (error) {
       logger.error(`Invitation partenaire ${email} refusée par Supabase : ${error.message || error}`);
-      return { invited: false, authUserId: null, error: error.message || String(error) };
+      // L'email n'est pas parti, mais le compte Supabase peut TRÈS BIEN exister
+      // (créé par une tentative précédente, ou déjà membre). Sans cette
+      // récupération, la fiche partenaire reste orpheline et son propriétaire se
+      // voit refuser l'entrée même après s'être connecté.
+      return {
+        invited: false,
+        authUserId: await lookupAuthUserId(email),
+        error: error.message || String(error),
+      };
     }
     return { invited: true, authUserId: data?.user?.id || null, error: null };
   } catch (e) {
     logger.error(`Invitation partenaire ${email} en échec : ${e.message || e}`);
-    return { invited: false, authUserId: null, error: e.message || String(e) };
+    return { invited: false, authUserId: await lookupAuthUserId(email), error: e.message || String(e) };
+  }
+}
+
+/** Retrouve l'id du compte Supabase d'un email, s'il existe déjà. null sinon. */
+async function lookupAuthUserId(email) {
+  try {
+    const cible = String(email || '').trim().toLowerCase();
+    const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 });
+    if (error || !data || !data.users) return null;
+    const trouve = data.users.find((u) => String(u.email || '').toLowerCase() === cible);
+    return trouve ? trouve.id : null;
+  } catch {
+    return null;
   }
 }
 
