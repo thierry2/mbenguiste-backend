@@ -34,6 +34,18 @@ router.patch('/me/settings', authenticate, c.updateSettings);
 router.delete('/me', authenticate, c.deleteMe);
 router.post('/me/cancel-deletion', authenticate, c.cancelDeleteMe);
 
+// Droit à la portabilité (RGPD). Limité : l'export balaie une douzaine de tables,
+// c'est la requête la plus lourde de l'API — et personne n'a besoin de ses données
+// plus de quelques fois par heure.
+const exportLimiter = require('express-rate-limit')({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de demandes d\'export. Réessaie dans un moment.' },
+});
+router.get('/me/export', authenticate, exportLimiter, c.exportMine);
+
 // Modération (store-required) : bloquer / débloquer / signaler.
 router.get('/me/blocks', authenticate, modC.listBlocked);
 router.post('/:id/block', authenticate, modC.blockUser);
