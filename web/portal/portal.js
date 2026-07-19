@@ -388,9 +388,26 @@
       if (!d.referrals.length) show('referrals-empty');
       d.referrals.forEach(function (r) {
         var tr = document.createElement('tr');
-        tr.appendChild(cell(r.member));
+
+        // Membre : pastille d'initiale + pseudonyme masqué. La pastille ne sert
+        // qu'au mobile (elle donne le rythme de la liste), masquée en tableau.
+        var who = document.createElement('td');
+        var ava = document.createElement('span');
+        ava.className = 'ava';
+        ava.textContent = String(r.member || '?').charAt(0);
+        var nom = document.createElement('span');
+        nom.className = 'mname';
+        nom.textContent = r.member;
+        who.appendChild(ava);
+        who.appendChild(nom);
+        tr.appendChild(who);
+
         tr.appendChild(cell(new Date(r.attributedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })));
-        tr.appendChild(cell(TIERS[r.tier] || '—'));
+
+        // Cellules VIDES quand la donnée n'existe pas — jamais un « — » posé dans
+        // le texte : sur mobile on masque la cellule (un tiret orphelin au milieu
+        // d'une ligne ne veut rien dire), en tableau le CSS remet le tiret.
+        tr.appendChild(cell(TIERS[r.tier] || ''));
 
         var st = document.createElement('td');
         var pill = document.createElement('span');
@@ -399,8 +416,8 @@
         st.appendChild(pill);
         tr.appendChild(st);
 
-        var part = cell(r.shareCents ? '+' + eur(r.shareCents) : '—');
-        part.className = 'tright tnum';
+        var part = cell(r.shareCents ? '+' + eur(r.shareCents) : '');
+        part.className = 'tright tnum part';
         tr.appendChild(part);
         tb.appendChild(tr);
       });
