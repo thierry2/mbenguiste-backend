@@ -27,7 +27,13 @@ const CSP = [
   "object-src 'none'",
   "frame-ancestors 'none'",   // pas d'iframe : anti-clickjacking
   "form-action 'self'",
-  "img-src 'self' data:",
+  // `blob:` — la console affiche des images (selfie de vérification, photos du
+  // profil examiné) qu'elle récupère en fetch AUTHENTIFIÉ auprès de notre propre
+  // API, puis pose en objet blob. Aucune origine externe n'est ouverte : le
+  // selfie ne transite jamais sous forme d'URL signée dans le DOM, où elle
+  // serait copiable et donnerait accès à une photo biométrique sans aucune
+  // authentification pendant toute sa durée de vie.
+  "img-src 'self' data: blob:",
   "font-src 'self'",
   "style-src 'self'",         // zéro style inline
   "script-src 'self'",        // zéro script inline, zéro CDN

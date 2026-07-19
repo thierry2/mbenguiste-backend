@@ -27,7 +27,7 @@ const domain = require('../domain/verification');
  * `state` est le seul champ que l'UI doit lire pour choisir son écran :
  *   idle | capturing | pending | verified | rejected | cooldown
  */
-function buildStatus({ profile, request, last, history }, now = new Date()) {
+function buildStatus({ profile, request, last, history, photoCount = 0 }, now = new Date()) {
   if (profile?.is_verified) {
     return {
       state: 'verified',
@@ -62,6 +62,22 @@ function buildStatus({ profile, request, last, history }, now = new Date()) {
     // Fenêtre écoulée → on retombe sur le cas « peut redémarrer » ci-dessous.
   }
 
+  // Sans photo de profil, la vérification n'a rien à comparer : elle ne prouve
+  // rien et occupe la file pour un refus certain. On l'interdit AVANT de laisser
+  // démarrer, et on dit quoi faire pour en sortir.
+  //
+  // (Placé après la branche « requête active » : si les photos sont supprimées
+  // en cours de route, on laisse la demande aller au bout — la personne qui
+  // relit tranchera, plutôt que de figer un état incompréhensible.)
+  if (photoCount === 0) {
+    return {
+      state: 'no_photos',
+      canStart: false,
+      pose: null, captureExpiresAt: null, rejectionReason: null,
+      retryAt: null, verifiedAt: null,
+    };
+  }
+
   const retry = domain.retryPolicy(history, now);
   if (!retry.canRetry) {
     return {
@@ -89,8 +105,8 @@ function buildStatus({ profile, request, last, history }, now = new Date()) {
   };
 }
 
-/** PUR — une ligne de la file admin, prête à afficher (selfie déjà signé). */
-function buildQueueItem(request, subject, selfieUrl) {
+/** PUR — une ligne de la file admin, prête à afficher. */
+function buildQueueItem(request, subject) {
   const pose = domain.poseByCode(request.pose_code);
   return {
     id: request.id,
@@ -103,7 +119,10 @@ function buildQueueItem(request, subject, selfieUrl) {
     poseCode: request.pose_code,
     poseInstruction: pose?.instruction ?? request.pose_code,
     poseHint: pose?.hint ?? null,
-    selfieUrl,
+    // Pas d'URL : la console va chercher les octets sur un endpoint authentifié
+    // (cf. GET /admin/verifications/:id/selfie). On dit seulement s'il y a
+    // quelque chose à aller chercher.
+    aSelfie: !!request.selfie_path,
     tentative: request.attempt_no,
     soumisLe: request.submitted_at,
   };
@@ -114,12 +133,13 @@ function buildQueueItem(request, subject, selfieUrl) {
 async function getStatus(userId, profile) {
   // Nettoyage paresseux : pas de cron pour ça, la lecture suffit à ranger.
   await model.expireStaleCaptures().catch(() => {});
-  const [request, last, history] = await Promise.all([
+  const [request, last, history, photoCount] = await Promise.all([
     model.activeFor(userId),
     model.lastFor(userId),
     model.rejectionHistory(userId),
+    model.photoCount(userId),
   ]);
-  return buildStatus({ profile, request, last, history });
+  return buildStatus({ profile, request, last, history, photoCount });
 }
 
 /**
@@ -144,6 +164,12 @@ async function start(userId, profile, { rng } = {}) {
         captureExpiresAt: existing.capture_expires_at,
       };
     }
+  }
+
+  // Rien à comparer = rien à prouver. On refuse avant de tirer une pose, sinon
+  // on envoie quelqu'un se photographier pour un refus joué d'avance.
+  if (await model.photoCount(userId) === 0) {
+    throw ApiError.badRequest('Ajoute au moins une photo de profil avant de demander la vérification.');
   }
 
   const history = await model.rejectionHistory(userId);
@@ -184,9 +210,19 @@ async function submitSelfie(userId, file) {
 
   const { path } = await uploadService.uploadVerificationSelfie(file, userId);
 
-  const updated = await model.attachSelfie(request.id, path);
+  // À partir d'ici le fichier EXISTE dans le bucket. Tout chemin de sortie qui
+  // n'aboutit pas à une ligne `pending_review` doit l'effacer, sinon on accumule
+  // des selfies orphelins — des photos de visages que plus rien ne référence,
+  // donc que plus rien ne viendra jamais supprimer.
+  let updated;
+  try {
+    updated = await model.attachSelfie(request.id, path);
+  } catch (err) {
+    await uploadService.removeVerificationSelfie(path).catch(() => {});
+    throw err;
+  }
   if (!updated) {
-    // Course perdue (double envoi) : on ne laisse pas le fichier orphelin.
+    // Course perdue (double envoi) : même nettoyage.
     await uploadService.removeVerificationSelfie(path).catch(() => {});
     throw ApiError.badRequest('Ta vérification est déjà en cours d\'examen');
   }
@@ -199,12 +235,18 @@ async function submitSelfie(userId, file) {
 async function listQueue(limit = 100) {
   const requests = await model.reviewQueue(limit);
   return Promise.all(requests.map(async (r) => {
-    const [subject, selfieUrl] = await Promise.all([
-      model.reviewSubject(r.user_id),
-      uploadService.signVerificationUrl(r.selfie_path),
-    ]);
-    return buildQueueItem(r, subject, selfieUrl);
+    const subject = await model.reviewSubject(r.user_id);
+    return buildQueueItem(r, subject);
   }));
+}
+
+/** Les octets du selfie d'une demande, pour la console (réponse authentifiée). */
+async function selfieBytes(requestId) {
+  const request = await model.byId(requestId);
+  if (!request) throw ApiError.notFound('Demande introuvable');
+  const image = await uploadService.readVerificationSelfie(request.selfie_path);
+  if (!image) throw ApiError.notFound('Selfie introuvable');
+  return image;
 }
 
 /**
@@ -246,5 +288,5 @@ async function pendingCount() {
 module.exports = {
   buildStatus, buildQueueItem,
   getStatus, start, submitSelfie,
-  listQueue, decide, pendingCount,
+  listQueue, selfieBytes, decide, pendingCount,
 };

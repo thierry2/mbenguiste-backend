@@ -96,12 +96,23 @@ async function uploadVerificationSelfie(file, userId) {
   return { path: data.path };
 }
 
-/** Signe un selfie de vérification pour la console admin (ou null). */
-async function signVerificationUrl(path) {
+/**
+ * Lit les OCTETS d'un selfie pour la console admin.
+ *
+ * Volontairement pas d'URL signée : une URL signée finit dans le DOM de la
+ * console, d'où elle peut être copiée puis ouverte par n'importe qui, sans
+ * authentification, jusqu'à son expiration. Pour une photo biométrique c'est
+ * trop. Le backend lit et relaie, la photo ne sort que dans une réponse
+ * authentifiée.
+ */
+async function readVerificationSelfie(path) {
   if (!path) return null;
-  const { data, error } = await supabase.storage.from(BUCKET_VERIF).createSignedUrl(path, VERIF_SIGNED_URL_TTL);
-  if (error || !data?.signedUrl) return null;
-  return data.signedUrl;
+  const { data, error } = await supabase.storage.from(BUCKET_VERIF).download(path);
+  if (error || !data) return null;
+  return {
+    buffer: Buffer.from(await data.arrayBuffer()),
+    contentType: data.type || 'image/jpeg',
+  };
 }
 
 /** Efface un selfie du bucket privé (après décision : on ne garde pas le biométrique). */
@@ -117,6 +128,6 @@ module.exports = {
   signChatUrl,
   signChatUrls,
   uploadVerificationSelfie,
-  signVerificationUrl,
+  readVerificationSelfie,
   removeVerificationSelfie,
 };

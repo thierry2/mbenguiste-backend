@@ -177,6 +177,7 @@
 
   function charger() {
     if (!token()) return ouvrirGate();
+    revoquerBlobs(); // les images de la vue précédente ne servent plus
     squelette();
     if (tab === 'partenaires') return chargerPartenaires();
 
@@ -380,11 +381,18 @@
 
       // En-tête : qui, quelle tentative, depuis quand.
       var head = el('div', 'dossier-head');
-      var av = document.createElement('img');
-      av.className = 'verif-avatar';
-      av.alt = '';
-      av.src = v.avatarUrl || '';
-      head.appendChild(av);
+      // Pastille vide plutôt qu'une <img src=""> : un src vide affiche l'icône
+      // « image cassée » du navigateur, ce qui donne l'air d'une panne alors que
+      // la personne n'a simplement pas d'avatar.
+      if (v.avatarUrl) {
+        var av = document.createElement('img');
+        av.className = 'verif-avatar';
+        av.alt = '';
+        av.src = v.avatarUrl;
+        head.appendChild(av);
+      } else {
+        head.appendChild(el('div', 'verif-avatar'));
+      }
 
       var id = el('div', 'dossier-id');
       id.appendChild(el('p', 'dossier-name', v.prenom || 'Sans prénom'));
@@ -411,20 +419,17 @@
 
       var gauche = el('div', 'verif-col');
       gauche.appendChild(el('p', 'verif-col-lab', 'Selfie de vérification'));
-      if (v.selfieUrl) {
+      if (v.aSelfie) {
         var selfie = document.createElement('img');
         selfie.className = 'verif-selfie';
         selfie.alt = 'Selfie de vérification';
-        selfie.src = v.selfieUrl;
-        // Plein écran au clic : juger une pose sur une vignette est impossible.
-        selfie.addEventListener('click', function () { window.open(v.selfieUrl, '_blank', 'noopener'); });
         gauche.appendChild(selfie);
+        chargerSelfie(v.id, selfie, gauche);
       } else {
-        // L'URL signée n'a pas pu être générée (fichier effacé, storage KO).
-        // On l'affiche au lieu de masquer la ligne : une demande invisible
-        // resterait bloquée « en attente » pour toujours.
+        // Aucun fichier attaché. On affiche la ligne au lieu de la masquer :
+        // une demande invisible resterait « en attente » pour toujours.
         gauche.appendChild(el('p', 'verif-missing',
-          'Selfie illisible. Refuse la demande : la personne pourra recommencer.'));
+          'Aucun selfie attaché. Refuse la demande : la personne pourra recommencer.'));
       }
       duel.appendChild(gauche);
 
@@ -490,6 +495,44 @@
 
     $('out').innerHTML = '';
     $('out').appendChild(frag);
+  }
+
+  // Les blobs posés dans le DOM tiennent la mémoire tant qu'on ne les révoque
+  // pas. La file se recharge à chaque décision : sans ce ménage, une session de
+  // modération d'une heure accumulerait toutes les photos jamais affichées.
+  var blobsPoses = [];
+  function revoquerBlobs() {
+    blobsPoses.forEach(function (u) { URL.revokeObjectURL(u); });
+    blobsPoses = [];
+  }
+
+  /**
+   * Récupère le selfie en fetch AUTHENTIFIÉ, puis le pose en blob.
+   *
+   * Pourquoi pas une simple URL dans le src : la CSP de la console interdit
+   * toute origine externe (`img-src 'self' data: blob:`), et surtout une URL
+   * signée déposée dans le DOM est copiable — elle ouvrirait une photo
+   * biométrique sans aucune authentification jusqu'à son expiration.
+   */
+  function chargerSelfie(id, img, zone) {
+    fetch('/api/v1/admin/verifications/' + id + '/selfie', {
+      headers: { Authorization: 'Bearer ' + token() },
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      blobsPoses.push(url);
+      img.src = url;
+      // Plein écran au clic : juger une pose sur une vignette est impossible.
+      img.addEventListener('click', function () { window.open(url, '_blank', 'noopener'); });
+    }).catch(function () {
+      // Fichier effacé, storage injoignable : on le DIT, sinon l'admin reste
+      // devant un cadre gris sans savoir s'il doit attendre ou trancher.
+      img.remove();
+      zone.appendChild(el('p', 'verif-missing',
+        'Selfie illisible. Refuse la demande : la personne pourra recommencer.'));
+    });
   }
 
   function decider(v, card, action, motif) {

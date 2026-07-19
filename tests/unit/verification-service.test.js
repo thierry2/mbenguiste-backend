@@ -25,17 +25,41 @@ const request = (over = {}) => ({
 });
 
 const empty = { attempts: 0, lastRejectedAt: null };
+// La plupart des cas supposent un profil qui a déjà des photos : sans elles, la
+// vérification n'a rien à comparer et court-circuite tout (cf. test dédié).
+const AVEC_PHOTOS = 3;
 
 test('profil vierge → idle, peut démarrer', () => {
-  const out = buildStatus({ profile: { is_verified: false }, request: null, last: null, history: empty }, NOW);
+  const out = buildStatus({ profile: { is_verified: false }, request: null, last: null, history: empty, photoCount: AVEC_PHOTOS }, NOW);
   assert.equal(out.state, 'idle');
   assert.equal(out.canStart, true);
   assert.equal(out.pose, null);
 });
 
+test('AUCUNE photo de profil → no_photos, démarrage interdit', () => {
+  // Sans photo il n'y a rien à comparer : laisser démarrer enverrait quelqu'un
+  // se photographier pour un refus joué d'avance, et polluerait la file.
+  const out = buildStatus({ profile: { is_verified: false }, request: null, last: null, history: empty, photoCount: 0 }, NOW);
+  assert.equal(out.state, 'no_photos');
+  assert.equal(out.canStart, false);
+});
+
+test('sans photo mais DÉJÀ vérifiée → le sceau prime, pas de régression', () => {
+  const out = buildStatus({ profile: { is_verified: true, verified_at: '2026-07-10T09:00:00Z' }, request: null, last: null, history: empty, photoCount: 0 }, NOW);
+  assert.equal(out.state, 'verified');
+});
+
+test('sans photo mais capture DÉJÀ en cours → on laisse aller au bout', () => {
+  // Photos supprimées après le démarrage : plutôt que de figer un état
+  // incompréhensible, on laisse la demande vivre — la revue humaine tranchera.
+  const r = request();
+  const out = buildStatus({ profile: { is_verified: false }, request: r, last: r, history: empty, photoCount: 0 }, NOW);
+  assert.equal(out.state, 'capturing');
+});
+
 test('capture en cours → capturing, avec la pose imposée et son échéance', () => {
   const r = request();
-  const out = buildStatus({ profile: { is_verified: false }, request: r, last: r, history: empty }, NOW);
+  const out = buildStatus({ profile: { is_verified: false }, request: r, last: r, history: empty, photoCount: AVEC_PHOTOS }, NOW);
   assert.equal(out.state, 'capturing');
   assert.equal(out.requestId, 'req-1');
   assert.equal(out.pose.code, POSES[0].code);
@@ -46,14 +70,14 @@ test('capture en cours → capturing, avec la pose imposée et son échéance', 
 
 test('fenêtre de capture écoulée → retour à idle (nouvelle pose au prochain start)', () => {
   const r = request({ capture_expires_at: iso(-1000) });
-  const out = buildStatus({ profile: { is_verified: false }, request: r, last: r, history: empty }, NOW);
+  const out = buildStatus({ profile: { is_verified: false }, request: r, last: r, history: empty, photoCount: AVEC_PHOTOS }, NOW);
   assert.equal(out.state, 'idle');
   assert.equal(out.canStart, true);
 });
 
 test('selfie envoyé → pending, et la revue N\'EXPIRE PAS même des jours après', () => {
   const r = request({ status: 'pending_review', submitted_at: iso(-6 * 24 * 3600 * 1000), capture_expires_at: iso(-6 * 24 * 3600 * 1000) });
-  const out = buildStatus({ profile: { is_verified: false }, request: r, last: r, history: empty }, NOW);
+  const out = buildStatus({ profile: { is_verified: false }, request: r, last: r, history: empty, photoCount: AVEC_PHOTOS }, NOW);
   assert.equal(out.state, 'pending');
   assert.equal(out.canStart, false);
 });
@@ -72,7 +96,7 @@ test('refus sous le seuil d\'essais libres → rejected avec le motif, peut rela
   const last = request({ status: 'rejected', rejection_reason: 'Visage non visible' });
   const out = buildStatus({
     profile: { is_verified: false }, request: null, last,
-    history: { attempts: 1, lastRejectedAt: iso(-60 * 1000) },
+    history: { attempts: 1, lastRejectedAt: iso(-60 * 1000) }, photoCount: AVEC_PHOTOS,
   }, NOW);
   assert.equal(out.state, 'rejected');
   assert.equal(out.rejectionReason, 'Visage non visible');
@@ -84,7 +108,7 @@ test('essais libres épuisés → cooldown, avec la date de réouverture', () =>
   const out = buildStatus({
     profile: { is_verified: false }, request: null,
     last: request({ status: 'rejected', rejection_reason: 'Pose non respectée' }),
-    history: { attempts: FREE_ATTEMPTS, lastRejectedAt },
+    history: { attempts: FREE_ATTEMPTS, lastRejectedAt }, photoCount: AVEC_PHOTOS,
   }, NOW);
   assert.equal(out.state, 'cooldown');
   assert.equal(out.canStart, false);
@@ -97,30 +121,44 @@ test('cooldown écoulé → on repasse à rejected (relance possible)', () => {
   const out = buildStatus({
     profile: { is_verified: false }, request: null,
     last: request({ status: 'rejected', rejection_reason: 'Flou' }),
-    history: { attempts: FREE_ATTEMPTS + 2, lastRejectedAt: iso(-COOLDOWN_MS - 1000) },
+    history: { attempts: FREE_ATTEMPTS + 2, lastRejectedAt: iso(-COOLDOWN_MS - 1000) }, photoCount: AVEC_PHOTOS,
   }, NOW);
   assert.equal(out.state, 'rejected');
   assert.equal(out.canStart, true);
 });
 
 test('ligne admin : la consigne exacte imposée accompagne le selfie', () => {
-  const r = request({ status: 'pending_review', submitted_at: iso(-3600 * 1000), attempt_no: 2 });
+  const r = request({
+    status: 'pending_review', submitted_at: iso(-3600 * 1000),
+    attempt_no: 2, selfie_path: 'u1/1753000000-abc.jpg',
+  });
   const item = buildQueueItem(r, {
     prenom: 'Mariama', avatarUrl: 'https://x/a.jpg',
     photos: ['https://x/1.jpg', 'https://x/2.jpg'], dejaVerifiee: false,
-  }, 'https://signed/selfie.jpg');
+  });
 
   assert.equal(item.poseInstruction, POSES[0].instruction);
   assert.equal(item.poseCode, POSES[0].code);
-  assert.equal(item.selfieUrl, 'https://signed/selfie.jpg');
   assert.equal(item.photos.length, 2);
   assert.equal(item.tentative, 2);
 });
 
-test('ligne admin : selfie non signable → selfieUrl null, la ligne reste affichable', () => {
-  const r = request({ status: 'pending_review', submitted_at: iso(0) });
-  const item = buildQueueItem(r, null, null);
-  assert.equal(item.selfieUrl, null);
+test('ligne admin : AUCUNE URL de selfie ne sort de la file', () => {
+  // La photo est biométrique : elle ne circule que dans une réponse
+  // authentifiée (GET /admin/verifications/:id/selfie), jamais sous forme
+  // d'URL signée déposée dans le DOM, où elle serait copiable et ouvrable
+  // sans authentification jusqu'à son expiration.
+  const r = request({ status: 'pending_review', submitted_at: iso(0), selfie_path: 'u1/x.jpg' });
+  const item = buildQueueItem(r, null);
+  assert.equal(item.selfieUrl, undefined);
+  assert.equal(item.selfiePath, undefined);
+  assert.equal(item.aSelfie, true);
+});
+
+test('ligne admin : sans fichier attaché → aSelfie faux, la ligne reste affichable', () => {
+  const r = request({ status: 'pending_review', submitted_at: iso(0), selfie_path: null });
+  const item = buildQueueItem(r, null);
+  assert.equal(item.aSelfie, false);
   assert.equal(item.prenom, null);
   // Sans le repli, un code de pose inconnu laisserait l'admin sans consigne.
   assert.equal(typeof item.poseInstruction, 'string');

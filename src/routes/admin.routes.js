@@ -116,6 +116,11 @@ router.get('/verifications', verifC.adminList);
 // GET /api/v1/admin/verifications/count — bandeau de la console.
 router.get('/verifications/count', verifC.adminCount);
 
+// GET /api/v1/admin/verifications/:id/selfie — les octets du selfie.
+// La console le récupère en fetch authentifié puis le pose en blob : la photo
+// ne circule jamais sous forme d'URL ouvrable sans authentification.
+router.get('/verifications/:id/selfie', verifC.adminSelfie);
+
 // POST /api/v1/admin/verifications/:id  body: { action: 'valider'|'refuser', motif? }
 router.post('/verifications/:id', verifC.adminDecide);
 
