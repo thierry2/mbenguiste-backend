@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Politique de confidentialité — Mbenguiste</title>
+<meta name="description" content="Quelles données Mbenguiste collecte, pourquoi, sur quelle base légale, avec qui elles sont partagées, combien de temps elles sont conservées et comment exercer vos droits.">
+<meta name="theme-color" content="#16131A">
+<link rel="stylesheet" href="/assets/theme.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Aller au contenu</a>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="nav-brand" href="/">
+      <svg class="seal" viewBox="0 0 40 40" aria-hidden="true" fill="none">
+        <circle cx="20" cy="20" r="18.5" stroke="currentColor" stroke-opacity=".38"/>
+        <path d="M6 25.5C11 12.5 29 12.5 34 25.5" stroke="currentColor" stroke-opacity=".85" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="6" cy="25.5" r="2.6" fill="currentColor"/><circle cx="34" cy="25.5" r="2.6" fill="currentColor"/>
+      </svg>
+      Mbenguiste
+    </a>
+    <div class="nav-links">
+      <a href="/legal">Informations légales</a>
+      <a class="nav-cta" href="mailto:privacy@mbenguiste.com">Exercer mes droits</a>
+    </div>
+  </div>
+</nav>
+
+<header class="doc-head">
+  <div class="shell">
+    <p class="eyebrow">Document légal · RGPD</p>
+    <h1>Politique de confidentialité</h1>
+    <p class="lede">
+      Une application de rencontre sait des choses intimes de vous. Ce document
+      dit exactement lesquelles, pourquoi nous les gardons, à qui elles sont
+      transmises, et comment vous reprenez la main.
+    </p>
+    <div class="doc-meta">
+      <span>Version 1.0</span>
+      <span>En vigueur le 19 juillet 2026</span>
+      <span>Règlement (UE) 2016/679</span>
+    </div>
+  </div>
+</header>
+
+<div class="doc-layout">
+  <aside class="toc" aria-label="Sommaire">
+    <h4>Sommaire</h4>
+    <ol>
+      <li><a href="#essentiel">L'essentiel</a></li>
+      <li><a href="#responsable">Qui est responsable</a></li>
+      <li><a href="#donnees">Données collectées</a></li>
+      <li><a href="#sensibles">Données sensibles</a></li>
+      <li><a href="#finalites">Finalités et bases légales</a></li>
+      <li><a href="#algorithmes">Algorithmes et IA</a></li>
+      <li><a href="#visibilite">Ce que les autres voient</a></li>
+      <li><a href="#destinataires">Destinataires</a></li>
+      <li><a href="#transferts">Transferts hors UE</a></li>
+      <li><a href="#duree">Durées de conservation</a></li>
+      <li><a href="#securite">Sécurité</a></li>
+      <li><a href="#droits">Vos droits</a></li>
+      <li><a href="#mineurs">Mineurs</a></li>
+      <li><a href="#modifications">Modifications</a></li>
+    </ol>
+  </aside>
+
+  <main id="main" class="doc">
+
+    <h2 id="essentiel">1. L'essentiel, en dix lignes</h2>
+    <div class="callout" role="note">
+      <p>
+        Nous collectons ce qu'il faut pour vous présenter des personnes, vous
+        laisser leur parler, et empêcher que le service devienne dangereux.
+        <strong>Nous ne vendons aucune donnée</strong> et nous n'affichons aucune
+        publicité ciblée.
+      </p>
+      <p>
+        Votre <strong>position exacte n'est jamais montrée</strong> à un autre
+        membre : nous n'en publions qu'une distance approximative. Vos photos
+        sont analysées pour améliorer la pertinence des suggestions, mais
+        <strong>sans aucune reconnaissance faciale</strong> et sans quitter nos
+        propres serveurs. Vos messages transitent en revanche par un service de
+        traduction tiers lorsque cette fonction est active — c'est expliqué au
+        <a href="#algorithmes">point 6</a>.
+      </p>
+      <p>
+        Vous pouvez à tout moment <strong>télécharger l'intégralité de vos
+        données</strong> et <strong>supprimer votre compte</strong> depuis
+        l'application, sans nous écrire.
+      </p>
+    </div>
+
+    <h2 id="responsable">2. Qui est responsable de vos données</h2>
+    <p>
+      Le responsable du traitement est
+      <span class="fill">[[À COMPLÉTER — dénomination sociale de l'éditeur]]</span>,
+      dont les coordonnées complètes figurent dans les
+      <a href="/mentions-legales#editeur">mentions légales</a>.
+    </p>
+    <p>
+      Pour toute question ou demande relative à vos données :
+      <a href="mailto:privacy@mbenguiste.com">privacy@mbenguiste.com</a>.
+    </p>
+    <p>
+      <span class="fill">[[Si un délégué à la protection des données (DPO) est désigné, indiquer ici son identité et ses coordonnées, et le déclarer à la CNIL. La désignation devient obligatoire si le suivi régulier et systématique des personnes à grande échelle constitue votre activité de base — ce qui est le cas d'une application de rencontre qui atteint une taille significative.]]</span>
+    </p>
+
+    <h2 id="donnees">3. Quelles données nous collectons</h2>
+
+    <h3>3.1 Ce que vous nous donnez</h3>
+    <div class="doc-table">
+      <table>
+        <thead><tr><th>Catégorie</th><th>Détail</th><th>Caractère</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Compte</td>
+            <td>Adresse e-mail, mot de passe (stocké sous forme de condensat, jamais en clair), ou identifiants de connexion via un fournisseur tiers.</td>
+            <td>Obligatoire</td>
+          </tr>
+          <tr>
+            <td>Identité</td>
+            <td>Prénom ou pseudonyme, date de naissance (qui sert à vérifier la majorité et à calculer l'âge affiché), genre.</td>
+            <td>Obligatoire</td>
+          </tr>
+          <tr>
+            <td>Localisation déclarée</td>
+            <td>Ville et pays de résidence, ville et pays d'origine.</td>
+            <td>Obligatoire</td>
+          </tr>
+          <tr>
+            <td>Profil</td>
+            <td>Photos (jusqu'à six), texte de présentation, réponses aux amorces de conversation, taille, profession, style de vie, centres d'intérêt.</td>
+            <td>Facultatif</td>
+          </tr>
+          <tr>
+            <td>Convictions religieuses</td>
+            <td>Champ de profil facultatif, laissé vide par défaut.</td>
+            <td>Facultatif — voir <a href="#sensibles">point 4</a></td>
+          </tr>
+          <tr>
+            <td>Préférences</td>
+            <td>Genre recherché, tranche d'âge, distance maximale, filtres d'origine, de taille, de style de vie et d'intérêts.</td>
+            <td>Facultatif</td>
+          </tr>
+          <tr>
+            <td>Contenus échangés</td>
+            <td>Messages écrits et images envoyées dans les conversations, mots joints à un like.</td>
+            <td>À votre initiative</td>
+          </tr>
+          <tr>
+            <td>Signalements</td>
+            <td>Motif, texte libre, personne visée, éléments joints, y compris le récit d'une rencontre en personne.</td>
+            <td>À votre initiative</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.2 Ce que l'application mesure</h3>
+    <div class="doc-table">
+      <table>
+        <thead><tr><th>Catégorie</th><th>Détail</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Position approximative</td>
+            <td>Si vous accordez l'autorisation de localisation, nous relevons des coordonnées <strong>grossières</strong> (précision de l'ordre du quartier ou de la ville) pour calculer une distance. Le refus est sans conséquence : vous saisissez alors votre ville à la main.</td>
+          </tr>
+          <tr>
+            <td>Gestes de découverte</td>
+            <td>Profils vus, profils passés, likes, super likes, retours en arrière, correspondances obtenues.</td>
+          </tr>
+          <tr>
+            <td>Signaux d'attention</td>
+            <td>Temps passé sur une fiche, photos ouvertes, sections consultées. Ces mesures servent uniquement à ordonner les suggestions et à détecter les comportements automatisés.</td>
+          </tr>
+          <tr>
+            <td>Empreintes visuelles</td>
+            <td>Un vecteur numérique calculé à partir de chaque photo de profil, décrit au <a href="#algorithmes">point 6</a>.</td>
+          </tr>
+          <tr>
+            <td>Abonnement</td>
+            <td>Palier en cours, historique des achats, crédits consommés (super likes, boosts), identifiant d'abonné fourni par la boutique. Nous ne recevons ni ne stockons vos coordonnées bancaires.</td>
+          </tr>
+          <tr>
+            <td>Technique</td>
+            <td>Adresse IP, type d'appareil, système d'exploitation, version de l'application, jeton de notification push, journaux de connexion et d'erreur.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.3 Ce que nous ne collectons pas</h3>
+    <ul>
+      <li>Votre carnet d'adresses, vos contacts, votre pellicule photo dans son ensemble : nous n'accédons qu'aux images que vous choisissez d'envoyer.</li>
+      <li>Vos coordonnées bancaires ou numéros de carte : ils ne transitent que par Apple ou Google.</li>
+      <li>Votre position en continu ou en arrière-plan : la localisation n'est demandée que lorsque l'application est ouverte.</li>
+      <li>Vos données de santé, votre orientation politique, votre appartenance syndicale, vos données génétiques ou biométriques d'identification.</li>
+      <li>Aucun identifiant publicitaire n'est lu, et aucune donnée n'est transmise à une régie ou à un courtier en données.</li>
+    </ul>
+
+    <h2 id="sensibles">4. Données sensibles : ce que le simple fait de s'inscrire révèle</h2>
+    <div class="callout callout-warn" role="note">
+      <p>
+        En indiquant votre genre et le genre des personnes que vous souhaitez
+        rencontrer, vous fournissez une information <strong>qui révèle votre
+        orientation sexuelle</strong>. En renseignant le champ facultatif de
+        convictions religieuses, vous fournissez une donnée de même nature. Ce
+        sont des « catégories particulières de données » au sens de l'article 9
+        du RGPD, dont le traitement est en principe interdit.
+      </p>
+      <p>
+        Nous les traitons sur le fondement de votre <strong>consentement
+        explicite</strong>, recueilli à l'inscription par une case distincte, non
+        pré-cochée, sans laquelle le compte n'est pas créé. Ce consentement est
+        <strong>révocable à tout moment</strong> : retirer le champ religion se
+        fait depuis l'édition du profil ; retirer le consentement global revient
+        à supprimer le compte, puisque le service ne peut pas fonctionner sans
+        ces informations.
+      </p>
+    </div>
+    <p>
+      Ces données ne sont jamais utilisées à d'autres fins que la mise en
+      relation que vous demandez. Elles ne sont ni vendues, ni louées, ni
+      communiquées à des partenaires commerciaux, ni exploitées pour du ciblage
+      publicitaire — nous n'en faisons aucun.
+    </p>
+
+    <h2 id="finalites">5. Pourquoi, et sur quel fondement juridique</h2>
+    <div class="doc-table">
+      <table>
+        <thead><tr><th>Finalité</th><th>Base légale (art. 6 RGPD)</th></tr></thead>
+        <tbody>
+          <tr><td>Créer et gérer votre compte, vous authentifier</td><td>Exécution du contrat</td></tr>
+          <tr><td>Vous proposer des profils, enregistrer vos likes, créer des correspondances</td><td>Exécution du contrat + consentement explicite (art. 9-2-a) pour les données sensibles</td></tr>
+          <tr><td>Acheminer vos messages et vos images</td><td>Exécution du contrat</td></tr>
+          <tr><td>Traduire un message dans votre langue</td><td>Exécution du contrat — fonction désactivable</td></tr>
+          <tr><td>Gérer les abonnements, les crédits et la facturation</td><td>Exécution du contrat + obligation légale (comptabilité)</td></tr>
+          <tr><td>Vous envoyer des notifications relatives à votre activité</td><td>Exécution du contrat — réglable écran par écran</td></tr>
+          <tr><td>Ordonner les suggestions et calculer les empreintes visuelles</td><td>Intérêt légitime : rendre le service utilisable — <a href="#droits">opposition possible</a></td></tr>
+          <tr><td>Prévenir la fraude, les faux profils, le harcèlement et les comportements automatisés</td><td>Intérêt légitime : sécurité des membres</td></tr>
+          <tr><td>Instruire les signalements et prendre des mesures de modération</td><td>Intérêt légitime + obligation légale (règlement DSA)</td></tr>
+          <tr><td>Détecter, retirer et signaler des contenus d'exploitation d'enfants</td><td>Obligation légale + intérêt public impérieux</td></tr>
+          <tr><td>Répondre aux réquisitions des autorités compétentes</td><td>Obligation légale</td></tr>
+          <tr><td>Mesurer l'usage pour corriger et améliorer l'application</td><td>Intérêt légitime — données agrégées autant que possible</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="algorithmes">6. Algorithmes, empreintes visuelles et intelligence artificielle</h2>
+    <p>
+      Trois traitements automatisés méritent une explication complète. Une page
+      dédiée les détaille : <a href="/intelligence-artificielle">usage de
+      l'intelligence artificielle</a>.
+    </p>
+
+    <h3>6.1 L'ordre dans lequel les profils vous sont montrés</h3>
+    <p>
+      Les profils ne défilent pas au hasard. Un score combine votre distance,
+      vos filtres, la complétude et la fraîcheur du profil d'en face, la
+      réciprocité probable d'un like, et une part d'aléa destinée à éviter que
+      les mêmes personnes soient toujours en tête. Un abonnement payant peut
+      améliorer la visibilité de <em>votre</em> profil ; il ne vous donne aucun
+      accès privilégié aux profils des autres.
+    </p>
+    <p>
+      Ce classement ne produit aucun effet juridique et n'affecte pas de manière
+      significative vos droits : il n'entre donc pas dans le champ de l'article
+      22 du RGPD. Nous vous l'exposons par transparence.
+    </p>
+
+    <h3>6.2 Les empreintes visuelles de vos photos</h3>
+    <div class="callout" role="note">
+      <p>
+        <strong>Ce n'est pas de la reconnaissance faciale.</strong> Le calcul est
+        effectué par un modèle de vision exécuté <strong>sur nos propres
+        serveurs</strong>, sans envoi à un tiers. Il produit un vecteur de 768
+        nombres décrivant l'<em>ambiance</em> générale de l'image — cadrage,
+        couleurs, contexte, style. Ce vecteur ne permet ni d'identifier une
+        personne, ni de la retrouver ailleurs, ni de reconstituer la photo. Il
+        n'est jamais utilisé pour authentifier qui que ce soit et ne constitue
+        donc pas une donnée biométrique au sens de l'article 4-14 du RGPD.
+      </p>
+    </div>
+    <p>
+      Ces empreintes servent uniquement à mesurer une proximité de goût : si les
+      profils que vous appréciez se ressemblent, nous vous en proposons de
+      semblables. Elles sont supprimées avec la photo correspondante et avec le
+      compte.
+    </p>
+
+    <h3>6.3 La traduction de vos messages</h3>
+    <div class="callout callout-warn" role="note">
+      <p>
+        Lorsque la traduction automatique est active, le <strong>texte de votre
+        message est transmis à Google</strong> (API Gemini) pour être traduit,
+        puis restitué dans l'application. Google agit ici comme sous-traitant.
+        Les messages ne sont pas utilisés pour entraîner de modèle et ne sont pas
+        conservés par nous à d'autres fins que l'affichage de la conversation.
+      </p>
+      <p>
+        Si vous ne souhaitez pas que vos messages transitent par un service
+        tiers, <strong>désactivez la traduction</strong> dans les réglages de
+        conversation. Vos messages sont alors transmis tels quels.
+      </p>
+    </div>
+
+    <h3>6.4 La modération automatisée</h3>
+    <p>
+      Des règles automatiques peuvent masquer temporairement un contenu ou
+      limiter un compte le temps d'une vérification. <strong>Aucune suspension
+      ni suppression définitive de compte n'est prononcée sans réexamen
+      humain</strong>, sauf lorsque la loi impose un retrait immédiat — notamment
+      en matière d'exploitation d'enfants. Vous pouvez contester toute décision :
+      voir <a href="/moderation#recours">recours</a>.
+    </p>
+
+    <h2 id="visibilite">7. Ce que les autres membres voient de vous</h2>
+    <div class="doc-table">
+      <table>
+        <thead><tr><th>Donnée</th><th>Visible par les autres membres</th></tr></thead>
+        <tbody>
+          <tr><td>Prénom, âge, photos, bio, amorces, intérêts</td><td>Oui — c'est votre profil</td></tr>
+          <tr><td>Ville de résidence et ville d'origine</td><td>Oui</td></tr>
+          <tr><td>Distance approximative vous séparant</td><td>Oui, arrondie</td></tr>
+          <tr><td>Position GPS exacte, adresse</td><td><strong>Jamais</strong></td></tr>
+          <tr><td>Adresse e-mail, date de naissance exacte</td><td><strong>Jamais</strong></td></tr>
+          <tr><td>Palier d'abonnement, montants payés</td><td><strong>Jamais</strong></td></tr>
+          <tr><td>Le fait que vous ayez liké quelqu'un sans réciprocité</td><td>Non — l'identité des personnes qui vous ont liké n'est révélée qu'aux conditions décrites dans l'application</td></tr>
+          <tr><td>Le fait que vous ayez signalé ou bloqué quelqu'un</td><td><strong>Jamais</strong> — la personne visée n'en est pas informée</td></tr>
+          <tr><td>Votre présence en ligne</td><td>Oui, sauf si vous la masquez dans les réglages</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Le <strong>mode incognito</strong> restreint votre visibilité aux seules
+      personnes que vous avez vous-même likées. Le
+      <strong>profil masqué</strong> du Mystère montre une photo floutée avant
+      révélation : le floutage est appliqué côté serveur, l'image nette n'est pas
+      envoyée à l'appareil d'en face tant que la révélation n'a pas eu lieu.
+    </p>
+
+    <h2 id="destinataires">8. Avec qui vos données sont partagées</h2>
+    <p>
+      Nous ne vendons ni ne louons vos données. Elles ne sont communiquées qu'aux
+      prestataires strictement nécessaires au fonctionnement du service, liés par
+      un contrat de sous-traitance conforme à l'article 28 du RGPD :
+    </p>
+    <div class="doc-table">
+      <table>
+        <thead><tr><th>Prestataire</th><th>Rôle</th><th>Données concernées</th></tr></thead>
+        <tbody>
+          <tr><td>Supabase</td><td>Base de données, authentification, stockage des photos et médias</td><td>Toutes les données de compte et de contenu</td></tr>
+          <tr><td>Railway</td><td>Hébergement de l'API</td><td>Données en transit, journaux techniques</td></tr>
+          <tr><td>Google (Gemini)</td><td>Traduction des messages, si activée</td><td>Texte du message uniquement</td></tr>
+          <tr><td>Google (Firebase Cloud Messaging) et Expo</td><td>Acheminement des notifications push</td><td>Jeton d'appareil, titre et extrait de la notification</td></tr>
+          <tr><td>RevenueCat</td><td>Gestion des abonnements et des droits associés</td><td>Identifiant d'abonné, état de l'abonnement</td></tr>
+          <tr><td>Apple, Google</td><td>Distribution et encaissement</td><td>Données de transaction — traitées sous leur propre responsabilité</td></tr>
+          <tr><td>GeoNames</td><td>Suggestion de noms de villes</td><td>Le préfixe saisi seulement, sans identifiant</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Vos données peuvent en outre être communiquées aux <strong>autorités
+      judiciaires ou administratives</strong> sur réquisition régulière, et aux
+      organismes compétents en matière de protection de l'enfance lorsque la loi
+      l'impose. Chaque demande est examinée quant à sa validité avant toute
+      transmission.
+    </p>
+    <p>
+      En cas d'opération sur le capital de l'éditeur (cession, fusion), les
+      données pourraient être transférées au repreneur. Vous en seriez informé et
+      la présente politique continuerait de s'appliquer jusqu'à sa modification.
+    </p>
+
+    <h2 id="transferts">9. Transferts hors de l'Union européenne</h2>
+    <p>
+      Certains prestataires sont établis hors de l'Espace économique européen,
+      principalement aux États-Unis. Ces transferts sont encadrés par les
+      <strong>clauses contractuelles types</strong> adoptées par la Commission
+      européenne, complétées le cas échéant par l'adhésion du destinataire au
+      <em>EU–U.S. Data Privacy Framework</em> et par des mesures techniques
+      supplémentaires (chiffrement en transit et au repos, minimisation).
+    </p>
+    <p>
+      Région d'hébergement de la base de données :
+      <span class="fill">[[À COMPLÉTER — région du projet Supabase]]</span>.
+      Vous pouvez obtenir copie des garanties mises en place en écrivant à
+      <a href="mailto:privacy@mbenguiste.com">privacy@mbenguiste.com</a>.
+    </p>
+
+    <h2 id="duree">10. Combien de temps nous conservons vos données</h2>
+    <div class="doc-table">
+      <table>
+        <thead><tr><th>Donnée</th><th>Durée</th></tr></thead>
+        <tbody>
+          <tr><td>Profil, photos, préférences, correspondances</td><td>Tant que le compte est actif</td></tr>
+          <tr><td>Compte inactif, sans aucune connexion</td><td>Suppression au terme de 3 ans, après relance par courriel</td></tr>
+          <tr><td>Compte dont la suppression est demandée</td><td>Effacement définitif 30 jours après la demande — délai de grâce pendant lequel vous pouvez annuler et tout retrouver intact (<a href="/supprimer-compte#delai">détail</a>)</td></tr>
+          <tr><td>Messages d'une conversation</td><td>Jusqu'à la suppression du compte de l'un des deux participants</td></tr>
+          <tr><td>Empreintes visuelles</td><td>Supprimées avec la photo d'origine</td></tr>
+          <tr><td>Signalements et décisions de modération</td><td>1 an à compter de la décision — au-delà si une procédure est en cours ou si la loi l'exige</td></tr>
+          <tr><td>Éléments relatifs à l'exploitation d'enfants</td><td>Conservés et transmis selon les obligations légales applicables, y compris après suppression du compte</td></tr>
+          <tr><td>Blocages</td><td>Tant que le compte existe — c'est ce qui garantit que la personne bloquée ne réapparaît pas</td></tr>
+          <tr><td>Mesures d'usage et signaux d'attention</td><td>13 mois</td></tr>
+          <tr><td>Journaux techniques et de connexion</td><td>12 mois</td></tr>
+          <tr><td>Pièces comptables et factures</td><td>10 ans (article L.123-22 du code de commerce)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="securite">11. Comment vos données sont protégées</h2>
+    <ul>
+      <li>Chiffrement systématique des échanges entre l'application et nos serveurs (TLS), et chiffrement au repos chez l'hébergeur de la base.</li>
+      <li>Mots de passe stockés sous forme de condensat salé : personne, y compris nous, ne peut les lire.</li>
+      <li><strong>Cloisonnement au niveau de la base</strong> (politiques <em>row level security</em>) : une requête ne peut atteindre que les lignes auxquelles le compte a droit, même en cas de faille applicative.</li>
+      <li>Médias de conversation stockés dans un espace <strong>privé</strong>, servis par des liens signés de courte durée et non devinables.</li>
+      <li>Accès administrateur restreint, nominatif et tracé ; la console de modération n'expose que ce qui est nécessaire à l'instruction d'un signalement.</li>
+      <li>Limitation de débit et détection des comportements automatisés sur l'ensemble de l'API.</li>
+    </ul>
+    <p>
+      Aucun système n'est infaillible. En cas de violation de données susceptible
+      d'engendrer un risque pour vos droits, nous notifions la CNIL dans les
+      72 heures et vous informons sans délai injustifié lorsque le risque est
+      élevé, conformément aux articles 33 et 34 du RGPD.
+    </p>
+
+    <h2 id="droits">12. Vos droits, et comment les exercer</h2>
+    <p>Vous disposez, sur vos données, des droits suivants :</p>
+    <ul>
+      <li><strong>Accès</strong> — savoir quelles données nous détenons et en obtenir copie.</li>
+      <li><strong>Rectification</strong> — corriger une donnée inexacte ou incomplète.</li>
+      <li><strong>Effacement</strong> — faire supprimer vos données, sous réserve de nos obligations légales de conservation.</li>
+      <li><strong>Limitation</strong> — geler un traitement le temps d'une contestation.</li>
+      <li><strong>Portabilité</strong> — récupérer vos données dans un format lisible par machine.</li>
+      <li><strong>Opposition</strong> — vous opposer à un traitement fondé sur notre intérêt légitime, pour des raisons tenant à votre situation particulière.</li>
+      <li><strong>Retrait du consentement</strong> — à tout moment, sans effet rétroactif.</li>
+      <li><strong>Directives post-mortem</strong> — définir le sort de vos données après votre décès (article 85 de la loi Informatique et Libertés).</li>
+    </ul>
+    <div class="contact-box">
+      <h3>Les deux gestes qui n'exigent aucune démarche</h3>
+      <p>
+        <strong>Télécharger toutes vos données</strong> — Réglages →
+        « Télécharger mes données ». Le fichier est généré immédiatement et
+        contient votre profil, vos préférences, vos correspondances, vos
+        messages, vos abonnements et vos réglages.
+      </p>
+      <p>
+        <strong>Supprimer votre compte</strong> — Réglages → « Supprimer mon
+        compte ». La procédure complète est décrite sur la page
+        <a href="/supprimer-compte">suppression de compte</a>.
+      </p>
+      <p>
+        Pour tout le reste, écrivez à
+        <a href="mailto:privacy@mbenguiste.com">privacy@mbenguiste.com</a>. Nous
+        répondons dans un délai d'un mois, prolongeable de deux mois pour les
+        demandes complexes, auquel cas nous vous en informons. Une preuve
+        d'identité peut être demandée en cas de doute raisonnable — et
+        uniquement dans ce cas.
+      </p>
+    </div>
+    <div class="callout" role="note">
+      <p>
+        <strong>Une limite que nous assumons.</strong> Une conversation appartient
+        à deux personnes. Votre export contient vos messages et le fil que vous
+        avez vécu, mais nous ne vous livrons pas les données personnelles de
+        l'autre : ni son adresse, ni son identifiant technique, ni ce qu'elle a
+        pu signaler. Cette réserve est prévue par l'article 15-4 du RGPD, qui
+        protège les droits des tiers.
+      </p>
+    </div>
+    <p>
+      Si notre réponse ne vous satisfait pas, vous pouvez saisir la CNIL,
+      3 place de Fontenoy, TSA 80715, 75334 Paris Cedex 07 —
+      <a href="https://www.cnil.fr" rel="noopener">cnil.fr</a>.
+    </p>
+
+    <h2 id="mineurs">13. Mineurs</h2>
+    <p>
+      Mbenguiste est <strong>strictement réservé aux personnes majeures</strong>.
+      Nous ne collectons pas sciemment de données concernant des mineurs. La date
+      de naissance est vérifiée à l'inscription et tout compte dont nous
+      découvrons qu'il appartient à une personne mineure est fermé et ses données
+      supprimées sans délai, hors éléments dont la conservation est légalement
+      imposée.
+    </p>
+    <p>
+      Si vous êtes parent ou tuteur et pensez qu'un mineur a créé un compte,
+      écrivez immédiatement à
+      <a href="mailto:child-safety@mbenguiste.com">child-safety@mbenguiste.com</a>.
+      Voir aussi nos <a href="/securite-enfants">standards de protection de
+      l'enfance</a>.
+    </p>
+
+    <h2 id="modifications">14. Modifications de cette politique</h2>
+    <p>
+      Nous pouvons faire évoluer ce document, notamment si le service change ou
+      si la réglementation évolue. Toute modification substantielle vous est
+      notifiée dans l'application au moins <strong>trente jours</strong> avant sa
+      prise d'effet, et un nouveau consentement est recueilli lorsque la loi
+      l'exige. Les versions antérieures sont conservées et peuvent être
+      communiquées sur demande.
+    </p>
+
+    <div class="doc-next">
+      <a href="/cgu">Conditions d'utilisation</a>
+      <a href="/intelligence-artificielle">Usage de l'IA</a>
+      <a href="/cookies">Cookies</a>
+      <a href="/supprimer-compte">Supprimer son compte</a>
+      <a href="/legal">Tous les documents</a>
+    </div>
+  </main>
+</div>
+
+<footer class="foot">
+  <div class="shell">
+    <div class="foot-bottom">
+      <span class="age-badge">18+</span>
+      <span>© 2026 Mbenguiste. Tous droits réservés.</span>
+      <span><a href="/legal">Informations légales</a></span>
+      <span><a href="mailto:privacy@mbenguiste.com">privacy@mbenguiste.com</a></span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

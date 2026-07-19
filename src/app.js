@@ -76,6 +76,60 @@ app.get(PORTAL_PATHS, pageHeaders, (_req, res) =>
 app.get(['/admin', '/admin/'], pageHeaders, (_req, res) =>
   res.sendFile(path.join(WEB_DIR, 'admin', 'index.html')));
 
+// ── Site public : vitrine + documents légaux ─────────────────────────────────
+// En-têtes DISTINCTS de `pageHeaders` sur deux points qui comptent :
+//   • pas de `noindex` — Apple, Google Play et les autorités doivent pouvoir
+//     atteindre ces URLs, et la page CSAE doit être « globally accessible » ;
+//   • `script-src 'none'` — ces pages n'ont pas une ligne de JavaScript (les
+//     accordéons de la FAQ sont des <details> natifs), autant l'interdire.
+const SITE_CSP = [
+  "default-src 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'none'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "style-src 'self'",
+  "script-src 'none'",
+].join('; ');
+
+function siteHeaders(_req, res, next) {
+  res.set('Content-Security-Policy', SITE_CSP);
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('X-Frame-Options', 'DENY');
+  res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
+  next();
+}
+
+// URL publique → fichier. Ces chemins sont un CONTRAT : ils sont déclarés dans
+// `frontend/src/config/index.ts`, dans la Play Console (standards CSAE, page de
+// suppression de compte) et dans App Store Connect. Les renommer casse des
+// liens que des tiers gardent en dur — n'en retirer aucun sans redirection.
+const SITE_PAGES = {
+  '/': 'index.html',
+  '/legal': 'legal.html',
+  '/mentions-legales': 'mentions-legales.html',
+  '/confidentialite': 'confidentialite.html',
+  '/cgu': 'cgu.html',
+  '/cgv': 'cgv.html',
+  '/regles-communaute': 'regles-communaute.html',
+  '/securite-enfants': 'securite-enfants.html',
+  '/moderation': 'moderation.html',
+  '/intelligence-artificielle': 'intelligence-artificielle.html',
+  '/cookies': 'cookies.html',
+  '/conseils-securite': 'conseils-securite.html',
+  '/supprimer-compte': 'supprimer-compte.html',
+};
+
+for (const [route, file] of Object.entries(SITE_PAGES)) {
+  // Variante avec barre finale acceptée : `/cgu/` ne doit pas tomber en 404.
+  const paths = route === '/' ? ['/'] : [route, `${route}/`];
+  app.get(paths, siteHeaders, (_req, res) =>
+    res.sendFile(path.join(WEB_DIR, 'site', file)));
+}
+
 app.use(helmet());
 app.use(cors({ origin: config.cors.origins, credentials: true }));
 app.use(express.json({ limit: '1mb' }));

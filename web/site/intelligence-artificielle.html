@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usage de l'intelligence artificielle — Mbenguiste</title>
+<meta name="description" content="Où l'intelligence artificielle intervient dans Mbenguiste : traduction des messages, empreintes visuelles, ordre des suggestions, modération. Ce qu'elle ne fait pas, et comment s'y opposer.">
+<meta name="theme-color" content="#16131A">
+<link rel="stylesheet" href="/assets/theme.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Aller au contenu</a>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="nav-brand" href="/">
+      <svg class="seal" viewBox="0 0 40 40" aria-hidden="true" fill="none">
+        <circle cx="20" cy="20" r="18.5" stroke="currentColor" stroke-opacity=".38"/>
+        <path d="M6 25.5C11 12.5 29 12.5 34 25.5" stroke="currentColor" stroke-opacity=".85" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="6" cy="25.5" r="2.6" fill="currentColor"/><circle cx="34" cy="25.5" r="2.6" fill="currentColor"/>
+      </svg>
+      Mbenguiste
+    </a>
+    <div class="nav-links">
+      <a href="/legal">Informations légales</a>
+      <a class="nav-cta" href="/confidentialite">Confidentialité</a>
+    </div>
+  </div>
+</nav>
+
+<header class="doc-head">
+  <div class="shell">
+    <p class="eyebrow">Transparence · Règlement (UE) 2024/1689</p>
+    <h1>Usage de l'intelligence artificielle</h1>
+    <p class="lede">
+      Quatre traitements automatisés touchent à ce que vous écrivez, à vos photos
+      et à ce que vous voyez. Les voici, un par un, avec ce qu'ils font
+      exactement — et surtout ce qu'ils ne font pas.
+    </p>
+    <div class="doc-meta">
+      <span>Version 1.0</span>
+      <span>Mise à jour : 19 juillet 2026</span>
+      <span>Règlement européen sur l'IA, art. 50</span>
+    </div>
+  </div>
+</header>
+
+<div class="doc-layout">
+  <aside class="toc" aria-label="Sommaire">
+    <h4>Sommaire</h4>
+    <ol>
+      <li><a href="#principes">Nos principes</a></li>
+      <li><a href="#traduction">Traduction des messages</a></li>
+      <li><a href="#empreintes">Empreintes visuelles</a></li>
+      <li><a href="#classement">Ordre des suggestions</a></li>
+      <li><a href="#moderation">Modération assistée</a></li>
+      <li><a href="#aventure">Contenus d'Aventure</a></li>
+      <li><a href="#jamais">Ce que nous ne faisons pas</a></li>
+      <li><a href="#controle">Reprendre la main</a></li>
+    </ol>
+  </aside>
+
+  <main id="main" class="doc">
+
+    <h2 id="principes">1. Nos principes</h2>
+    <div class="callout" role="note">
+      <p>
+        <strong>Vous parlez toujours à des personnes réelles.</strong> Mbenguiste
+        n'héberge aucun profil artificiel, aucun robot conversationnel, aucun
+        agent chargé de vous répondre ou d'entretenir la conversation. Si vous
+        recevez un message, un humain l'a écrit.
+      </p>
+      <p>
+        <strong>Un texte modifié par une machine est signalé comme tel.</strong>
+        Aucune transformation automatique n'est appliquée à vos mots en silence.
+      </p>
+      <p>
+        <strong>Aucune décision définitive n'est prise par une machine seule</strong>
+        s'agissant de votre compte.
+      </p>
+    </div>
+
+    <h2 id="traduction">2. Traduction des messages</h2>
+    <h3>Ce qu'elle fait</h3>
+    <p>
+      Deux personnes qui n'ont pas la même langue — ou pas le même argot — se
+      comprennent difficilement. La traduction automatique restitue un message
+      dans votre langue en préservant le sens du nouchi, du wolof, du
+      camfranglais et des registres familiers, plutôt que de les aplatir en
+      français scolaire.
+    </p>
+    <h3>Comment c'est fait</h3>
+    <ul>
+      <li>Le <strong>texte du message</strong> est transmis au service Gemini de Google, qui agit comme sous-traitant, puis la traduction est restituée dans l'application.</li>
+      <li>Ni vos photos, ni votre identité, ni le reste de la conversation ne sont transmis : le texte du message seul.</li>
+      <li>Les messages ne servent pas à entraîner de modèle.</li>
+      <li>En cas d'indisponibilité du service, <strong>le message part tel quel</strong> — jamais bloqué, jamais retardé.</li>
+    </ul>
+    <h3>Ce que vous voyez</h3>
+    <p>
+      Un message traduit porte une <strong>mention explicite</strong> et le texte
+      d'origine reste consultable d'un geste. Cette signalisation répond à
+      l'obligation d'information de l'article 50 du règlement européen sur l'IA :
+      un contenu produit ou modifié par un système d'IA doit être identifiable
+      comme tel.
+    </p>
+    <h3>Comment la refuser</h3>
+    <p>
+      La traduction se désactive dans les réglages de conversation. Vos messages
+      sont alors transmis mot pour mot, sans passer par un service tiers.
+    </p>
+
+    <h2 id="empreintes">3. Empreintes visuelles des photos</h2>
+    <div class="callout" role="note">
+      <p>
+        <strong>Ce n'est pas de la reconnaissance faciale</strong>, et le calcul
+        ne quitte pas nos serveurs.
+      </p>
+    </div>
+    <p>
+      Chaque photo de profil est décrite par un modèle de vision en un vecteur de
+      768 nombres. Ce vecteur capte l'<em>ambiance</em> d'une image — cadrage,
+      lumière, couleurs, décor, style — et rien d'autre.
+    </p>
+    <ul>
+      <li>Il <strong>ne permet pas d'identifier une personne</strong>, ni de la retrouver sur un autre service, ni de reconstituer la photo d'origine.</li>
+      <li>Il n'est <strong>jamais</strong> utilisé pour authentifier ou vérifier une identité : il ne constitue donc pas une donnée biométrique au sens du RGPD.</li>
+      <li>Le modèle s'exécute <strong>localement, sur notre infrastructure</strong> : vos photos ne sont envoyées à aucun prestataire d'IA.</li>
+      <li>Il sert à une seule chose : si les profils que vous appréciez se ressemblent, vous en proposer de semblables.</li>
+      <li>Il est <strong>supprimé avec la photo</strong>, et avec le compte.</li>
+    </ul>
+    <p>
+      Le même mécanisme produit la version floutée montrée pendant le Mystère.
+      Le floutage est appliqué <strong>côté serveur</strong> : tant que la
+      révélation n'a pas eu lieu, l'image nette n'est pas transmise à l'appareil
+      d'en face, et aucun réglage de l'application ne peut la faire apparaître.
+    </p>
+
+    <h2 id="classement">4. L'ordre dans lequel les profils vous sont montrés</h2>
+    <p>
+      Les profils ne défilent ni au hasard, ni par ordre d'inscription. Un score
+      combine :
+    </p>
+    <ul>
+      <li>la <strong>distance</strong> et vos <strong>filtres</strong> déclarés — âge, genre, préférences ;</li>
+      <li>la <strong>complétude</strong> et la <strong>fraîcheur</strong> du profil d'en face ;</li>
+      <li>la <strong>réciprocité probable</strong> d'un like, estimée à partir des gestes passés des deux côtés ;</li>
+      <li>une <strong>rotation</strong> volontaire, qui empêche les mêmes profils d'occuper éternellement la tête de file ;</li>
+      <li>une part d'<strong>aléa</strong> assumée, pour que le système ne se referme pas sur lui-même.</li>
+    </ul>
+    <p>
+      Un abonnement payant peut améliorer la visibilité de <strong>votre</strong>
+      profil auprès des autres. Il ne vous donne aucun accès privilégié aux
+      profils d'autrui, ni le pouvoir de forcer une correspondance.
+    </p>
+    <p>
+      Ce classement n'emporte aucun effet juridique et n'affecte pas de manière
+      significative vos droits : il n'entre pas dans le champ de l'article 22 du
+      RGPD. Nous vous l'exposons par choix.
+    </p>
+
+    <h2 id="moderation">5. Modération assistée</h2>
+    <p>
+      Des règles automatiques repèrent les schémas connus d'arnaque, de spam, de
+      comptes automatisés et de contenus manifestement illicites. Elles peuvent
+      masquer un contenu ou limiter un compte <strong>à titre
+      conservatoire</strong>, le temps d'un examen.
+    </p>
+    <p>
+      <strong>Aucune suspension ni fermeture définitive n'est prononcée sans
+      réexamen humain</strong>, sauf lorsque la loi impose un retrait immédiat —
+      notamment en matière d'exploitation d'enfants. Toute mesure vous est
+      notifiée avec ses motifs, en précisant si la détection provient d'un
+      signalement ou d'un outil automatisé, et vous pouvez la contester :
+      <a href="/moderation#recours">procédure de recours</a>.
+    </p>
+
+    <h2 id="aventure">6. Contenus d'Aventure</h2>
+    <p>
+      Les Aventures sont des histoires courtes à embranchements, écrites pour le
+      service. Lorsqu'un texte, une image ou une séquence a été
+      <strong>produit ou assisté par un système d'IA générative</strong>, il est
+      identifié comme tel dans l'application, conformément à l'article 50 du
+      règlement européen sur l'IA.
+    </p>
+    <p>
+      <span class="fill">[[À VÉRIFIER avant publication — préciser ici la part réellement générée par IA dans les contenus d'Aventure et, le cas échéant, le marquage lisible par machine des contenus synthétiques (obligation applicable au 2 août 2026).]]</span>
+    </p>
+
+    <h2 id="jamais">7. Ce que nous ne faisons pas</h2>
+    <ul>
+      <li><strong>Pas de faux profils</strong>, pas de comptes animés par une machine, pas de « relances » automatiques déguisées en messages.</li>
+      <li><strong>Pas de reconnaissance faciale</strong>, pas d'estimation d'âge, d'origine, de religion ou d'orientation à partir de vos photos.</li>
+      <li><strong>Pas de reconnaissance des émotions</strong> ni de notation comportementale.</li>
+      <li><strong>Pas de profilage publicitaire</strong> : nous n'affichons aucune publicité et ne transmettons rien à des régies.</li>
+      <li><strong>Pas d'entraînement de modèle</strong> sur vos messages ou vos photos, ni par nous, ni par nos prestataires.</li>
+      <li><strong>Pas de génération de contenu à votre place</strong> dans une conversation : aucun message ne part de votre compte sans que vous l'ayez écrit et envoyé.</li>
+    </ul>
+
+    <h2 id="controle">8. Reprendre la main</h2>
+    <div class="doc-table">
+      <table>
+        <thead><tr><th>Traitement</th><th>Comment le refuser ou l'encadrer</th></tr></thead>
+        <tbody>
+          <tr><td>Traduction des messages</td><td>Désactivable dans les réglages de conversation</td></tr>
+          <tr><td>Empreintes visuelles</td><td>Supprimer la photo supprime son empreinte ; opposition possible à <a href="mailto:privacy@mbenguiste.com">privacy@mbenguiste.com</a></td></tr>
+          <tr><td>Ordre des suggestions</td><td>Vos filtres priment ; opposition possible pour un motif tenant à votre situation particulière</td></tr>
+          <tr><td>Mesures d'attention (temps de lecture, photos ouvertes)</td><td>Opposition possible ; le classement retombe alors sur vos seuls filtres déclarés</td></tr>
+          <tr><td>Décision de modération automatisée</td><td>Recours gratuit avec réexamen humain, six mois — <a href="/moderation#recours">procédure</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Pour toute question sur ces traitements :
+      <a href="mailto:privacy@mbenguiste.com">privacy@mbenguiste.com</a>. Les
+      bases légales et les durées de conservation associées figurent dans la
+      <a href="/confidentialite">politique de confidentialité</a>.
+    </p>
+
+    <div class="doc-next">
+      <a href="/confidentialite">Confidentialité</a>
+      <a href="/moderation">Modération &amp; signalement</a>
+      <a href="/cgu">Conditions d'utilisation</a>
+      <a href="/legal">Tous les documents</a>
+    </div>
+  </main>
+</div>
+
+<footer class="foot">
+  <div class="shell">
+    <div class="foot-bottom">
+      <span class="age-badge">18+</span>
+      <span>© 2026 Mbenguiste. Tous droits réservés.</span>
+      <span><a href="/legal">Informations légales</a></span>
+      <span><a href="mailto:privacy@mbenguiste.com">privacy@mbenguiste.com</a></span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
