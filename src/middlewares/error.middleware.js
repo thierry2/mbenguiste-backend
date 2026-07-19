@@ -1,6 +1,22 @@
+const path = require('path');
 const config = require('../config');
 const logger = require('../utils/logger');
 const ApiError = require('../utils/apiError');
+
+const NOT_FOUND_PAGE = path.join(__dirname, '..', '..', 'web', '404.html');
+
+/**
+ * Le service sert à la fois une API JSON et des pages web (/partenaires, /admin).
+ * Un NAVIGATEUR qui se trompe d'URL ne doit pas recevoir du JSON brut.
+ *
+ * On ne se fie pas à `req.accepts()` : un `fetch()` envoie `Accept: *​/*`, qui
+ * matcherait 'html' et renverrait une page à du code qui attend du JSON. On exige
+ * donc `text/html` EXPLICITE (ce que fait une navigation), et jamais sous /api/.
+ */
+function isBrowserNavigation(req) {
+  if (req.originalUrl.startsWith('/api/')) return false;
+  return String(req.headers.accept || '').includes('text/html');
+}
 
 /** Route inexistante → 404 propre. */
 function notFoundHandler(req, res, next) {
@@ -49,6 +65,24 @@ function errorHandler(err, req, res, next) {
   statusCode = statusCode || 500;
   if (statusCode >= 500) {
     logger.error(`${req.method} ${req.originalUrl} → ${err.stack || err.message}`);
+  }
+
+  // Navigation navigateur : page HTML plutôt que JSON.
+  if (isBrowserNavigation(req)) {
+    // Lien protégé atteint sans droits → on renvoie vers la porte d'entrée
+    // plutôt que d'afficher une erreur sèche.
+    if (statusCode === 401 || statusCode === 403) return res.redirect('/partenaires');
+    if (statusCode === 404) {
+      // La page 404 charge /assets/theme.css : sans ces en-têtes ici, elle
+      // sortirait moins protégée que les pages servies par app.js.
+      res.set('Content-Security-Policy',
+        "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
+        + "img-src 'self' data:; style-src 'self'; script-src 'self'");
+      res.set('X-Robots-Tag', 'noindex, nofollow');
+      res.set('X-Content-Type-Options', 'nosniff');
+      res.set('Referrer-Policy', 'no-referrer');
+      return res.status(404).sendFile(NOT_FOUND_PAGE);
+    }
   }
 
   res.status(statusCode).json({

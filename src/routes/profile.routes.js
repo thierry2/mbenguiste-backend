@@ -12,9 +12,19 @@ const router = express.Router();
 router.get('/me', authenticate, c.getMe);
 router.patch('/me', authenticate, validate(schemas.updateMe), c.updateMe);
 router.post('/me/onboarding', authenticate, validate(schemas.completeOnboarding), c.completeOnboarding);
+
 // Programme Partenaires : valider un code (live) + le rattacher (cadeau de bienvenue).
-router.get('/me/referral/lookup', authenticate, c.lookupReferral);
-router.post('/me/referral', authenticate, validate(schemas.redeemReferral), c.redeemReferral);
+// Limité : sans ça, un compte authentifié pourrait ÉNUMÉRER les codes valides en
+// les essayant en rafale (et découvrir qui sont les partenaires).
+const referralLimiter = require('express-rate-limit')({
+  windowMs: 10 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop d\'essais de code. Réessaie dans quelques minutes.' },
+});
+router.get('/me/referral/lookup', authenticate, referralLimiter, c.lookupReferral);
+router.post('/me/referral', authenticate, referralLimiter, validate(schemas.redeemReferral), c.redeemReferral);
 router.get('/me/preferences', authenticate, c.getPreferences);
 router.put('/me/preferences', authenticate, validate(schemas.preferences), c.setPreferences);
 router.get('/me/entitlements', authenticate, c.getEntitlements);

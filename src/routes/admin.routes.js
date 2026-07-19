@@ -8,10 +8,63 @@ const { requireAdmin } = require('../middlewares/auth.middleware');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
 
+const rateLimit = require('express-rate-limit');
+const adminAuth = require('../services/adminAuth.service');
+const config = require('../config');
+
 const router = express.Router();
 
-// Toutes les routes admin exigent le secret partagé (en-tête x-admin-secret).
+// ── Ouverture de session : le SEUL endroit où le secret circule ──────────────
+// Limité serré : c'est la porte que l'on tenterait de forcer.
+const sessionLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de tentatives. Réessaie plus tard.' },
+});
+
+// POST /api/v1/admin/session  body: { secret } → { token, expiresIn }
+// Échange le secret contre un jeton court. Le navigateur ne conserve QUE le jeton.
+router.post('/session', sessionLimiter, catchAsync(async (req, res) => {
+  const { locked, remainingMs } = adminAuth.lockState(req.ip);
+  if (locked) {
+    adminAuth.audit(req, 'admin.session.locked');
+    throw ApiError.unauthorized(`Trop de tentatives. Réessaie dans ${Math.ceil(remainingMs / 60000)} min.`);
+  }
+  if (config.admin.allowedIps.length && !config.admin.allowedIps.includes(req.ip)) {
+    adminAuth.audit(req, 'admin.session.denied.ip');
+    throw ApiError.unauthorized('Accès admin refusé');
+  }
+
+  const secret = (req.body || {}).secret || '';
+  const token = config.admin.secret
+    && secret.length === config.admin.secret.length
+    && require('crypto').timingSafeEqual(Buffer.from(secret), Buffer.from(config.admin.secret))
+    ? adminAuth.issueToken()
+    : null;
+
+  if (!token) {
+    const st = adminAuth.registerFailure(req.ip);
+    adminAuth.audit(req, 'admin.session.failed');
+    throw ApiError.unauthorized(st.locked
+      ? `Trop de tentatives. Réessaie dans ${Math.ceil(st.remainingMs / 60000)} min.`
+      : 'Secret refusé');
+  }
+
+  adminAuth.registerSuccess(req.ip);
+  adminAuth.audit(req, 'admin.session.opened');
+  res.json({ success: true, data: { token, expiresIn: adminAuth.TTL_MS } });
+}));
+
+// Toutes les routes ci-dessous exigent le jeton de session (ou le secret direct).
 router.use(requireAdmin);
+
+// Toute action admin qui MODIFIE quelque chose laisse une trace.
+router.use((req, _res, next) => {
+  if (req.method !== 'GET') adminAuth.audit(req, `admin.${req.method} ${req.path}`);
+  next();
+});
 
 const ACTIONS = ['retirer', 'restaurer', 'rejeter'];
 
@@ -70,6 +123,14 @@ router.post('/partners', catchAsync(async (req, res) => {
   if (rateBps != null && (rateBps < 0 || rateBps > 10000)) throw ApiError.badRequest('rateBps hors bornes (0..10000)');
   const result = await partnerAdminService.createAndInvite({ displayName, email, code, isFounder, rateBps, redirectTo });
   res.status(201).json({ success: true, data: result });
+}));
+
+// POST /api/v1/admin/partners/:id/invite  body: { redirectTo? }
+// Relance l'invitation (email non reçu, lien expiré). L'erreur Supabase est
+// remontée telle quelle : c'est la seule façon de savoir pourquoi ça ne part pas.
+router.post('/partners/:id/invite', catchAsync(async (req, res) => {
+  const result = await partnerAdminService.reinvite(req.params.id, (req.body || {}).redirectTo);
+  res.json({ success: true, data: result });
 }));
 
 // PATCH /api/v1/admin/partners/:id  body: { status }
