@@ -16,6 +16,11 @@
  * Les montants sont calculés par le VRAI moteur (src/domain/commission) : les
  * chiffres affichés sont donc ceux que produirait la production.
  *
+ * ⚠ Ce script écrit dans la base pointée par SUPABASE_URL — donc la base RÉELLE.
+ *   Les filleuls sont créés `is_discoverable: false` : ils n'apparaissent JAMAIS
+ *   dans le deck de vraies utilisatrices. Ne pas retirer cette garde.
+ *   Pour tout effacer : voir scripts/seed-partner.js --purge (à la fin du fichier).
+ *
  * Réglages (env) :
  *   PARTNER_NAME, PARTNER_EMAIL, PARTNER_CODE, PARTNER_RATE_BPS,
  *   PARTNER_PASSWORD, REFERRALS (défaut 300), SUBSCRIBERS (défaut 48)
@@ -140,6 +145,11 @@ async function main() {
       birth_date: `${1988 + Math.floor(r() * 14)}-0${1 + Math.floor(r() * 9)}-1${Math.floor(r() * 9)}`,
       gender_id: genres.get(femme ? 'woman' : 'man') ?? null,
       onboarding_done: true,
+      // INVISIBLES DANS LA DÉCOUVERTE. Ce seed tourne contre la base RÉELLE :
+      // sans ça, 300 profils fictifs sans photo tomberaient dans le deck de tes
+      // vraies utilisatrices. Les statistiques du partenaire n'en dépendent pas
+      // (elles lisent referrals/commissions, pas la découverte).
+      is_discoverable: false,
       // Inscription étalée sur les 120 derniers jours (le graphe a du relief).
       created_at: new Date(Date.now() - Math.floor(r() * 120) * JOUR).toISOString(),
     };
@@ -193,6 +203,7 @@ async function main() {
       email: f.email,
       first_name: f.first_name,
       birth_date: f.birth_date,
+      is_discoverable: false,        // on ne rouvre JAMAIS la découverte sur un profil de seed
       is_premium: actif,
       premium_tier: actif ? plan.tier : null,
       premium_until: actif ? new Date(Date.now() + 20 * JOUR).toISOString() : null,
@@ -293,7 +304,49 @@ async function main() {
   logger.info(`Terminé en ${Math.round((Date.now() - t0) / 1000)} s.`);
 }
 
-main().catch((e) => {
+/**
+ * Retire tout ce que ce seed a créé (base réelle → il faut pouvoir faire marche
+ * arrière) : commissions, versements, attributions, profils et comptes des
+ * filleuls, puis la fiche partenaire et son code.
+ * Le compte Supabase du PARTENAIRE est conservé (tu t'en sers pour te connecter).
+ *
+ *   node scripts/seed-partner.js --purge
+ */
+async function purge() {
+  logger.info(`Purge du seed « ${NAME} » (code ${CODE})…`);
+
+  const { data: partenaire } = await supabase
+    .from('partners').select('id').eq('email', EMAIL).maybeSingle();
+
+  if (partenaire) {
+    const { data: refs } = await supabase
+      .from('referrals').select('profile_id').eq('partner_id', partenaire.id);
+    const ids = (refs || []).map((r) => r.profile_id);
+
+    await supabase.from('commission_ledger').delete().eq('partner_id', partenaire.id);
+    await supabase.from('partner_payouts').delete().eq('partner_id', partenaire.id);
+    await supabase.from('referrals').delete().eq('partner_id', partenaire.id);
+    logger.info(`  commissions, versements et ${ids.length} attributions supprimés`);
+
+    // Les profils partent en cascade avec les comptes Auth.
+    for (let i = 0; i < ids.length; i += 1) {
+      await supabase.auth.admin.deleteUser(ids[i]).catch(() => {});
+      if ((i + 1) % 50 === 0) logger.info(`  ${i + 1}/${ids.length} comptes filleuls supprimés`);
+    }
+    logger.info(`  ${ids.length} comptes filleuls supprimés`);
+
+    await supabase.from('promo_codes').delete().eq('partner_id', partenaire.id);
+    await supabase.from('partners').delete().eq('id', partenaire.id);
+    logger.info('  fiche partenaire et code supprimés');
+  } else {
+    logger.info('  aucun partenaire à ce mail — rien à purger');
+  }
+
+  logger.info(`Le compte Supabase ${EMAIL} est CONSERVÉ (supprime-le à la main si tu veux).`);
+}
+
+const action = process.argv.includes('--purge') ? purge : main;
+action().catch((e) => {
   logger.error(e.message || e);
   process.exit(1);
 });
