@@ -46,6 +46,16 @@ async function rejectionHistory(userId) {
   return { attempts: rows.length, lastRejectedAt: rows[0]?.reviewed_at ?? null };
 }
 
+/** Combien de photos la personne a-t-elle publiées ? (rien à comparer sans elles) */
+async function photoCount(userId) {
+  const { count, error } = await supabase
+    .from('profile_photos')
+    .select('id', { count: 'exact', head: true })
+    .eq('profile_id', userId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Crée une requête en attente de selfie, avec la pose tirée et la fin de fenêtre. */
 async function create({ userId, poseCode, captureExpiresAt, attemptNo }) {
   const { data, error } = await supabase
@@ -192,7 +202,7 @@ async function reviewSubject(userId) {
 }
 
 module.exports = {
-  activeFor, lastFor, rejectionHistory, create, attachSelfie,
+  activeFor, lastFor, rejectionHistory, photoCount, create, attachSelfie,
   expireStaleCaptures, reviewQueue, pendingCount, byId, decide,
   setVerified, reviewSubject,
 };

@@ -13,9 +13,16 @@
 // Testé à sec dans tests/unit/verification.test.js.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Fenêtre pour capturer une fois la pose révélée. Assez pour souffler et cadrer,
-// trop court pour organiser une mise en scène / demander de l'aide.
-const CAPTURE_WINDOW_MS = 20 * 60 * 1000; // 20 min
+// Fenêtre pour capturer une fois la pose révélée.
+//
+// 3 min et pas davantage : la fenêtre n'est PAS un temps de préparation, c'est
+// ce qui la rend impossible. Elle couvre lire la consigne, ouvrir la caméra,
+// poser, relire et envoyer — y compris avec un upload lent (jusqu'à 60 s). Elle
+// ne couvre pas aller chercher quelqu'un, chercher comment faire, ou mettre
+// quoi que ce soit en scène.
+//
+// (Était à 20 min : c'était assez long pour préparer, donc à contresens.)
+const CAPTURE_WINDOW_MS = 3 * 60 * 1000; // 3 min
 
 // Après quelques tentatives rejetées, on espace : la file de modération n'est pas
 // un stand de tir. Essais « libres » puis attente avant de pouvoir relancer.

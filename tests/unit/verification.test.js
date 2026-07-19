@@ -61,8 +61,12 @@ test('isCaptureExpired : une requête EN REVUE n\'expire jamais (revue = plusieu
 // ── Transition d'envoi ───────────────────────────────────────────────────────
 
 test('canSubmitSelfie : ok seulement en awaiting_selfie non expiré', () => {
-  const now = new Date('2026-07-19T10:05:00.000Z');
-  const frais = { status: 'awaiting_selfie', capture_expires_at: V.captureExpiryFrom('2026-07-19T10:00:00.000Z') };
+  // Exprimé RELATIVEMENT à la fenêtre, jamais en minutes codées en dur : un
+  // écart fixe (« démarré il y a 5 min ») redevient faux dès qu'on ajuste la
+  // durée — ce test est tombé pour cette raison au passage de 20 min à 3 min.
+  const debut = new Date('2026-07-19T10:00:00.000Z');
+  const now = new Date(debut.getTime() + V.CAPTURE_WINDOW_MS / 2); // à mi-fenêtre
+  const frais = { status: 'awaiting_selfie', capture_expires_at: V.captureExpiryFrom(debut) };
   assert.deepEqual(V.canSubmitSelfie(frais, now), { ok: true, reason: null });
 
   assert.equal(V.canSubmitSelfie(null, now).reason, 'no_request');

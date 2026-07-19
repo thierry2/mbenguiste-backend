@@ -43,6 +43,18 @@ const adminList = catchAsync(async (_req, res) => {
   res.json({ success: true, data: { demandes: await service.listQueue() } });
 });
 
+/**
+ * GET /admin/verifications/:id/selfie — les octets du selfie.
+ * `no-store` : une photo biométrique n'a rien à faire dans le cache disque du
+ * navigateur d'une personne de l'équipe.
+ */
+const adminSelfie = catchAsync(async (req, res) => {
+  const { buffer, contentType } = await service.selfieBytes(req.params.id);
+  res.set('Content-Type', contentType);
+  res.set('Cache-Control', 'no-store, private');
+  res.send(buffer);
+});
+
 /** GET /admin/verifications/count — bandeau de la console. */
 const adminCount = catchAsync(async (_req, res) => {
   res.json({ success: true, data: { enAttente: await service.pendingCount() } });
@@ -62,4 +74,4 @@ const adminDecide = catchAsync(async (req, res) => {
   res.json({ success: true, data: result });
 });
 
-module.exports = { getStatus, start, submitSelfie, adminList, adminCount, adminDecide };
+module.exports = { getStatus, start, submitSelfie, adminList, adminSelfie, adminCount, adminDecide };
