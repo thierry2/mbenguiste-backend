@@ -40,7 +40,14 @@
 .nav-on:hover { background: var(--accent-tint); color: var(--accent-deep); }
 .side-logout { margin-top: auto; }
 
-.main { padding: 26px 28px 80px; max-width: 1080px; }
+/* `min-width: 0` est INDISPENSABLE : un élément de grille vaut `min-width: auto`
+   par défaut, donc il refuse de devenir plus étroit que son contenu. Le tableau
+   des filleuls (5 colonnes) imposait alors sa largeur à toute la page — et
+   aucun `overflow-x: auto` sur le tableau ne pouvait le rattraper, puisque le
+   débordement venait du parent. C'est ce qui faisait déborder l'écran ET
+   déréglait la barre d'onglets fixe. */
+.main { padding: 26px 28px 80px; max-width: 1080px; min-width: 0; }
+.section, .card, .grid-main, .kpis, .res { min-width: 0; }
 .mainhead { display: flex; align-items: flex-start; justify-content: space-between;
   gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
 .mainhead .k { font-size: 12.5px; color: var(--ink2); margin: 0; }
@@ -140,7 +147,9 @@
    haut : elle devient une VRAIE barre d'onglets ancrée en bas, à portée du
    pouce, comme dans une application. C'est le geste qu'on avait dessiné. */
 @media (max-width: 900px) {
-  .app { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr) et non 1fr : sinon la colonne reprend la largeur de son
+     contenu le plus large et la page déborde à nouveau (cf. .main plus haut). */
+  .app { grid-template-columns: minmax(0, 1fr); }
 
   .side {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
@@ -183,6 +192,45 @@
   .payout-next { flex-direction: column; gap: 14px; }
   .payout-side { text-align: left; }
   .payout-next .big { font-size: 30px; }
+
+  /* ── Tableaux → listes ──────────────────────────────────────────────────
+     Un tableau à 5 colonnes sur un téléphone oblige à défiler de côté pour
+     lire une seule ligne. Chaque ligne devient donc un bloc à deux niveaux :
+     l'essentiel à gauche, le montant à droite. */
+  #t-referrals, #t-payouts, .dash-tables thead { display: block; }
+  .tablewrap { overflow-x: visible; }
+  .card table thead { display: none; }
+  .card table, .card table tbody, .card table tr, .card table td { display: block; }
+
+  .card table tr {
+    display: grid; gap: 3px 10px; padding: 13px 16px;
+    border-bottom: 1px solid var(--line); align-items: baseline;
+  }
+  .card table tr:last-child { border-bottom: none; }
+  .card table td { padding: 0; border: none; }
+
+  /* Filleuls : membre · (date · palier · statut) · part */
+  #t-referrals tr {
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas: "membre membre membre part" "date palier statut statut";
+  }
+  #t-referrals td:nth-child(1) { grid-area: membre; font-weight: 650; font-size: 15px; }
+  #t-referrals td:nth-child(2) { grid-area: date; color: var(--ink3); font-size: 12.5px; }
+  #t-referrals td:nth-child(3) { grid-area: palier; color: var(--ink2); font-size: 12.5px; }
+  #t-referrals td:nth-child(3)::before { content: "· "; color: var(--ink3); }
+  #t-referrals td:nth-child(4) { grid-area: statut; justify-self: start; }
+  #t-referrals td:nth-child(5) { grid-area: part; font-weight: 700; color: var(--accent-deep); }
+
+  /* Versements : date · (moyen · référence) · montant */
+  #t-payouts tr {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "date montant" "moyen moyen" "reference reference";
+  }
+  #t-payouts td:nth-child(1) { grid-area: date; font-weight: 650; font-size: 15px; }
+  #t-payouts td:nth-child(2) { grid-area: moyen; color: var(--ink2); font-size: 12.5px; }
+  #t-payouts td:nth-child(3) { grid-area: reference; color: var(--ink3); font-size: 11.5px;
+    font-family: var(--mono); }
+  #t-payouts td:nth-child(4) { grid-area: montant; font-weight: 700; font-size: 16px; }
 }
 
 /* Très petits écrans : les libellés d'onglets restent lisibles. */
