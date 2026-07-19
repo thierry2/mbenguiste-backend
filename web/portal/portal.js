@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Portail partenaire — authentification Supabase + tableau de bord.
+   Portail partenaire — authentification Supabase + espace en 4 sections
+   (Aperçu · Mon lien · Paiements · Ressources).
 
-   Un écran = une URL (/partenaires/connexion, /lien-magique, /mot-de-passe-oublie,
-   /nouveau-mot-de-passe) : on ne demande plus l'email dans le champ d'un autre
-   formulaire.
+   Un écran d'authentification = une URL (/partenaires/connexion, /lien-magique,
+   /mot-de-passe-oublie, /nouveau-mot-de-passe).
 
    Les liens d'email Supabase arrivent sous QUATRE formes selon la configuration
    du projet et l'ancienneté du lien. On les gère toutes, sinon un partenaire
@@ -25,7 +25,6 @@
     return (Number(cents || 0) / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
   };
 
-  /* ── Messages ────────────────────────────────────────────────────────── */
   function notice(el, text, kind) {
     el.innerHTML = '';
     if (!text) return;
@@ -79,10 +78,10 @@
     return 'Ce lien n\'a pas pu être validé.' + suite;
   }
 
-  /* ── Vues ────────────────────────────────────────────────────────────── */
+  /* ── Vues d'authentification ─────────────────────────────────────────── */
   var VIEWS = ['view-login', 'view-magic', 'view-forgot', 'view-setpass', 'view-expired', 'view-notpartner'];
   function showAuth(view) {
-    hide('boot'); hide('dashboard'); show('auth');
+    hide('boot'); hide('app'); show('auth');
     VIEWS.forEach(function (v) { hide(v); });
     show(view);
     var focus = { 'view-login': 'login-email', 'view-magic': 'magic-email',
@@ -120,7 +119,6 @@
   }
 
   function route() {
-    // 4. Le lien a échoué côté Supabase (expiré, déjà utilisé, mal recopié).
     if (linkParams.error || linkParams.error_code) {
       $('expired-reason').textContent = raisonFr(linkParams);
       cleanUrl('/partenaires/connexion');
@@ -128,7 +126,6 @@
       return;
     }
 
-    // 3. Modèles d'email récents : token_hash à vérifier explicitement.
     if (linkParams.token_hash && linkParams.type) {
       sb.auth.verifyOtp({ token_hash: linkParams.token_hash, type: linkParams.type })
         .then(function (res) {
@@ -139,17 +136,15 @@
       return;
     }
 
-    // 1 & 2 : supabase-js a déjà consommé #access_token ou ?code au démarrage.
     sb.auth.getSession().then(function (res) {
       var session = res.data.session;
       var type = linkParams.type;
       if (session && (type === 'invite' || type === 'recovery')) { afterLink(type); return; }
-      if (session) { openDashboard(); return; }
+      if (session) { openApp(); return; }
       showAuth(viewForPath());
     });
   }
 
-  /** Après un lien d'invitation/réinitialisation : proposer de poser un mot de passe. */
   function afterLink(type) {
     cleanUrl('/partenaires/nouveau-mot-de-passe');
     if (type === 'recovery') {
@@ -159,7 +154,6 @@
     showAuth('view-setpass');
   }
 
-  /* ── Appels API (jeton du partenaire) ────────────────────────────────── */
   function api(path) {
     return sb.auth.getSession().then(function (res) {
       var s = res.data.session;
@@ -172,9 +166,8 @@
     });
   }
 
-  /* ── Branchement des formulaires ─────────────────────────────────────── */
+  /* ── Formulaires ─────────────────────────────────────────────────────── */
   function wire() {
-    // Connexion par mot de passe
     $('form-login').addEventListener('submit', function (e) {
       e.preventDefault();
       var email = $('login-email').value.trim();
@@ -189,11 +182,10 @@
             'Connexion impossible. Vérifie ton email et ton mot de passe — ou demande un lien de connexion.', 'err');
           return;
         }
-        openDashboard();
+        openApp();
       });
     });
 
-    // Lien magique (page dédiée)
     $('form-magic').addEventListener('submit', function (e) {
       e.preventDefault();
       var email = $('magic-email').value.trim();
@@ -206,13 +198,12 @@
         $('btn-magic').disabled = false;
         // On ne révèle jamais si l'adresse existe (énumération de comptes).
         notice($('magic-msg'), res.error
-          ? "Envoi impossible pour le moment. Réessaie dans quelques minutes."
+          ? 'Envoi impossible pour le moment. Réessaie dans quelques minutes.'
           : "Si cette adresse est celle d'un partenaire, le lien vient de partir. Regarde tes emails (et les indésirables).",
         res.error ? 'err' : 'ok');
       });
     });
 
-    // Mot de passe oublié (page dédiée)
     $('form-forgot').addEventListener('submit', function (e) {
       e.preventDefault();
       var email = $('forgot-email').value.trim();
@@ -223,13 +214,12 @@
       }).then(function (res) {
         $('btn-forgot').disabled = false;
         notice($('forgot-msg'), res.error
-          ? "Envoi impossible pour le moment. Réessaie dans quelques minutes."
+          ? 'Envoi impossible pour le moment. Réessaie dans quelques minutes.'
           : "Si cette adresse est celle d'un partenaire, l'email est parti. Regarde tes emails (et les indésirables).",
         res.error ? 'err' : 'ok');
       });
     });
 
-    // Jauge de robustesse
     $('set-password').addEventListener('input', function () {
       var v = $('set-password').value;
       var score = 0;
@@ -241,7 +231,6 @@
       m.style.width = (v.length ? Math.max(12, (score / 3) * 100) : 0) + '%';
     });
 
-    // Enregistrer le mot de passe
     $('form-setpass').addEventListener('submit', function (e) {
       e.preventDefault();
       var p1 = $('set-password').value;
@@ -258,39 +247,115 @@
         }
         cleanUrl('/partenaires');
         toast('Mot de passe enregistré.', 'ok');
-        openDashboard();
+        openApp();
       });
     });
 
-    $('btn-logout').addEventListener('click', function () {
+    var deconnecter = function () {
       sb.auth.signOut().then(function () { window.location.href = '/partenaires/connexion'; });
-    });
-    $('btn-signout-other').addEventListener('click', function () {
-      sb.auth.signOut().then(function () { window.location.href = '/partenaires/connexion'; });
+    };
+    $('btn-logout').addEventListener('click', deconnecter);
+    $('btn-signout-other').addEventListener('click', deconnecter);
+
+    // Navigation entre sections.
+    Array.prototype.forEach.call(document.querySelectorAll('.nav-item'), function (b) {
+      b.addEventListener('click', function () {
+        Array.prototype.forEach.call(document.querySelectorAll('.nav-item'), function (x) {
+          x.classList.remove('nav-on');
+        });
+        b.classList.add('nav-on');
+        var cible = b.dataset.section;
+        Array.prototype.forEach.call(document.querySelectorAll('.section'), function (s) {
+          s.classList.toggle('hidden', s.dataset.panel !== cible);
+        });
+        window.scrollTo(0, 0);
+      });
     });
   }
 
-  /* ── Tableau de bord ─────────────────────────────────────────────────── */
-  function openDashboard() {
-    // On n'affiche PAS le tableau de bord avant d'avoir la réponse : sinon un
-    // compte non partenaire voit d'abord un tableau de bord vide, qui bascule
-    // ensuite vers un refus. Écran d'attente jusqu'à confirmation.
-    hide('auth'); hide('dashboard');
+  /* ── Courbe (SVG tracé à la main : aucune librairie à charger) ────────── */
+  function drawChart(series) {
+    var svg = $('chart');
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    if (!series || !series.length) return;
+
+    var W = 640, H = 180, PAD = 8;
+    var max = Math.max.apply(null, series.map(function (p) { return p.cents; }));
+    if (max <= 0) max = 1;
+    var pas = series.length > 1 ? (W - PAD * 2) / (series.length - 1) : 0;
+    var y = function (c) { return H - PAD - (c / max) * (H - PAD * 2); };
+
+    var pts = series.map(function (p, i) { return [PAD + i * pas, y(p.cents)]; });
+
+    // Courbe lissée (Catmull-Rom → Bézier) : une ligne brisée ferait « graphique
+    // de tableur », pas produit soigné.
+    var d = 'M' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1);
+    for (var i = 0; i < pts.length - 1; i += 1) {
+      var p0 = pts[i === 0 ? 0 : i - 1], p1 = pts[i], p2 = pts[i + 1];
+      var p3 = pts[i + 2] || p2;
+      var c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      var c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += 'C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1)
+        + ' ' + p2[0].toFixed(1) + ',' + p2[1].toFixed(1);
+    }
+
+    var NS = 'http://www.w3.org/2000/svg';
+    var el = function (tag, attrs) {
+      var n = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+      return n;
+    };
+
+    var defs = el('defs', {});
+    var grad = el('linearGradient', { id: 'aire', x1: '0', x2: '0', y1: '0', y2: '1' });
+    grad.appendChild(el('stop', { offset: '0', 'stop-color': '#3A6B63', 'stop-opacity': '.26' }));
+    grad.appendChild(el('stop', { offset: '1', 'stop-color': '#3A6B63', 'stop-opacity': '0' }));
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+
+    [0.33, 0.66].forEach(function (f) {
+      svg.appendChild(el('line', { x1: 0, x2: W, y1: (H * f).toFixed(0), y2: (H * f).toFixed(0),
+        stroke: 'rgba(20,18,22,.07)', 'stroke-width': '1' }));
+    });
+
+    svg.appendChild(el('path', { d: d + 'L' + W + ',' + H + 'L0,' + H + 'Z', fill: 'url(#aire)' }));
+    svg.appendChild(el('path', { d: d, fill: 'none', stroke: '#3A6B63', 'stroke-width': '2.4',
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+
+    var last = pts[pts.length - 1];
+    svg.appendChild(el('circle', { cx: last[0], cy: last[1], r: '7', fill: '#3A6B63', 'fill-opacity': '.18' }));
+    svg.appendChild(el('circle', { cx: last[0], cy: last[1], r: '3.6', fill: '#3A6B63' }));
+  }
+
+  var moisCourt = function (iso) {
+    return new Date(iso + 'T00:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  };
+
+  /* ── Chargement de l'espace ──────────────────────────────────────────── */
+  function openApp() {
+    hide('auth'); hide('app');
     $('boot').textContent = 'Chargement de ton espace…';
     show('boot');
 
     api('/me').then(function (d) {
       var p = d.partner;
       hide('boot');
-      show('dashboard');
+      show('app');
+
       $('d-name').textContent = p.displayName || 'Partenaire';
-      $('k-rate').textContent = (p.rateBps / 100).toFixed(0) + ' %';
-      if (p.isFounder) show('d-founder');
+      var taux = (p.rateBps / 100).toFixed(0) + ' %';
+      $('k-rate').textContent = taux;
+      $('r-rate').textContent = taux;
+      if (p.isFounder) {
+        show('d-founder');
+        $('k-rate-sub').textContent = 'du revenu net · Fondateur';
+      }
 
       var code = p.code || '—';
       $('d-code').textContent = code;
       var shareMsg = 'Rejoins-moi sur Mbenguiste avec mon code ' + code
         + ' : tu reçois 7 jours en Plus et un Boost offerts.';
+      $('share-text').textContent = shareMsg;
       $('btn-copy-code').addEventListener('click', function () { copy(code, 'Code copié.'); });
       $('btn-copy-msg').addEventListener('click', function () { copy(shareMsg, 'Message copié.'); });
 
@@ -302,35 +367,53 @@
       $('b-pending').textContent = eur(s.balance.pendingCents);
       $('b-valid').textContent = eur(s.balance.validatedCents);
       $('b-paid').textContent = eur(s.balance.paidCents);
+      $('p-next').textContent = eur(s.balance.validatedCents);
+      $('p-pending').textContent = eur(s.balance.pendingCents);
+
+      if (s.series && s.series.length) {
+        drawChart(s.series);
+        $('axis-start').textContent = moisCourt(s.series[0].date);
+        $('axis-end').textContent = moisCourt(s.series[s.series.length - 1].date);
+      }
+      if (s.trendPct !== null && s.trendPct !== undefined) {
+        var t = $('trend');
+        t.textContent = (s.trendPct >= 0 ? '+' : '') + s.trendPct + ' %';
+        t.className = 'trend' + (s.trendPct < 0 ? ' down' : '');
+      }
       return api('/referrals');
     }).then(function (d) {
       var tb = $('t-referrals');
       tb.innerHTML = '';
-      if (!d.referrals.length) { show('referrals-empty'); }
+      if (!d.referrals.length) show('referrals-empty');
       d.referrals.forEach(function (r) {
         var tr = document.createElement('tr');
         tr.appendChild(cell(r.member));
         tr.appendChild(cell(new Date(r.attributedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })));
         tr.appendChild(cell(TIERS[r.tier] || '—'));
+
         var st = document.createElement('td');
-        st.className = 'tright';
         var pill = document.createElement('span');
         pill.className = 'pill ' + (r.active ? 'pill-ok' : 'pill-off');
         pill.textContent = r.active ? 'Abonné' : 'Inscrit';
         st.appendChild(pill);
         tr.appendChild(st);
+
+        var part = cell(r.shareCents ? '+' + eur(r.shareCents) : '—');
+        part.className = 'tright tnum';
+        tr.appendChild(part);
         tb.appendChild(tr);
       });
       return api('/payouts');
     }).then(function (d) {
       var pb = $('t-payouts');
       pb.innerHTML = '';
-      if (!d.payouts.length) { show('payouts-empty'); }
+      if (!d.payouts.length) show('payouts-empty');
       d.payouts.forEach(function (p) {
         var tr = document.createElement('tr');
         tr.appendChild(cell(new Date(p.paidAt).toLocaleDateString('fr-FR',
           { day: 'numeric', month: 'short', year: 'numeric' })));
         tr.appendChild(cell(p.method || 'Versement manuel'));
+        tr.appendChild(cell(p.reference || '—'));
         var amt = cell(eur(p.amountCents));
         amt.className = 'tright tnum';
         tr.appendChild(amt);
@@ -338,7 +421,7 @@
       });
     }).catch(function (e) {
       hide('boot');
-      hide('dashboard');
+      hide('app');
       if (e && e.status === 403) { showAuth('view-notpartner'); return; }
       if (e && e.status === 401) { showAuth('view-login'); return; }
       showAuth('view-login');

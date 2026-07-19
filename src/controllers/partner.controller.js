@@ -1,6 +1,6 @@
 const catchAsync = require('../utils/catchAsync');
 const stats = require('../models/partnerStats.model');
-const { summarizeBalance, sumSince } = require('../domain/partnerStats');
+const { summarizeBalance, sumSince, dailySeries } = require('../domain/partnerStats');
 
 /** Identité + code du partenaire connecté (portail). */
 const me = catchAsync(async (req, res) => {
@@ -31,7 +31,17 @@ const getStats = catchAsync(async (req, res) => {
     stats.activeSubscribersCount(partnerId),
   ]);
 
-  res.json({ success: true, data: { signups, activeSubscribers, monthCents, balance } });
+  // Série pour la courbe + variation sur la période (ce que la courbe raconte).
+  const series = dailySeries(rows, { days: 30, now });
+  const moitie = Math.floor(series.length / 2);
+  const debut = series.slice(0, moitie).reduce((s, p) => s + p.cents, 0);
+  const recent = series.slice(moitie).reduce((s, p) => s + p.cents, 0);
+  const trendPct = debut > 0 ? Math.round(((recent - debut) / debut) * 100) : null;
+
+  res.json({
+    success: true,
+    data: { signups, activeSubscribers, monthCents, balance, series, trendPct },
+  });
 });
 
 /** Derniers abonnés référés (identités masquées). */

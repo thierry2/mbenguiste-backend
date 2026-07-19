@@ -55,4 +55,29 @@ function payableRows(rows, now = new Date()) {
   );
 }
 
-module.exports = { summarizeBalance, sumSince, payableRows };
+/**
+ * Série quotidienne des commissions sur les `days` derniers jours, pour la courbe
+ * du portail. Renvoie TOUJOURS un point par jour (zéros compris) : sans les
+ * creux, une courbe ment sur le rythme réel.
+ * @returns {Array<{date:string, cents:number}>} du plus ancien au plus récent
+ */
+function dailySeries(rows, { days = 30, now = new Date() } = {}) {
+  const jour = 24 * 60 * 60 * 1000;
+  const fin = new Date(now);
+  fin.setUTCHours(0, 0, 0, 0);
+
+  const seau = new Map();
+  for (let i = days - 1; i >= 0; i -= 1) {
+    seau.set(new Date(fin.getTime() - i * jour).toISOString().slice(0, 10), 0);
+  }
+
+  for (const r of rows || []) {
+    if (r.status === 'reversed') continue;
+    const cle = new Date(r.occurredAt).toISOString().slice(0, 10);
+    if (seau.has(cle)) seau.set(cle, seau.get(cle) + (Number(r.commissionCents) || 0));
+  }
+
+  return [...seau.entries()].map(([date, cents]) => ({ date, cents }));
+}
+
+module.exports = { summarizeBalance, sumSince, payableRows, dailySeries };

@@ -18,7 +18,6 @@
     <div class="brand">Mbenguiste</div>
     <p class="brand-sub auth-brandsub">Espace Partenaire</p>
 
-    <!-- Connexion -->
     <section id="view-login" class="view hidden">
       <h1>Content de te revoir.</h1>
       <p class="sub auth-lede">Connecte-toi pour suivre tes filleuls et tes gains.</p>
@@ -34,13 +33,11 @@
         <button type="submit" class="btn-primary btn-block auth-submit" id="btn-login">Se connecter</button>
       </form>
       <div id="login-msg" class="msgzone"></div>
-
       <div class="auth-sep"><span>ou</span></div>
       <a class="btn btn-block" href="/partenaires/lien-magique">Recevoir un lien de connexion</a>
       <p class="auth-foot"><a href="/partenaires/mot-de-passe-oublie">Mot de passe oublié ?</a></p>
     </section>
 
-    <!-- Lien magique — sa propre page -->
     <section id="view-magic" class="view hidden">
       <h1>Connexion sans mot de passe.</h1>
       <p class="sub auth-lede">On t'envoie un lien. Tu cliques, tu es connecté. Rien à retenir.</p>
@@ -55,7 +52,6 @@
       <p class="auth-foot"><a href="/partenaires/connexion">Revenir à la connexion</a></p>
     </section>
 
-    <!-- Mot de passe oublié — sa propre page -->
     <section id="view-forgot" class="view hidden">
       <h1>Mot de passe oublié ?</h1>
       <p class="sub auth-lede">Indique ton email : on t'envoie de quoi en choisir un nouveau.</p>
@@ -70,7 +66,6 @@
       <p class="auth-foot"><a href="/partenaires/connexion">Revenir à la connexion</a></p>
     </section>
 
-    <!-- Choisir un mot de passe (invitation ou réinitialisation) -->
     <section id="view-setpass" class="view hidden">
       <h1 id="setpass-title">Choisis ton mot de passe.</h1>
       <p class="sub auth-lede" id="setpass-lede">Bienvenue parmi les partenaires. Définis un mot de passe pour accéder à ton espace.</p>
@@ -79,7 +74,7 @@
           <label for="set-password">Nouveau mot de passe</label>
           <input id="set-password" type="password" autocomplete="new-password" placeholder="Au moins 10 caractères" required />
           <div class="meter"><div class="meter-fill" id="pw-meter"></div></div>
-          <p class="hint" id="pw-hint">Au moins 10 caractères. Une phrase dont tu te souviens vaut mieux qu'un mot compliqué.</p>
+          <p class="hint">Une phrase dont tu te souviens vaut mieux qu'un mot compliqué.</p>
         </div>
         <div class="field">
           <label for="set-password2">Confirme</label>
@@ -90,15 +85,13 @@
       <div id="setpass-msg" class="msgzone"></div>
     </section>
 
-    <!-- Lien expiré / invalide -->
     <section id="view-expired" class="view hidden">
       <h1>Ce lien n'est plus valable.</h1>
-      <p class="sub auth-lede" id="expired-reason">Les liens de connexion expirent vite, par sécurité. Demandes-en un nouveau, il arrive tout de suite.</p>
+      <p class="sub auth-lede" id="expired-reason">Les liens de connexion expirent vite, par sécurité.</p>
       <a class="btn btn-accent btn-block auth-submit" href="/partenaires/lien-magique">Recevoir un nouveau lien</a>
       <p class="auth-foot"><a href="/partenaires/connexion">Me connecter avec un mot de passe</a></p>
     </section>
 
-    <!-- Compte connecté mais pas partenaire -->
     <section id="view-notpartner" class="view hidden">
       <h1>Ce compte n'est pas un compte partenaire.</h1>
       <p class="sub auth-lede">Tu es connecté, mais cette adresse n'est rattachée à aucun partenaire. Si tu penses que c'est une erreur, contacte l'équipe Mbenguiste.</p>
@@ -107,26 +100,105 @@
   </main>
 </div>
 
-<!-- ══════════════ TABLEAU DE BORD ══════════════ -->
-<div id="dashboard" class="hidden">
-  <header class="topbar">
-    <div class="who">
-      <p class="k">Bonjour</p>
-      <p class="n"><span id="d-name">—</span><span id="d-founder" class="founder hidden">Fondateur</span></p>
-    </div>
-    <button class="btn btn-sm" id="btn-logout">Se déconnecter</button>
-  </header>
+<!-- ══════════════ ESPACE PARTENAIRE ══════════════ -->
+<div id="app" class="app hidden">
 
-  <div class="wrap">
-    <div class="kpis">
-      <div class="card kpi"><p class="lab">Inscriptions</p><p class="val tnum" id="k-signups">—</p></div>
-      <div class="card kpi"><p class="lab">Abonnés actifs</p><p class="val tnum" id="k-active">—</p></div>
-      <div class="card kpi"><p class="lab">Ce mois</p><p class="val tnum" id="k-month">—</p></div>
-      <div class="card kpi"><p class="lab">Ton taux</p><p class="val tnum" id="k-rate">—</p></div>
-    </div>
+  <!-- Navigation latérale -->
+  <aside class="side">
+    <div class="side-brand">Mbenguiste</div>
+    <nav class="nav" id="nav">
+      <button class="nav-item nav-on" data-section="apercu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+        Aperçu
+      </button>
+      <button class="nav-item" data-section="lien">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3A5 5 0 0 0 13.5 3.5L12 5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3A5 5 0 0 0 10.5 20.5L12 19"/></svg>
+        Mon lien
+      </button>
+      <button class="nav-item" data-section="paiements">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M2.5 10h19"/></svg>
+        Paiements
+      </button>
+      <button class="nav-item" data-section="ressources">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2.5H20v19H6.5A2.5 2.5 0 0 1 4 19V5a2.5 2.5 0 0 1 2.5-2.5z"/></svg>
+        Ressources
+      </button>
+    </nav>
+    <button class="btn btn-sm side-logout" id="btn-logout">Se déconnecter</button>
+  </aside>
 
-    <div class="grid-main">
-      <section class="codehero">
+  <main class="main">
+    <header class="mainhead">
+      <div>
+        <p class="k">Bonjour</p>
+        <p class="n"><span id="d-name">—</span><span id="d-founder" class="founder hidden">Fondateur</span></p>
+      </div>
+      <span class="periode">30 derniers jours</span>
+    </header>
+
+    <!-- ── Aperçu ── -->
+    <section class="section" data-panel="apercu">
+      <div class="kpis">
+        <div class="card kpi">
+          <p class="lab">Inscriptions</p><p class="val tnum" id="k-signups">—</p>
+          <p class="sublab" id="k-signups-sub">via ton code</p>
+        </div>
+        <div class="card kpi">
+          <p class="lab">Abonnés actifs</p><p class="val tnum" id="k-active">—</p>
+          <p class="sublab">qui paient en ce moment</p>
+        </div>
+        <div class="card kpi">
+          <p class="lab">Commissions ce mois</p><p class="val tnum" id="k-month">—</p>
+          <p class="sublab">à te verser</p>
+        </div>
+        <div class="card kpi">
+          <p class="lab">Ton taux</p><p class="val tnum" id="k-rate">—</p>
+          <p class="sublab" id="k-rate-sub">du revenu net</p>
+        </div>
+      </div>
+
+      <div class="grid-main">
+        <section class="card card-pad chartcard">
+          <div class="chart-head">
+            <h2>Revenu attribué · 30 jours</h2>
+            <span class="trend" id="trend"></span>
+          </div>
+          <div class="chart-wrap">
+            <svg id="chart" viewBox="0 0 640 180" preserveAspectRatio="none" role="img"
+                 aria-label="Courbe des commissions sur 30 jours"></svg>
+          </div>
+          <div class="chart-axis"><span id="axis-start">—</span><span id="axis-end">—</span></div>
+        </section>
+
+        <section class="card card-pad">
+          <h2>Ton solde</h2>
+          <ul class="balance-list">
+            <li><span class="st s-pending"><span class="dot d-pending"></span>En attente</span><b class="tnum" id="b-pending">—</b></li>
+            <li><span class="st s-valid"><span class="dot d-valid"></span>Validé</span><b class="tnum" id="b-valid">—</b></li>
+            <li><span class="st s-paid"><span class="dot d-paid"></span>Déjà versé</span><b class="tnum" id="b-paid">—</b></li>
+          </ul>
+          <p class="whisper balance-note">« Validé après 30 jours — puis versé à la main. »</p>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-head"><h2>Abonnés référés récents</h2></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Membre</th><th>Inscrit</th><th>Palier</th><th>Statut</th><th class="tright">Ta part / mois</th></tr></thead>
+            <tbody id="t-referrals"></tbody>
+          </table>
+        </div>
+        <div id="referrals-empty" class="empty hidden">
+          <p class="empty-title">Personne encore</p>
+          <p class="empty-sub">Partage ton code : les inscriptions apparaîtront ici.</p>
+        </div>
+      </section>
+    </section>
+
+    <!-- ── Mon lien ── -->
+    <section class="section hidden" data-panel="lien">
+      <div class="codehero">
         <p class="k">Ton code</p>
         <p class="code" id="d-code">—</p>
         <p class="u">C'est ce mot que ton public saisit à l'inscription. Il lui offre 7 jours en Plus et un Boost.</p>
@@ -134,47 +206,81 @@
           <button class="cbtn" id="btn-copy-code">Copier le code</button>
           <button class="cbtn" id="btn-copy-msg">Copier le message</button>
         </div>
+      </div>
+
+      <section class="card card-pad">
+        <h2>Le message à partager</h2>
+        <p class="share" id="share-text">—</p>
+        <p class="hint">Colle-le tel quel en story, en bio, ou en légende. Le code est la seule chose à retenir.</p>
       </section>
 
       <section class="card card-pad">
-        <h2>Ton solde</h2>
-        <div class="balance">
-          <div class="b"><p class="st s-pending"><span class="dot d-pending"></span>En attente</p><p class="am tnum" id="b-pending">—</p></div>
-          <div class="b"><p class="st s-valid"><span class="dot d-valid"></span>Validé</p><p class="am tnum" id="b-valid">—</p></div>
-          <div class="b"><p class="st s-paid"><span class="dot d-paid"></span>Versé</p><p class="am tnum" id="b-paid">—</p></div>
-        </div>
-        <p class="whisper balance-note">« Validé après 30 jours — puis versé à la main. »</p>
+        <h2>Ce que ton public reçoit</h2>
+        <ul class="gift">
+          <li><b>7 jours en Plus</b><span>Aime sans compter · Rewind · Incognito</span></li>
+          <li><b>1 Boost offert</b><span>Passe en tête, le temps d'une soirée</span></li>
+        </ul>
+        <p class="whisper">« Un cadeau concret, c'est ce qui fait cliquer. »</p>
       </section>
-    </div>
-
-    <section class="card dash-card">
-      <div class="card-head"><h2>Abonnés référés récents</h2></div>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>Membre</th><th>Inscrit</th><th>Palier</th><th class="tright">Statut</th></tr></thead>
-          <tbody id="t-referrals"></tbody>
-        </table>
-      </div>
-      <div id="referrals-empty" class="empty hidden">
-        <p class="empty-title">Personne encore</p>
-        <p class="empty-sub">Partage ton code : les inscriptions apparaîtront ici.</p>
-      </div>
     </section>
 
-    <section class="card dash-card">
-      <div class="card-head"><h2>Versements</h2></div>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>Date</th><th>Moyen</th><th class="tright">Montant</th></tr></thead>
-          <tbody id="t-payouts"></tbody>
-        </table>
+    <!-- ── Paiements ── -->
+    <section class="section hidden" data-panel="paiements">
+      <div class="card card-pad payout-next">
+        <div>
+          <p class="lab">À te verser</p>
+          <p class="big tnum" id="p-next">—</p>
+          <p class="sublab">Versé à la main par l'équipe, une fois validé.</p>
+        </div>
+        <div class="payout-side">
+          <p class="lab">En attente de validation</p>
+          <p class="mid tnum" id="p-pending">—</p>
+        </div>
       </div>
-      <div id="payouts-empty" class="empty hidden">
-        <p class="empty-title">Aucun versement pour l'instant</p>
-        <p class="empty-sub">Tes commissions validées seront versées à la main.</p>
+
+      <section class="card">
+        <div class="card-head"><h2>Historique des versements</h2></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Date</th><th>Moyen</th><th>Référence</th><th class="tright">Montant</th></tr></thead>
+            <tbody id="t-payouts"></tbody>
+          </table>
+        </div>
+        <div id="payouts-empty" class="empty hidden">
+          <p class="empty-title">Aucun versement pour l'instant</p>
+          <p class="empty-sub">Tes commissions validées seront versées à la main.</p>
+        </div>
+      </section>
+    </section>
+
+    <!-- ── Ressources ── -->
+    <section class="section hidden" data-panel="ressources">
+      <div class="res">
+        <article class="card card-pad">
+          <h2>Comment en parler juste</h2>
+          <p class="sub">Mbenguiste ne promet pas l'amour. On ouvre des histoires. Parle de ce que tu as vu, jamais de résultats garantis.</p>
+          <ul class="rules">
+            <li><b>Dis vrai.</b> Pas de « tu vas trouver quelqu'un » — personne ne peut le promettre.</li>
+            <li><b>Annonce le cadeau tel quel.</b> 7 jours en Plus et un Boost, rien de plus, rien de moins.</li>
+            <li><b>Précise que c'est un partenariat.</b> La transparence te protège autant qu'elle protège l'app.</li>
+            <li><b>Jamais de mineurs, jamais de contenu explicite.</b> C'est une app de rencontre adulte, tenue par des règles.</li>
+          </ul>
+        </article>
+
+        <article class="card card-pad">
+          <h2>Tes conditions</h2>
+          <ul class="terms">
+            <li><span>Ton taux</span><b id="r-rate">—</b></li>
+            <li><span>Durée par abonné</span><b>12 mois</b></li>
+            <li><span>Sécurité avant validation</span><b>30 jours</b></li>
+            <li><span>Assiette</span><b>revenu net (après part des stores)</b></li>
+            <li><span>Versement</span><b>à la main, par l'équipe</b></li>
+          </ul>
+          <p class="whisper">« Un remboursement annule la commission correspondante. »</p>
+        </article>
       </div>
     </section>
-  </div>
+  </main>
 </div>
 
 <div class="toasts" id="toasts"></div>
