@@ -6,6 +6,7 @@ const profileService = require('../services/profile.service');
 const entitlementsService = require('../services/entitlements.service');
 const safetyService = require('../services/safety.service');
 const referralService = require('../services/referral.service');
+const { exportUserData } = require('../services/export.service');
 
 const getMe = catchAsync(async (req, res) => {
   profileModel.touchActivity(req.user.id).catch(() => {}); // présence, non bloquant
@@ -116,6 +117,18 @@ const deleteMe = catchAsync(async (req, res) => {
   res.json({ success: true, data: { programmationSuppression } });
 });
 
+/**
+ * Droit à la portabilité (RGPD art. 20) : export JSON de toutes les données
+ * personnelles. L'enveloppe { success, data } est conservée — c'est le contrat
+ * de `apiFetch` côté app, qui rejette toute réponse sans `success`. L'en-tête
+ * Content-Disposition sert le cas où l'URL est ouverte hors de l'app.
+ */
+const exportMine = catchAsync(async (req, res) => {
+  const data = await exportUserData(req.user.id);
+  res.setHeader('Content-Disposition', 'attachment; filename="mbenguiste-mes-donnees.json"');
+  res.json({ success: true, data });
+});
+
 /** Annule une suppression programmée tant que le délai de grâce n'est pas échu. */
 const cancelDeleteMe = catchAsync(async (req, res) => {
   await profileModel.cancelDeleteAccount(req.user.id);
@@ -129,4 +142,4 @@ const updateLocation = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { getMe, updateMe, completeOnboarding, lookupReferral, redeemReferral, getById, getPreferences, setPreferences, getEntitlements, updateLocation, savePushToken, updateSettings, deleteMe, cancelDeleteMe };
+module.exports = { getMe, updateMe, completeOnboarding, lookupReferral, redeemReferral, getById, getPreferences, setPreferences, getEntitlements, updateLocation, savePushToken, updateSettings, deleteMe, cancelDeleteMe, exportMine };
