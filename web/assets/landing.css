@@ -1,0 +1,521 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAQUETTE v3 — landing Mbenguiste.
+   Système hérité de src/proTheme.ts (verrouillé 11/07) : quasi-monochrome
+   encre chaude, UN accent vert, terracotta réservé au geste « j'aime ».
+   Rien n'est inventé côté couleur ni côté marque.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Jetons ──────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light dark;
+
+  --ground:#F3F2EF; --ground2:#EBE9E4; --sheet:#FFFFFF;
+  --ink:#1B1A1E; --ink2:#66645E; --ink3:#9A968E;
+  --hair:rgba(20,18,22,.085); --hair2:rgba(20,18,22,.16);
+  --accent:#3A6B63; --accent-d:#2B4E48; --accent-t:#E4EDE8;
+  --love:#C25B54; --champ:#E7D3AC; --gold:#B0894F;
+  --night:#16131A;
+  --lift-1:0 1px 2px rgba(20,18,22,.05);
+  --lift-3:0 2px 4px rgba(20,18,22,.04), 0 18px 40px -22px rgba(20,18,22,.34);
+  --lift-6:0 4px 8px rgba(20,18,22,.05), 0 40px 80px -40px rgba(20,18,22,.55);
+
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+
+  /* Échelle typographique fluide — un seul système, pas de tailles ad hoc. */
+  --t-mega:clamp(2.9rem, 1.2rem + 7.2vw, 6.5rem);
+  --t-xl:clamp(2rem, 1.1rem + 3.6vw, 3.6rem);
+  --t-l:clamp(1.55rem, 1.1rem + 1.9vw, 2.5rem);
+  --t-m:clamp(1.12rem, 1rem + .5vw, 1.32rem);
+  --t-b:clamp(1rem, .96rem + .2vw, 1.08rem);
+
+  --shell:1200px;
+  --gut:clamp(20px, 4vw, 40px);
+  --rail:clamp(56px, 9vh, 104px);
+
+  --ease:cubic-bezier(.16,1,.3,1);
+  --ease-io:cubic-bezier(.65,0,.35,1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground:#141117; --ground2:#1C1821; --sheet:#221D28;
+    --ink:#FBFAF7; --ink2:rgba(251,250,247,.66); --ink3:rgba(251,250,247,.40);
+    --hair:rgba(251,250,247,.11); --hair2:rgba(251,250,247,.2);
+    --accent:#649A8F; --accent-d:#93C2B7; --accent-t:rgba(100,154,143,.14);
+    --love:#D06E66;
+    --lift-1:0 1px 2px rgba(0,0,0,.5);
+    --lift-3:0 2px 4px rgba(0,0,0,.4), 0 18px 40px -22px rgba(0,0,0,.9);
+    --lift-6:0 4px 8px rgba(0,0,0,.5), 0 40px 80px -40px rgba(0,0,0,1);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#141117; --ground2:#1C1821; --sheet:#221D28;
+  --ink:#FBFAF7; --ink2:rgba(251,250,247,.66); --ink3:rgba(251,250,247,.40);
+  --hair:rgba(251,250,247,.11); --hair2:rgba(251,250,247,.2);
+  --accent:#649A8F; --accent-d:#93C2B7; --accent-t:rgba(100,154,143,.14);
+  --love:#D06E66;
+  --lift-1:0 1px 2px rgba(0,0,0,.5);
+  --lift-3:0 2px 4px rgba(0,0,0,.4), 0 18px 40px -22px rgba(0,0,0,.9);
+  --lift-6:0 4px 8px rgba(0,0,0,.5), 0 40px 80px -40px rgba(0,0,0,1);
+}
+:root[data-theme="light"]{
+  --ground:#F3F2EF; --ground2:#EBE9E4; --sheet:#FFFFFF;
+  --ink:#1B1A1E; --ink2:#66645E; --ink3:#9A968E;
+  --hair:rgba(20,18,22,.085); --hair2:rgba(20,18,22,.16);
+  --accent:#3A6B63; --accent-d:#2B4E48; --accent-t:#E4EDE8;
+  --love:#C25B54;
+  --lift-1:0 1px 2px rgba(20,18,22,.05);
+  --lift-3:0 2px 4px rgba(20,18,22,.04), 0 18px 40px -22px rgba(20,18,22,.34);
+  --lift-6:0 4px 8px rgba(20,18,22,.05), 0 40px 80px -40px rgba(20,18,22,.55);
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--ground);color:var(--ink);
+  font:var(--t-b)/1.62 var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+img,svg{display:block;max-width:100%}
+a{color:inherit}
+::selection{background:var(--accent);color:#fff}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+h1,h2,h3{text-wrap:balance;margin:0}
+p{text-wrap:pretty;margin:0}
+
+.shell{max-width:var(--shell);margin-inline:auto;padding-inline:var(--gut)}
+.eyebrow{
+  font-family:var(--mono);font-size:.625rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink3);font-weight:600;
+}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{
+  position:fixed;left:16px;top:-70px;z-index:99;background:var(--ink);color:var(--ground);
+  padding:11px 18px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;
+  transition:top .2s var(--ease);
+}
+.skip:focus{top:16px}
+
+/* ── Bandeau de maquette ─────────────────────────────────────────────────── */
+.mockbar{
+  background:var(--night);color:#FBFAF7;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+  padding:9px var(--gut);text-align:center;
+}
+.mockbar b{color:var(--champ)}
+
+/* ── Navigation ──────────────────────────────────────────────────────────── */
+.nav{
+  position:sticky;top:0;z-index:40;
+  border-bottom:1px solid transparent;
+  transition:border-color .3s var(--ease), background .3s var(--ease);
+}
+.nav.stuck{
+  border-bottom-color:var(--hair);
+  background:color-mix(in srgb, var(--ground) 82%, transparent);
+  backdrop-filter:saturate(180%) blur(16px);
+}
+.nav-in{
+  max-width:var(--shell);margin-inline:auto;padding:14px var(--gut);
+  display:flex;align-items:center;gap:clamp(16px,3vw,34px);
+}
+.wordmark{
+  display:flex;align-items:center;gap:11px;text-decoration:none;
+  font-family:var(--serif);font-size:1.28rem;letter-spacing:-.01em;
+}
+.nav-links{margin-left:auto;display:flex;align-items:center;gap:clamp(14px,2.4vw,28px)}
+.nav-links a{font-size:.845rem;color:var(--ink2);text-decoration:none;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:var(--ink)}
+.nav-get{
+  background:var(--ink);color:var(--ground)!important;
+  padding:9px 18px;border-radius:999px;font-weight:600!important;
+  transition:transform .18s var(--ease),opacity .18s;
+}
+.nav-get:hover{transform:translateY(-1px)}
+@media (max-width:880px){.nav-links a:not(.nav-get){display:none}}
+
+/* ── Marque : trois cartes en éventail (BrandMark.tsx, angles exacts) ────── */
+.fan{position:relative;flex:none}
+.fan i{position:absolute;inset:0;border-radius:12%;display:block}
+.fan .c1{background:var(--accent)}
+.fan .c2{background:var(--love)}
+.fan .c3{
+  background:var(--sheet);border:1px solid var(--hair);
+  display:grid;place-items:center;font-family:var(--serif);
+  font-weight:600;color:var(--ink);font-style:normal;box-shadow:var(--lift-3);
+}
+.fan-xs{width:25px;height:33px}
+.fan-xs .c1{transform:translateX(-3px) rotate(-11deg)}
+.fan-xs .c2{transform:translateX(3px) rotate(10deg)}
+.fan-xs .c3{font-size:.9rem}
+
+/* ═══ HÉROS ═══════════════════════════════════════════════════════════════ */
+.hero{
+  display:grid;grid-template-columns:1.02fr .98fr;
+  gap:clamp(32px,5vw,72px);align-items:center;
+  padding-block:clamp(40px,6vh,80px) clamp(56px,9vh,112px);
+}
+.hero h1{
+  font-family:var(--serif);font-weight:500;font-size:var(--t-mega);
+  line-height:.96;letter-spacing:-.035em;margin-top:.5rem;
+}
+.hero h1 em{font-style:italic;color:var(--accent-d)}
+
+/* Révélation ligne à ligne : chaque ligne monte derrière un masque.
+   Aucune de ces animations ne dépend du JavaScript — elles démarrent au
+   chargement. Les avoir mises derrière une classe posée par script aurait
+   signifié un héros invisible si le script échouait. */
+.line{display:block;overflow:hidden}
+.line > span{
+  display:block;transform:translateY(105%);opacity:0;
+  animation:lineUp .95s var(--ease) forwards;
+}
+.line:nth-child(1) > span{animation-delay:.10s}
+.line:nth-child(2) > span{animation-delay:.20s}
+.line:nth-child(3) > span{animation-delay:.30s}
+@keyframes lineUp{to{transform:none;opacity:1}}
+
+.fade{opacity:0;transform:translateY(14px);animation:fadeUp .8s var(--ease) forwards}
+.d1{animation-delay:.46s}.d2{animation-delay:.58s}
+.d3{animation-delay:.70s}.d4{animation-delay:.82s}
+@keyframes fadeUp{to{opacity:1;transform:none}}
+
+.breathe{
+  font-family:var(--serif);font-style:italic;font-size:var(--t-m);
+  color:var(--ink2);margin-top:1.5rem;min-height:3.4em;line-height:1.45;
+  max-width:24ch;transition:opacity .55s var(--ease-io);
+}
+.hero-note{margin-top:1.6rem;font-size:.79rem;color:var(--ink3);line-height:1.65;max-width:42ch}
+.hero-note a{color:var(--accent-d);text-underline-offset:2px}
+
+/* ── Boutons stores ──────────────────────────────────────────────────────── */
+.stores{display:flex;gap:10px;flex-wrap:wrap;margin-top:2rem}
+.store{
+  display:inline-flex;align-items:center;gap:11px;
+  background:var(--ink);color:var(--ground);border:1px solid var(--ink);
+  border-radius:14px;padding:10px 20px 10px 16px;text-decoration:none;
+  transition:transform .2s var(--ease),box-shadow .2s var(--ease);
+}
+.store:hover{transform:translateY(-2px);box-shadow:var(--lift-3)}
+.store:active{transform:translateY(0)}
+.store .k{display:block;font-family:var(--mono);font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
+.store .n{display:block;font-size:.97rem;font-weight:600;letter-spacing:-.01em;margin-top:1px}
+
+/* ═══ LE DECK JOUABLE ═════════════════════════════════════════════════════ */
+.stage{
+  display:grid;place-items:center;
+  container-type:inline-size;
+}
+.deck{
+  position:relative;
+  width:min(300px,78vw);aspect-ratio:3/4.24;
+  /* `pan-y` et non `none` : le glissement horizontal nous revient, mais le
+     doigt qui remonte la page continue de la faire défiler. Avec `none`, le
+     deck occupe la moitié du héros mobile et on s'y retrouve prisonnier. */
+  touch-action:pan-y;
+  /* Sans ça, les cartes (z-index 10) sortent du deck et se peignent PAR-DESSUS
+     la rangée de décision : les boutons apparaissent tronqués. `isolation`
+     enferme leur empilement ici. */
+  isolation:isolate;
+}
+.card{
+  position:absolute;inset:0;border-radius:24px;overflow:hidden;
+  background:var(--sheet);border:1px solid var(--hair);
+  box-shadow:var(--lift-6);
+  will-change:transform;
+  transform-origin:50% 120%;
+  user-select:none;-webkit-user-select:none;
+}
+.card.rest{transition:transform .62s var(--ease),opacity .45s var(--ease)}
+.card.fly{transition:transform .58s cubic-bezier(.32,.7,.35,1),opacity .58s ease}
+.card:not(.top){pointer-events:none}
+.card.top{cursor:grab}
+.card.top:active{cursor:grabbing}
+
+.pf{position:absolute;inset:0}
+.pf.g1{background:linear-gradient(157deg,#7E9A92 0%,#3A6B63 48%,#22403A 100%)}
+.pf.g2{background:linear-gradient(157deg,#CE9086 0%,#A6564F 52%,#5C2E2B 100%)}
+.pf.g3{background:linear-gradient(157deg,#8E8FA6 0%,#4E6E7E 50%,#2C3F4A 100%)}
+.pf.g4{background:linear-gradient(157deg,#C3A87A 0%,#B0894F 50%,#5E4826 100%)}
+/* Grain discret : évite l'aplat de dégradé « template ». */
+.pf::after{
+  content:"";position:absolute;inset:0;opacity:.16;mix-blend-mode:overlay;
+  background-image:radial-gradient(circle at 20% 30%,#fff 0 1px,transparent 1px),
+                   radial-gradient(circle at 70% 60%,#fff 0 1px,transparent 1px),
+                   radial-gradient(circle at 45% 85%,#fff 0 1px,transparent 1px);
+  background-size:37px 41px,53px 47px,29px 33px;
+}
+.veil{position:absolute;inset:0;background:linear-gradient(180deg,transparent 38%,rgba(10,8,12,.86) 100%)}
+/* Remontée pour laisser respirer la rangée de décision qui flotte en dessous. */
+.meta{position:absolute;left:22px;right:22px;bottom:104px;color:#FBFAF7}
+.meta .nm{font-family:var(--serif);font-size:1.6rem;font-weight:500;letter-spacing:-.02em;line-height:1.1}
+.meta .qt{font-size:.85rem;opacity:.84;margin-top:.4rem;line-height:1.45;font-style:italic}
+.tag{
+  position:absolute;top:16px;left:16px;
+  font-family:var(--mono);font-size:.55rem;letter-spacing:.13em;text-transform:uppercase;
+  font-weight:700;padding:5px 10px;border-radius:999px;
+  background:rgba(10,8,12,.5);color:#FBFAF7;backdrop-filter:blur(8px);
+}
+
+/* Tampons de décision : opacité pilotée par le glissement. */
+.stamp{
+  position:absolute;top:26px;padding:7px 14px;border-radius:10px;
+  font-family:var(--mono);font-size:.7rem;font-weight:700;letter-spacing:.14em;
+  border:2px solid;opacity:0;pointer-events:none;
+}
+.stamp.like{right:20px;color:var(--love);border-color:var(--love);transform:rotate(12deg)}
+.stamp.pass{left:20px;color:#FBFAF7;border-color:#FBFAF7;transform:rotate(-12deg)}
+
+/* Le Mystère : ce qui s'ouvre quand on aime. */
+.myst{
+  position:absolute;inset:0;background:var(--night);
+  display:grid;place-items:center;text-align:center;padding:30px;
+  opacity:0;pointer-events:none;transition:opacity .5s var(--ease);
+  z-index:30; /* passe DEVANT la rangée de décision quand il s'ouvre */
+}
+.myst.on{opacity:1;pointer-events:auto}
+.myst .blur{
+  position:absolute;inset:0;filter:blur(24px);transform:scale(1.2);opacity:.85;
+}
+.myst .inner{position:relative}
+.myst .h{font-family:var(--serif);font-size:1.5rem;color:#FBFAF7;line-height:1.25;font-weight:500}
+.myst .s{font-size:.84rem;color:rgba(251,250,247,.7);margin-top:.7rem;line-height:1.55;max-width:24ch;margin-inline:auto}
+.myst .again{
+  margin-top:1.4rem;background:none;border:1px solid rgba(251,250,247,.35);
+  color:#FBFAF7;font:inherit;font-size:.8rem;font-weight:600;
+  padding:9px 18px;border-radius:999px;cursor:pointer;
+  transition:background .2s,border-color .2s;
+}
+.myst .again:hover{background:rgba(251,250,247,.12);border-color:#FBFAF7}
+
+/* ── Rangée de décision ───────────────────────────────────────────────────
+   Reprise fidèle de src/components/DeckActions.tsx : elle FLOTTE au-dessus de
+   la carte (bottom 20), sans barre de fond. Hiérarchie ✕ / ♥ / ★ — le cœur est
+   plus gros, c'est le geste principal. Elle est posée dans le deck mais
+   au-dessus des cartes : elle ne s'envole pas avec elles. */
+.deck-ctl{
+  position:absolute;left:0;right:0;bottom:20px;z-index:20;
+  display:flex;gap:12px;justify-content:center;align-items:center;
+  pointer-events:none; /* équivalent du pointerEvents="box-none" de l'app */
+}
+.rb{
+  pointer-events:auto;border-radius:50%;display:grid;place-items:center;
+  cursor:pointer;padding:0;
+  /* Verre fumé — valeurs exactes de `styles.glass`. Pas d'ombre : sur une
+     surface translucide elle se verrait à travers. */
+  background:rgba(13,7,9,.62);border:1px solid rgba(255,255,255,.35);
+  width:56px;height:56px;
+  transition:transform .18s var(--ease),background .18s;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+.rb:hover{transform:translateY(-3px);background:rgba(13,7,9,.78)}
+.rb:active{transform:translateY(0) scale(.93)}
+/* Le cœur : seule surface opaque, donc la seule qui porte une ombre. */
+.rb.love{
+  width:68px;height:68px;background:var(--love);border-color:transparent;
+  box-shadow:0 3px 8px rgba(0,0,0,.3);
+}
+.rb.love:hover{background:color-mix(in srgb,var(--love) 88%,#000)}
+.deck-hint{
+  text-align:center;margin-top:18px;font-family:var(--mono);
+  font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
+}
+
+/* Pulsation du cœur au like */
+@keyframes beat{0%,100%{transform:scale(1)}38%{transform:scale(1.26)}}
+.rb.beating{animation:beat .42s var(--ease)}
+
+@media (max-width:980px){
+  .hero{grid-template-columns:1fr;gap:clamp(28px,5vh,44px);text-align:left}
+  .stage{order:-1}
+  .hero h1{font-size:clamp(2.6rem,9.5vw,4rem)}
+}
+
+/* ═══ MANIFESTE ═══════════════════════════════════════════════════════════ */
+.manifesto{padding-block:var(--rail)}
+.manifesto .big{
+  font-family:var(--serif);font-weight:500;font-size:var(--t-xl);
+  line-height:1.08;letter-spacing:-.03em;max-width:17ch;
+}
+.manifesto .big .dim{color:var(--ink3)}
+.manifesto .sub{
+  font-size:var(--t-m);line-height:1.66;color:var(--ink2);
+  max-width:44ch;margin-top:1.7rem;
+}
+
+/* ═══ COLONNE VERTÉBRALE ══════════════════════════════════════════════════ */
+.spine{
+  display:grid;grid-template-columns:1fr clamp(300px,32vw,380px);
+  gap:clamp(40px,6vw,86px);align-items:start;
+}
+.story > section{
+  min-height:76vh;display:flex;flex-direction:column;justify-content:center;
+  padding-block:clamp(28px,5vh,48px);
+}
+.story h2{
+  font-family:var(--serif);font-weight:500;font-size:var(--t-l);
+  line-height:1.1;letter-spacing:-.028em;margin-top:.6rem;max-width:16ch;
+}
+.story p{font-size:var(--t-m);line-height:1.68;color:var(--ink2);margin-top:1.1rem;max-width:46ch}
+.pull{
+  font-family:var(--serif);font-style:italic;font-size:1.22rem;
+  color:var(--ink);border-left:2px solid var(--accent);
+  padding-left:1.1rem;margin-top:1.7rem;max-width:36ch;line-height:1.5;
+  /* Guillemet suspendu — détail d'imprimeur, pas de décoration. */
+  text-indent:-.42em;
+}
+
+.rail{position:sticky;top:calc(var(--rail) + 12px);display:grid;place-items:center;min-height:60vh}
+.morph{position:relative;width:min(300px,72vw);aspect-ratio:3/4.24}
+.mc{
+  position:absolute;inset:0;border-radius:24px;overflow:hidden;
+  background:var(--sheet);border:1px solid var(--hair);box-shadow:var(--lift-6);
+  opacity:0;transform:translateY(26px) scale(.96) rotate(-1.5deg);
+  transition:opacity .6s var(--ease),transform .7s var(--ease);
+  will-change:transform,opacity;
+}
+.mc.on{opacity:1;transform:none}
+.mc .blurred{filter:blur(19px);transform:scale(1.18)}
+.silhouette{position:absolute;inset:0;display:grid;place-items:center}
+.silhouette svg{opacity:.26}
+
+.adv{position:absolute;inset:0;background:var(--night);color:#FBFAF7;padding:24px;display:flex;flex-direction:column}
+.adv .tag{position:static;align-self:flex-start;background:rgba(251,250,247,.13)}
+.adv .q{font-family:var(--serif);font-size:1.28rem;line-height:1.32;margin:auto 0 1.1rem;font-weight:500}
+.adv .opt{
+  border:1px solid rgba(251,250,247,.2);border-radius:13px;padding:12px 15px;
+  font-size:.86rem;margin-bottom:9px;display:flex;justify-content:space-between;
+  align-items:center;gap:12px;transition:border-color .3s,color .3s;
+}
+.adv .opt.picked{border-color:var(--champ);color:var(--champ)}
+.adv .who{font-family:var(--mono);font-size:.52rem;letter-spacing:.12em;opacity:.65}
+.adv .ft{font-family:var(--mono);font-size:.54rem;letter-spacing:.13em;text-transform:uppercase;opacity:.48;text-align:center;margin-top:.4rem}
+
+.heart{
+  position:absolute;right:-16px;bottom:52px;width:58px;height:58px;border-radius:50%;
+  background:var(--love);display:grid;place-items:center;
+  box-shadow:0 14px 32px -12px color-mix(in srgb,var(--love) 80%,transparent);
+  opacity:0;transform:scale(.5);
+  transition:opacity .4s var(--ease),transform .5s cubic-bezier(.2,1.5,.4,1);
+}
+.heart.on{opacity:1;transform:none}
+
+@media (max-width:980px){
+  .spine{grid-template-columns:1fr;gap:0}
+  .rail{position:static;min-height:0;margin-bottom:clamp(24px,5vh,40px)}
+  .story > section{min-height:0;padding-block:clamp(26px,4vh,40px)}
+  .story > section:not(:first-child){border-top:1px solid var(--hair)}
+}
+
+/* ═══ BANDES ══════════════════════════════════════════════════════════════ */
+.band{padding-block:var(--rail);border-top:1px solid var(--hair)}
+.band h2{
+  font-family:var(--serif);font-weight:500;font-size:var(--t-l);
+  line-height:1.1;letter-spacing:-.028em;margin-top:.6rem;max-width:21ch;
+}
+.band .lede{font-size:var(--t-m);line-height:1.66;color:var(--ink2);max-width:50ch;margin-top:1.1rem}
+
+/* Sécurité : un registre, pas des cartes. */
+.ledger{margin-top:clamp(30px,5vh,52px);border-top:1px solid var(--hair)}
+.ledger > div{
+  display:grid;grid-template-columns:clamp(140px,20vw,220px) 1fr;
+  gap:clamp(16px,3vw,44px);align-items:start;
+  padding-block:clamp(20px,3vh,30px);border-bottom:1px solid var(--hair);
+}
+.ledger h3{font-family:var(--serif);font-size:1.16rem;font-weight:500;letter-spacing:-.01em}
+.ledger p{font-size:.94rem;line-height:1.66;color:var(--ink2);max-width:52ch}
+.ledger a{color:var(--accent-d);text-underline-offset:2px}
+@media (max-width:680px){.ledger > div{grid-template-columns:1fr;gap:8px}}
+
+/* Tarifs */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:clamp(30px,5vh,52px)}
+.plan{border:1px solid var(--hair);border-radius:22px;padding:clamp(22px,3vw,30px);background:var(--sheet);transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
+.plan:hover{transform:translateY(-4px);box-shadow:var(--lift-3)}
+.plan.gold{background:var(--night);border-color:rgba(231,211,172,.3);color:#FBFAF7}
+.plan.gold .pn{color:var(--champ)}
+.plan.gold li{color:rgba(251,250,247,.7)}
+.plan.gold li::before{background:var(--champ)}
+.plan.gold .per{color:rgba(251,250,247,.5)}
+.pn{font-family:var(--serif);font-size:1.35rem;font-weight:500}
+.pp{margin-top:.7rem;font-size:1.85rem;font-weight:600;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.per{font-size:.78rem;font-weight:400;color:var(--ink3);letter-spacing:0}
+.plan ul{list-style:none;margin:1.2rem 0 0;padding:0;display:grid;gap:.6rem}
+.plan li{font-size:.92rem;line-height:1.5;color:var(--ink2);padding-left:1.2rem;position:relative}
+.plan li::before{content:"";position:absolute;left:2px;top:.52em;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.fine{font-size:.78rem;line-height:1.65;color:var(--ink3);margin-top:1.7rem;max-width:74ch}
+.fine a{color:var(--accent-d)}
+@media (max-width:860px){.plans{grid-template-columns:1fr}}
+
+/* FAQ */
+.faq{max-width:66ch;margin-top:clamp(24px,4vh,40px)}
+.faq details{border-bottom:1px solid var(--hair)}
+.faq summary{
+  list-style:none;cursor:pointer;padding:1.25rem 2.4rem 1.25rem 0;
+  font-size:1.03rem;font-weight:600;position:relative;transition:color .2s;
+}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary:hover{color:var(--accent-d)}
+.faq summary::after{
+  content:"";position:absolute;right:6px;top:1.65rem;width:9px;height:9px;
+  border-right:1.6px solid var(--ink3);border-bottom:1.6px solid var(--ink3);
+  transform:rotate(45deg);transition:transform .25s var(--ease),top .25s var(--ease);
+}
+.faq details[open] summary::after{transform:rotate(-135deg);top:1.95rem}
+.faq .ans{padding:0 2.4rem 1.4rem 0;color:var(--ink2);font-size:.97rem;line-height:1.7}
+.faq .ans a{color:var(--accent-d)}
+
+/* ═══ APPEL FINAL ═════════════════════════════════════════════════════════ */
+.finale{
+  position:relative;overflow:hidden;isolation:isolate;
+  background:var(--night);color:#FBFAF7;border-radius:clamp(22px,3vw,34px);
+  /* Sans le `calc`, le bloc colle aux deux bords dès que l'écran passe sous
+     1200 px : les coins arrondis disparaissent et la page perd sa gouttière. */
+  max-width:min(var(--shell), calc(100% - var(--gut) * 2));
+  margin:0 auto clamp(48px,8vh,86px);
+  padding:clamp(52px,9vh,96px) var(--gut);text-align:center;
+}
+.finale::before{
+  content:"";position:absolute;inset:0;z-index:-1;
+  background:radial-gradient(700px 400px at 50% -12%,rgba(58,107,99,.46),transparent 66%),
+             radial-gradient(500px 320px at 82% 108%,rgba(194,91,84,.24),transparent 62%);
+}
+.finale h2{
+  font-family:var(--serif);font-weight:500;font-size:var(--t-xl);
+  line-height:1.04;letter-spacing:-.035em;margin-top:.7rem;
+}
+.finale p{color:rgba(251,250,247,.68);font-size:var(--t-m);margin:1.1rem auto 0;max-width:42ch}
+.finale .eyebrow{color:var(--champ)}
+.finale .stores{justify-content:center}
+.finale .store{background:#FBFAF7;color:var(--night);border-color:#FBFAF7}
+
+/* ═══ PIED DE PAGE ════════════════════════════════════════════════════════ */
+.foot{border-top:1px solid var(--hair);padding-block:clamp(38px,6vh,58px) 36px}
+.foot-grid{display:grid;grid-template-columns:1.6fr repeat(3,1fr);gap:clamp(24px,4vw,40px)}
+.foot h4{font-family:var(--mono);font-size:.55rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);margin:0 0 1rem;font-weight:600}
+.foot ul{list-style:none;margin:0;padding:0;display:grid;gap:.62rem}
+.foot a{font-size:.875rem;color:var(--ink2);text-decoration:none;transition:color .2s}
+.foot a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.foot-say{font-size:.875rem;color:var(--ink2);max-width:30ch;margin-top:.8rem;line-height:1.6}
+.foot-bot{
+  margin-top:clamp(30px,5vh,46px);padding-top:1.4rem;border-top:1px solid var(--hair);
+  display:flex;gap:1rem;flex-wrap:wrap;align-items:center;font-size:.78rem;color:var(--ink3);
+}
+.age{border:1px solid var(--hair2);border-radius:999px;padding:4px 11px;font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;font-weight:700}
+@media (max-width:860px){.foot-grid{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.foot-grid{grid-template-columns:1fr}}
+
+/* ── Révélations au scroll ───────────────────────────────────────────────── */
+.rise{opacity:0;transform:translateY(26px);transition:opacity .85s var(--ease),transform .85s var(--ease)}
+.rise.in{opacity:1;transform:none}
+
+/* ── Mouvement réduit : tout se pose, rien ne bouge ──────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  .line > span,.fade{opacity:1!important;transform:none!important}
+  .rise{opacity:1;transform:none}
+  .mc.on{opacity:1;transform:none}
+}
