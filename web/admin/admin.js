@@ -136,7 +136,10 @@
       t.classList.add('tab-on');
       tab = t.dataset.tab;
       var partenaires = tab === 'partenaires';
-      $('filters').classList.toggle('hidden', partenaires);
+      // Le filtre « à traiter / traités » ne parle que des dossiers de modération.
+      // La file de vérification n'a qu'un seul état visible : ce qui attend une décision.
+      var moderation = tab === 'dossiers' || tab === 'libres';
+      $('filters').classList.toggle('hidden', !moderation);
       $('panel-partners').classList.toggle('hidden', !partenaires);
       $('stats').classList.toggle('hidden', partenaires);
       charger();
@@ -182,6 +185,12 @@
       $('s-signalements').textContent = c.signalements;
       $('s-libres').textContent = c.dossiersLibres;
     }).catch(function () { /* les compteurs ne doivent pas bloquer la liste */ });
+
+    api('/verifications/count').then(function (c) {
+      $('s-verifs').textContent = c.enAttente;
+    }).catch(function () { /* idem */ });
+
+    if (tab === 'verifications') return chargerVerifications();
 
     var statut = $('status').value;
     if (tab === 'dossiers') {
@@ -339,6 +348,161 @@
 
     $('out').innerHTML = '';
     $('out').appendChild(frag);
+  }
+
+  /* ── Vérifications par selfie ─────────────────────────────────────────── */
+  // Le geste attendu : comparer le selfie (pose imposée, tirée au hasard par le
+  // serveur) aux photos du profil. Deux questions, une seule décision :
+  //   1. est-ce la même personne que sur les photos ?
+  //   2. la pose demandée est-elle bien faite ?
+  // Si l'une des deux est non → refuser avec un motif, qui s'affiche dans l'app.
+  function chargerVerifications() {
+    api('/verifications').then(function (d) { rendreVerifications(d.demandes || []); })
+      .catch(function (e) { if (!e.handled) erreur('Chargement impossible : ' + e.message); });
+  }
+
+  var MOTIFS_REFUS = [
+    'Le visage n\'est pas visible',
+    'La pose demandée n\'est pas respectée',
+    'Photo floue ou trop sombre',
+    'Ce n\'est pas la même personne que sur le profil',
+    'Photo d\'écran ou photo d\'une photo',
+  ];
+
+  function rendreVerifications(demandes) {
+    if (!demandes.length) {
+      return vide('Aucune vérification en attente', 'La file est vide — tout est traité.');
+    }
+    var frag = document.createDocumentFragment();
+
+    demandes.forEach(function (v) {
+      var card = el('div', 'card dossier');
+
+      // En-tête : qui, quelle tentative, depuis quand.
+      var head = el('div', 'dossier-head');
+      var av = document.createElement('img');
+      av.className = 'verif-avatar';
+      av.alt = '';
+      av.src = v.avatarUrl || '';
+      head.appendChild(av);
+
+      var id = el('div', 'dossier-id');
+      id.appendChild(el('p', 'dossier-name', v.prenom || 'Sans prénom'));
+      id.appendChild(el('p', 'dossier-meta',
+        'Envoyé le ' + dateFr(v.soumisLe)
+        + (v.tentative > 1 ? ' · tentative n° ' + v.tentative : '')));
+      if (v.dejaVerifiee) {
+        var pills = el('div', 'motifs');
+        pills.appendChild(el('span', 'pill pill-off', 'Déjà vérifiée'));
+        id.appendChild(pills);
+      }
+      head.appendChild(id);
+      card.appendChild(head);
+
+      // La consigne imposée — sans elle, impossible de juger la pose.
+      var consigne = el('div', 'verif-consigne');
+      consigne.appendChild(el('p', 'verif-consigne-lab', 'Pose demandée'));
+      consigne.appendChild(el('p', 'verif-consigne-txt', v.poseInstruction));
+      if (v.poseHint) consigne.appendChild(el('p', 'verif-consigne-hint', v.poseHint));
+      card.appendChild(consigne);
+
+      // Face à face : le selfie à gauche, les photos du profil à droite.
+      var duel = el('div', 'verif-duel');
+
+      var gauche = el('div', 'verif-col');
+      gauche.appendChild(el('p', 'verif-col-lab', 'Selfie de vérification'));
+      if (v.selfieUrl) {
+        var selfie = document.createElement('img');
+        selfie.className = 'verif-selfie';
+        selfie.alt = 'Selfie de vérification';
+        selfie.src = v.selfieUrl;
+        // Plein écran au clic : juger une pose sur une vignette est impossible.
+        selfie.addEventListener('click', function () { window.open(v.selfieUrl, '_blank', 'noopener'); });
+        gauche.appendChild(selfie);
+      } else {
+        // L'URL signée n'a pas pu être générée (fichier effacé, storage KO).
+        // On l'affiche au lieu de masquer la ligne : une demande invisible
+        // resterait bloquée « en attente » pour toujours.
+        gauche.appendChild(el('p', 'verif-missing',
+          'Selfie illisible. Refuse la demande : la personne pourra recommencer.'));
+      }
+      duel.appendChild(gauche);
+
+      var droite = el('div', 'verif-col');
+      droite.appendChild(el('p', 'verif-col-lab', 'Photos du profil'));
+      var grille = el('div', 'verif-photos');
+      (v.photos || []).forEach(function (url) {
+        var p = document.createElement('img');
+        p.className = 'verif-photo';
+        p.alt = '';
+        p.src = url;
+        p.addEventListener('click', function () { window.open(url, '_blank', 'noopener'); });
+        grille.appendChild(p);
+      });
+      if (!(v.photos || []).length) {
+        grille.appendChild(el('p', 'verif-missing', 'Aucune photo de profil à comparer.'));
+      }
+      droite.appendChild(grille);
+      duel.appendChild(droite);
+      card.appendChild(duel);
+
+      // Décision : valider, ou refuser avec un motif (obligatoire côté serveur).
+      var bar = el('div', 'actions-bar');
+      var motif = document.createElement('select');
+      motif.className = 'verif-motif';
+      var vide0 = document.createElement('option');
+      vide0.value = '';
+      vide0.textContent = 'Motif de refus…';
+      motif.appendChild(vide0);
+      MOTIFS_REFUS.forEach(function (m) {
+        var o = document.createElement('option');
+        o.value = m; o.textContent = m;
+        motif.appendChild(o);
+      });
+      bar.appendChild(motif);
+
+      var refuser = el('button', 'btn-danger btn-sm', 'Refuser');
+      refuser.addEventListener('click', function () {
+        if (!motif.value) return toast('Choisis un motif de refus.', 'err');
+        confirmer('Refuser la vérification ?',
+          'La personne verra ce motif et pourra recommencer avec une NOUVELLE pose.',
+          'Refuser').then(function (ok) {
+          if (!ok) return;
+          decider(v, card, 'refuser', motif.value);
+        });
+      });
+      bar.appendChild(refuser);
+
+      var valider = el('button', 'btn-accent btn-sm', 'Valider');
+      valider.addEventListener('click', function () {
+        confirmer('Valider la vérification ?',
+          'Le sceau « vérifié » sera accordé à ' + (v.prenom || 'cette personne') + '.',
+          'Valider').then(function (ok) {
+          if (!ok) return;
+          decider(v, card, 'valider', null);
+        });
+      });
+      bar.appendChild(valider);
+      card.appendChild(bar);
+
+      frag.appendChild(card);
+    });
+
+    $('out').innerHTML = '';
+    $('out').appendChild(frag);
+  }
+
+  function decider(v, card, action, motif) {
+    Array.prototype.forEach.call(card.querySelectorAll('button'), function (b) { b.disabled = true; });
+    api('/verifications/' + v.id, { method: 'POST', body: { action: action, motif: motif } })
+      .then(function () {
+        toast(action === 'valider' ? 'Profil vérifié.' : 'Vérification refusée.', 'ok');
+        charger();
+      })
+      .catch(function (e) {
+        Array.prototype.forEach.call(card.querySelectorAll('button'), function (b) { b.disabled = false; });
+        if (!e.handled) toast('Échec : ' + e.message, 'err');
+      });
   }
 
   /* ── Partenaires ──────────────────────────────────────────────────────── */

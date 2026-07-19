@@ -6,6 +6,7 @@ const schemas = require('../validations/profile.validation');
 const c = require('../controllers/profile.controller');
 const photoC = require('../controllers/photo.controller');
 const modC = require('../controllers/moderation.controller');
+const verifC = require('../controllers/verification.controller');
 
 const router = express.Router();
 
@@ -59,6 +60,27 @@ router.post('/reports/freeform', authenticate, validate(schemas.freeformReport),
 // Photos de profil (multipart, champ `file`).
 router.post('/me/photos', authenticate, memoryUpload.single('file'), photoC.addPhoto);
 router.delete('/me/photos/:photoId', authenticate, photoC.deletePhoto);
+
+// ── Vérification par selfie (pose aléatoire, validation humaine) ─────────────
+// Limité serré : `start` tire une pose et occupe la file de modération. Un
+// script qui martèle ferait tourner la roue jusqu'à tomber sur une pose facile.
+const verificationLimiter = require('express-rate-limit')({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Trop de tentatives. Réessaie plus tard.' },
+});
+
+router.get('/me/verification', authenticate, verifC.getStatus);
+router.post('/me/verification/start', authenticate, verificationLimiter, verifC.start);
+router.post(
+  '/me/verification/selfie',
+  authenticate,
+  verificationLimiter,
+  memoryUpload.single('file'),
+  verifC.submitSelfie,
+);
 
 // Profil public d'un autre membre (après match ou dans la découverte).
 router.get('/:id', authenticate, c.getById);
