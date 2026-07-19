@@ -131,16 +131,62 @@
 .terms span { color: var(--ink2); }
 .terms b { text-align: right; }
 
+/* Le bouton de déconnexion de l'en-tête n'existe QUE sur mobile (sur grand
+   écran, il vit en bas de la navigation latérale). */
+.logout-mobile { display: none; }
+
+/* ══════════ MOBILE — barre d'onglets en bas, comme dans la maquette ══════════
+   Sur téléphone, la navigation latérale ne se replie pas en rangée de liens en
+   haut : elle devient une VRAIE barre d'onglets ancrée en bas, à portée du
+   pouce, comme dans une application. C'est le geste qu'on avait dessiné. */
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
-  .side { flex-direction: row; align-items: center; gap: 14px; padding: 12px 14px;
-    border-right: none; border-bottom: 1px solid var(--line); overflow-x: auto; }
-  .side-brand { display: none; }
-  .nav { flex-direction: row; gap: 4px; }
-  .nav-item { padding: 9px 12px; white-space: nowrap; }
-  .side-logout { margin-top: 0; margin-left: auto; }
-  .main { padding: 20px 16px 70px; }
-  .kpis { grid-template-columns: 1fr 1fr; }
-  .grid-main, .res { grid-template-columns: 1fr; }
+
+  .side {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    flex-direction: row; align-items: stretch; gap: 0;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-right: none; border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 20px -14px rgba(20,18,22,.4);
+  }
+  .side-brand, .side-logout { display: none; }
+
+  .nav { flex-direction: row; gap: 0; width: 100%; }
+  .nav-item {
+    flex: 1; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 8px 2px; border-radius: 12px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .1px; text-align: center;
+  }
+  .nav-item svg { width: 21px; height: 21px; flex: 0 0 21px; }
+  .nav-on { background: transparent; color: var(--accent-deep); }
+  .nav-on svg { stroke-width: 2; }
+  .nav-item:hover { background: transparent; }
+
+  /* La barre flotte au-dessus du contenu : on lui réserve sa place. */
+  .main { padding: 18px 16px calc(96px + env(safe-area-inset-bottom, 0px)); }
+
+  .mainhead { align-items: center; }
   .mainhead .n { font-size: 24px; }
+  .periode { display: none; }              /* l'espace va au contenu, pas au décor */
+  .logout-mobile { display: inline-flex; margin-left: auto; }
+
+  .kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi { padding: 13px 14px; }
+  .kpi .val { font-size: 22px; }
+  .grid-main, .res { grid-template-columns: 1fr; }
+
+  #chart { height: 150px; }
+  .codehero { padding: 22px; }
+  .codehero .code { font-size: 32px; letter-spacing: 2px; }
+  .coderow .cbtn { flex: 1; }
+
+  .payout-next { flex-direction: column; gap: 14px; }
+  .payout-side { text-align: left; }
+  .payout-next .big { font-size: 30px; }
+}
+
+/* Très petits écrans : les libellés d'onglets restent lisibles. */
+@media (max-width: 360px) {
+  .nav-item { font-size: 9.5px; }
+  .kpis { grid-template-columns: 1fr; }
 }

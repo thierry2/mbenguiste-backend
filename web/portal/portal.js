@@ -255,6 +255,7 @@
       sb.auth.signOut().then(function () { window.location.href = '/partenaires/connexion'; });
     };
     $('btn-logout').addEventListener('click', deconnecter);
+    $('btn-logout-mobile').addEventListener('click', deconnecter);
     $('btn-signout-other').addEventListener('click', deconnecter);
 
     // Navigation entre sections.
