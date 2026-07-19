@@ -75,8 +75,43 @@
 .partner-meta b { color: var(--ink2); font-family: var(--mono); }
 .partner-actions { display: flex; gap: 7px; flex-wrap: wrap; }
 
+/* ══════════ MOBILE ══════════
+   Une console de modération se consulte aussi depuis un téléphone (un
+   signalement grave n'attend pas d'être devant un ordinateur). Les actions
+   doivent rester atteignables au pouce, sans zoom ni défilement latéral. */
 @media (max-width: 720px) {
-  .stats { grid-template-columns: 1fr; }
-  .topbar { flex-direction: column; gap: 12px; }
-  .partner { align-items: flex-start; }
+  .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { padding: 11px 10px; }
+  .stat .lab { font-size: 8.5px; letter-spacing: .6px; }
+  .stat .val { font-size: 19px; margin-top: 5px; }
+
+  .topbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .topbar .row { width: 100%; }
+  .topbar .row button { flex: 1; }
+
+  .tabs { gap: 0; }
+  .tab { flex: 1; padding: 11px 6px; font-size: 13.5px; text-align: center; }
+
+  /* Un dossier : tout en pleine largeur, actions empilées et cliquables. */
+  .dossier-head { padding: 15px 16px; gap: 11px; }
+  .dossier-name { font-size: 18px; }
+  .sig { padding: 13px 16px; }
+  .actions-bar { padding: 13px 16px; flex-direction: column; align-items: stretch; }
+  .actions-bar input { min-width: 0; width: 100%; }
+  .actions-bar button { width: 100%; }
+
+  .partner { align-items: stretch; flex-direction: column; gap: 12px; padding: 15px 16px; }
+  .partner-actions { width: 100%; }
+  .partner-actions button { flex: 1; }
+
+  .modal { padding: 20px; }
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions button { width: 100%; }
+
+  .toasts { right: 12px; left: 12px; bottom: 12px; max-width: none; }
+}
+
+@media (max-width: 400px) {
+  .stats { grid-template-columns: 1fr 1fr; }
+  .stats .stat:last-child { grid-column: 1 / -1; }
 }
