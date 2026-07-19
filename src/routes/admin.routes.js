@@ -72,6 +72,14 @@ router.post('/partners', catchAsync(async (req, res) => {
   res.status(201).json({ success: true, data: result });
 }));
 
+// POST /api/v1/admin/partners/:id/invite  body: { redirectTo? }
+// Relance l'invitation (email non reçu, lien expiré). L'erreur Supabase est
+// remontée telle quelle : c'est la seule façon de savoir pourquoi ça ne part pas.
+router.post('/partners/:id/invite', catchAsync(async (req, res) => {
+  const result = await partnerAdminService.reinvite(req.params.id, (req.body || {}).redirectTo);
+  res.json({ success: true, data: result });
+}));
+
 // PATCH /api/v1/admin/partners/:id  body: { status }
 router.patch('/partners/:id', catchAsync(async (req, res) => {
   const { status } = req.body ?? {};

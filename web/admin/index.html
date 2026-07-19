@@ -261,6 +261,7 @@
         + ' · <span style="color:' + (gele ? 'var(--danger)' : 'var(--accent)') + ';">'
         + esc(p.status) + '</span></div></div>'
         + '<div style="display:flex; gap:6px; flex-wrap:wrap;">'
+        + '<button data-act="invite" data-id="' + p.id + '">Réinviter</button>'
         + '<button class="ok" data-act="payout" data-id="' + p.id + '">Verser</button>'
         + '<button class="' + (gele ? 'ok' : 'danger') + '" data-act="' + (gele ? 'active' : 'frozen')
         + '" data-id="' + p.id + '">' + (gele ? 'Réactiver' : 'Geler') + '</button>'
@@ -273,7 +274,20 @@
         var id = btn.dataset.id, act = btn.dataset.act;
         btn.disabled = true;
         try {
-          if (act === 'payout') {
+          if (act === 'invite') {
+            var ri = await fetch(api() + '/api/v1/admin/partners/' + id + '/invite', {
+              method: 'POST', headers: headers(),
+              body: JSON.stringify({ redirectTo: window.location.origin + '/partenaires' }),
+            });
+            var rd = (await ri.json()).data;
+            alert(rd.invited
+              ? 'Invitation renvoyée à ' + rd.email + '.'
+              : 'Invitation NON envoyée.\n\nRaison renvoyée par Supabase :\n'
+                + (rd.inviteError || 'inconnue')
+                + '\n\nPistes : SMTP non configuré dans Supabase (le service intégré est très limité),'
+                + ' URL de retour absente de la liste autorisée (Auth → URL Configuration),'
+                + ' ou email déjà inscrit.');
+          } else if (act === 'payout') {
             var r = await fetch(api() + '/api/v1/admin/partners/' + id + '/payout', {
               method: 'POST', headers: headers(),
               body: JSON.stringify({ method: 'Versement manuel' }),
@@ -308,7 +322,11 @@
       if (!r.ok) throw new Error('HTTP ' + r.status);
       var d = (await r.json()).data;
       alert('Partenaire créé. Code : ' + d.partner.code
-        + (d.invited ? '\nInvitation envoyée par email.' : '\n⚠ Invitation NON envoyée (à relancer).'));
+        + (d.invited
+          ? '\n\nInvitation envoyée par email.'
+          : '\n\n⚠ Invitation NON envoyée.\nRaison renvoyée par Supabase :\n'
+            + (d.inviteError || 'inconnue')
+            + '\n\nLe partenaire et son code existent : utilise « Réinviter » une fois la cause corrigée.'));
       $('p-name').value = ''; $('p-email').value = ''; $('p-code').value = ''; $('p-rate').value = '';
       $('p-founder').checked = false;
       await chargerPartenaires();
