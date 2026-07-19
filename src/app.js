@@ -15,30 +15,63 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ── Pages web servies par CE service (même backend) ──────────────────────────
-// Le portail partenaire (/partenaires) et la console admin (/admin). Montés
-// AVANT helmet : ces pages embarquent styles/scripts inline + Supabase Auth, que
-// la CSP par défaut de helmet casserait. En-têtes de discrétion posés à la main.
+// Portail partenaire (/partenaires) et console admin (/admin). Montés AVANT
+// helmet pour leur appliquer une CSP SUR MESURE, plus stricte que la générique :
+// aucun style ni script inline (tout est en fichiers), aucun CDN (supabase-js est
+// rapatrié dans web/vendor). Seule sortie réseau autorisée : notre Supabase.
 const WEB_DIR = path.join(__dirname, '..', 'web');
+
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",   // pas d'iframe : anti-clickjacking
+  "form-action 'self'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "style-src 'self'",         // zéro style inline
+  "script-src 'self'",        // zéro script inline, zéro CDN
+  `connect-src 'self' ${config.supabase.url}`,
+].join('; ');
+
 function pageHeaders(_req, res, next) {
+  res.set('Content-Security-Policy', CSP);
   res.set('X-Robots-Tag', 'noindex, nofollow');
   res.set('X-Frame-Options', 'DENY');
+  res.set('X-Content-Type-Options', 'nosniff');
   res.set('Referrer-Policy', 'no-referrer');
+  res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
+  res.set('Cross-Origin-Opener-Policy', 'same-origin');
   next();
 }
+
 // Config publique du portail (URL + clé anon Supabase) pour l'auth côté navigateur.
 app.get('/partenaires/config.json', pageHeaders, (_req, res) => {
   res.json({ supabaseUrl: config.supabase.url, supabaseAnonKey: config.supabase.anonKey });
 });
-// `redirect: false` : sans ça, /partenaires renvoie un 301 vers /partenaires/
-// (redirection de dossier) au lieu d'être servi directement par le repli.
-const staticOpts = { redirect: false };
+
+// Ressources partagées : thème CSS et supabase-js rapatrié (aucun CDN externe).
+// `maxAge: 0` + ETag : le navigateur REVALIDE à chaque visite (réponses 304,
+// donc quasi gratuites) au lieu de garder une version figée. Sans ça, une
+// correction déployée resterait invisible pendant toute la durée du cache —
+// exactement le piège rencontré en développant ces pages.
+const staticOpts = { redirect: false, maxAge: 0, etag: true };
+app.use('/assets', pageHeaders, express.static(path.join(WEB_DIR, 'assets'), staticOpts));
+app.use('/vendor', pageHeaders, express.static(path.join(WEB_DIR, 'vendor'), staticOpts));
 app.use('/partenaires', pageHeaders, express.static(path.join(WEB_DIR, 'portal'), staticOpts));
 app.use('/admin', pageHeaders, express.static(path.join(WEB_DIR, 'admin'), staticOpts));
 
-// Chemins EXACTS seulement : un sous-chemin inventé (/admin/nimporte-quoi) doit
-// tomber en 404, pas servir la console. Le retour d'auth Supabase arrive sur
-// /partenaires avec un fragment (#access_token), jamais un sous-chemin.
-app.get(['/partenaires', '/partenaires/'], pageHeaders, (_req, res) =>
+// Chemins EXACTS seulement : un sous-chemin inventé tombe en 404 plutôt que de
+// servir la console. Les écrans d'authentification du portail ont chacun leur
+// URL (le retour Supabase arrive sur /partenaires, avec fragment ou ?code).
+const PORTAL_PATHS = [
+  '/partenaires', '/partenaires/',
+  '/partenaires/connexion',
+  '/partenaires/lien-magique',
+  '/partenaires/mot-de-passe-oublie',
+  '/partenaires/nouveau-mot-de-passe',
+];
+app.get(PORTAL_PATHS, pageHeaders, (_req, res) =>
   res.sendFile(path.join(WEB_DIR, 'portal', 'index.html')));
 app.get(['/admin', '/admin/'], pageHeaders, (_req, res) =>
   res.sendFile(path.join(WEB_DIR, 'admin', 'index.html')));

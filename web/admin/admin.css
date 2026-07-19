@@ -1,0 +1,82 @@
+/* Console interne — mise en page. Les composants viennent de theme.css. */
+
+/* ── Ouverture de session ──────────────────────────────────────────────── */
+.gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 26px; }
+.gate-card { width: 100%; max-width: 410px; }
+.gate-sub { margin: 2px 0 30px; }
+.gate-lede { margin: 0 0 22px; font-size: 14.5px; }
+.gate-submit { margin-top: 20px; }
+.gate-hint { margin-top: 22px; }
+.msgzone:empty { display: none; }
+
+/* ── En-tête ───────────────────────────────────────────────────────────── */
+.topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 22px 20px 0; max-width: 1060px; margin: 0 auto; flex-wrap: wrap; }
+.topbar .brand { margin: 0; }
+.topbar .sub { margin-top: 2px; }
+
+/* ── File d'attente ────────────────────────────────────────────────────── */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat { padding: 15px 16px; }
+.stat .lab { font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink3); margin: 0; }
+.stat .val { font-size: 26px; font-weight: 700; margin: 8px 0 0; }
+
+/* ── Onglets ───────────────────────────────────────────────────────────── */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px;
+  overflow-x: auto; }
+.tab { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0;
+  padding: 11px 15px; color: var(--ink2); font-size: 14.5px; font-weight: 500; white-space: nowrap; }
+.tab:hover { background: none; color: var(--ink); }
+.tab-on { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
+
+.filters { margin-bottom: 16px; }
+.filter-lab { margin: 0; }
+.filters select { max-width: 190px; }
+.mt14 { margin-top: 14px; }
+.panel-partners { margin-bottom: 18px; }
+
+/* ── Dossier de modération ─────────────────────────────────────────────── */
+.dossier { margin-bottom: 14px; overflow: hidden; }
+.dossier-head { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px; }
+.grav { width: 4px; align-self: stretch; border-radius: 3px; background: var(--ink3); flex: 0 0 4px; }
+.grav-critique { background: var(--danger); }
+.grav-eleve { background: var(--clay); }
+.grav-standard { background: var(--ink3); }
+.dossier-id { flex: 1; min-width: 0; }
+.dossier-name { font-family: var(--serif); font-size: 20px; font-weight: 500; margin: 0; }
+.dossier-meta { color: var(--ink3); font-size: 12.5px; margin: 4px 0 0; }
+.motifs { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 0; }
+
+.signalements { border-top: 1px solid var(--line); background: rgba(20,18,22,.015); }
+.sig { padding: 14px 20px; border-bottom: 1px solid var(--line); }
+.sig:last-child { border-bottom: none; }
+.sig-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.sig-motif { font-weight: 600; font-size: 13.5px; }
+.sig-date { color: var(--ink3); font-size: 12px; }
+.sig-details { margin: 7px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--ink2);
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.recit { margin: 0; font-size: 14.5px; line-height: 1.65; white-space: pre-wrap;
+  overflow-wrap: anywhere; color: var(--ink); }
+
+.actions-bar { display: flex; gap: 10px; align-items: center; padding: 14px 20px;
+  border-top: 1px solid var(--line); flex-wrap: wrap; }
+.actions-bar input { flex: 1; min-width: 200px; }
+.treated { padding: 12px 20px; border-top: 1px solid var(--line); color: var(--ink3); font-size: 13px; }
+
+/* ── Partenaires ───────────────────────────────────────────────────────── */
+.partner { display: flex; gap: 14px; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.partner:last-child { border-bottom: none; }
+.partner-id { min-width: 0; }
+.partner-name { font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.partner-meta { color: var(--ink3); font-size: 12.5px; margin: 4px 0 0; overflow-wrap: anywhere; }
+.partner-meta b { color: var(--ink2); font-family: var(--mono); }
+.partner-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+
+@media (max-width: 720px) {
+  .stats { grid-template-columns: 1fr; }
+  .topbar { flex-direction: column; gap: 12px; }
+  .partner { align-items: flex-start; }
+}

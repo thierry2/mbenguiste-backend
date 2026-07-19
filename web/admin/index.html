@@ -4,444 +4,134 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Mbenguiste — Modération</title>
-<style>
-  /* Palette `pro` de l'app (src/proTheme.ts) : encre, crème, un seul vert. */
-  :root {
-    --page: #FBFAF7; --sheet: #FFFFFF; --field: #F4F2ED;
-    --ink: #141216; --ink2: #5B565F; --ink3: #918B96;
-    --line: #E8E4DC; --line2: #D8D3C9;
-    --accent: #3A6B63; --danger: #B23A3A; --warn: #A8712B;
-    --serif: Georgia, 'Times New Roman', serif;
-    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--page); color: var(--ink);
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  .wrap { max-width: 940px; margin: 0 auto; padding: 28px 20px 80px; }
-
-  h1 { font-family: var(--serif); font-size: 30px; font-weight: 500; margin: 0 0 2px; }
-  .sub { color: var(--ink2); font-size: 13.5px; margin-bottom: 22px; }
-
-  .card { background: var(--sheet); border: 1px solid var(--line); border-radius: 16px; }
-  .pad { padding: 16px; }
-
-  label { display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.4px;
-          text-transform: uppercase; color: var(--ink3); margin-bottom: 5px; }
-  input, textarea, select {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--line2); border-radius: 11px;
-    background: var(--sheet); color: var(--ink); font-size: 14px; font-family: inherit;
-  }
-  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .row { display: flex; gap: 12px; flex-wrap: wrap; }
-  .row > * { flex: 1; min-width: 220px; }
-
-  button {
-    border: 1px solid var(--line2); background: var(--field); color: var(--ink);
-    border-radius: 11px; padding: 10px 15px; font-size: 14px; font-weight: 600;
-    cursor: pointer; font-family: inherit;
-  }
-  button:hover { background: #EAE7E0; }
-  button.primary { background: var(--ink); color: #FBFAF7; border-color: var(--ink); }
-  button.danger { background: rgba(178,58,58,.08); color: var(--danger); border-color: rgba(178,58,58,.3); }
-  button.ok { background: rgba(58,107,99,.10); color: var(--accent); border-color: rgba(58,107,99,.3); }
-  button:disabled { opacity: .45; cursor: default; }
-
-  /* Bandeau de file d'attente */
-  .queue { display: flex; gap: 10px; margin: 20px 0 6px; flex-wrap: wrap; }
-  .metric { flex: 1; min-width: 150px; background: var(--sheet); border: 1px solid var(--line);
-            border-radius: 14px; padding: 13px 15px; }
-  .metric .n { font-family: var(--serif); font-size: 26px; line-height: 1.1; }
-  .metric .l { color: var(--ink3); font-size: 11.5px; font-family: var(--mono);
-               letter-spacing: 1.2px; text-transform: uppercase; margin-top: 3px; }
-
-  /* Onglets */
-  .tabs { display: flex; gap: 4px; margin: 22px 0 12px; border-bottom: 1px solid var(--line); }
-  .tab { padding: 9px 14px; cursor: pointer; color: var(--ink2); font-size: 14px;
-         border-bottom: 2px solid transparent; margin-bottom: -1px; }
-  .tab.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
-
-  /* Dossier */
-  .dossier { margin-top: 12px; overflow: hidden; }
-  .dhead { display: flex; align-items: center; gap: 13px; padding: 14px 16px; }
-  .avatar { width: 46px; height: 46px; border-radius: 23px; background: var(--field);
-            object-fit: cover; flex-shrink: 0; }
-  .dname { font-size: 16px; font-weight: 600; }
-  .dmeta { color: var(--ink2); font-size: 12.5px; margin-top: 1px; }
-
-  .pill { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 11px;
-          font-weight: 700; letter-spacing: .3px; }
-  .p-critique { background: rgba(178,58,58,.12); color: var(--danger); }
-  .p-eleve    { background: rgba(168,113,43,.14); color: var(--warn); }
-  .p-standard { background: var(--field); color: var(--ink2); }
-  .p-retire   { background: var(--ink); color: #FBFAF7; }
-
-  .motifs { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px 12px; }
-  .motif { background: var(--field); border-radius: 8px; padding: 4px 9px; font-size: 12px; color: var(--ink2); }
-
-  .signalement { border-top: 1px solid var(--line); padding: 12px 16px; }
-  .sline { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--ink3); }
-  .srecit { margin-top: 6px; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap;
-            border-left: 2px solid var(--line2); padding-left: 11px; color: var(--ink); }
-
-  .actions { border-top: 1px solid var(--line); padding: 13px 16px; display: flex; gap: 9px;
-             flex-wrap: wrap; align-items: center; }
-  .actions input { flex: 1; min-width: 200px; }
-
-  .empty { color: var(--ink2); font-size: 14px; padding: 40px 16px; text-align: center; }
-  .err { background: rgba(178,58,58,.08); border: 1px solid rgba(178,58,58,.3); color: var(--danger);
-         border-radius: 12px; padding: 12px 14px; margin-top: 14px; font-size: 13.5px; }
-  .note { color: var(--ink3); font-size: 12px; margin-top: 16px; line-height: 1.6; }
-</style>
+<title>Mbenguiste — Console</title>
+<link rel="stylesheet" href="/assets/theme.css" />
+<link rel="stylesheet" href="/admin/admin.css" />
 </head>
 <body>
-<div class="wrap">
-  <h1>Modération</h1>
-  <div class="sub">Un dossier par personne signalée — la récurrence est le vrai signal.</div>
 
-  <div class="card pad">
-    <div class="row">
-      <div>
-        <label for="api">URL de l'API</label>
-        <input id="api" placeholder="https://mbenguiste-backend-production.up.railway.app" />
+<!-- ══════════════ OUVRIR LA SESSION ══════════════ -->
+<div id="gate" class="gate hidden">
+  <main class="gate-card">
+    <div class="brand">Mbenguiste</div>
+    <p class="brand-sub gate-sub">Console interne</p>
+
+    <h1>Ouvre ta session.</h1>
+    <p class="sub gate-lede">
+      Le secret n'est demandé qu'une fois : il s'échange contre un jeton qui
+      expire tout seul et meurt à la fermeture de l'onglet.
+    </p>
+
+    <form id="form-gate" novalidate>
+      <div class="field">
+        <label for="gate-secret">Secret admin</label>
+        <input id="gate-secret" type="password" autocomplete="current-password"
+               placeholder="••••••••••••" required />
       </div>
-      <div>
-        <label for="secret">Secret admin</label>
-        <input id="secret" type="password" placeholder="ADMIN_SECRET" />
-      </div>
+      <button type="submit" class="btn-primary btn-block gate-submit" id="btn-gate">Entrer</button>
+    </form>
+    <div id="gate-msg" class="msgzone"></div>
+
+    <p class="hint gate-hint">
+      Cette console lit des récits de personnes qui ont demandé de l'aide.
+      Ne la laisse pas ouverte sur un poste partagé.
+    </p>
+  </main>
+</div>
+
+<!-- ══════════════ CONSOLE ══════════════ -->
+<div id="console" class="hidden">
+  <header class="topbar">
+    <div>
+      <p class="brand">Mbenguiste</p>
+      <p class="sub">Console interne — modération &amp; partenaires</p>
     </div>
-    <div style="margin-top:12px; display:flex; gap:9px;">
-      <button class="primary" id="load">Charger</button>
-      <button id="forget">Oublier le secret</button>
-    </div>
-  </div>
-
-  <div class="queue" id="queue" hidden>
-    <div class="metric"><div class="n" id="m-dossiers">—</div><div class="l">Dossiers ouverts</div></div>
-    <div class="metric"><div class="n" id="m-signalements">—</div><div class="l">Signalements</div></div>
-    <div class="metric"><div class="n" id="m-libres">—</div><div class="l">Dossiers libres</div></div>
-  </div>
-
-  <div class="tabs">
-    <div class="tab on" data-tab="dossiers">Dossiers</div>
-    <div class="tab" data-tab="libres">Dossiers libres</div>
-    <div class="tab" data-tab="partenaires">Partenaires</div>
-  </div>
-
-  <div id="filtre-status" style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
-    <select id="status" style="max-width:200px;">
-      <option value="open">À traiter</option>
-      <option value="closed">Traités</option>
-      <option value="all">Tous</option>
-    </select>
-  </div>
-
-  <!-- Créer & inviter un partenaire (Programme Partenaires) -->
-  <div id="panel-partenaires" class="card pad" style="display:none; margin-bottom:14px;">
     <div class="row">
-      <div><label>Nom du créateur</label><input id="p-name" placeholder="Aminata Diallo" /></div>
-      <div><label>Email d'invitation</label><input id="p-email" type="email" placeholder="aminata@exemple.com" /></div>
+      <button class="btn btn-sm" id="btn-refresh">Rafraîchir</button>
+      <button class="btn btn-sm" id="btn-close-session">Fermer la session</button>
     </div>
-    <div class="row" style="margin-top:10px;">
-      <div><label>Code (vide = 1er prénom)</label><input id="p-code" placeholder="AMINATA" /></div>
-      <div><label>Taux en % (vide = 30, ou 40 si Fondateur)</label><input id="p-rate" type="number" min="0" max="100" placeholder="30" /></div>
-    </div>
-    <div style="margin-top:12px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
-      <label style="display:flex; align-items:center; gap:7px; margin:0; text-transform:none; letter-spacing:0; font-family:inherit; font-size:14px; color:var(--ink);">
-        <input id="p-founder" type="checkbox" style="width:auto;" /> Cercle Fondateur
-      </label>
-      <button id="p-create" class="primary">Créer &amp; inviter</button>
-    </div>
-    <div class="note" style="margin-top:10px;">
-      Aucun mot de passe n'est créé ici : le partenaire reçoit un lien et choisit
-      lui-même lien magique ou mot de passe sur <b>/partenaires</b>.
-    </div>
-  </div>
+  </header>
 
-  <div id="out"></div>
+  <div class="wrap">
+    <!-- File d'attente -->
+    <div class="stats" id="stats">
+      <div class="card stat"><p class="lab">Dossiers ouverts</p><p class="val tnum" id="s-dossiers">—</p></div>
+      <div class="card stat"><p class="lab">Signalements</p><p class="val tnum" id="s-signalements">—</p></div>
+      <div class="card stat"><p class="lab">Dossiers libres</p><p class="val tnum" id="s-libres">—</p></div>
+    </div>
 
-  <div class="note">
-    Cette console ne supprime aucun compte : « Retirer » sort le profil de la découverte
-    (réversible), « Rejeter » clôt sans action. La suppression définitive reste manuelle,
-    hors d'une page protégée par un simple secret partagé.
+    <!-- Onglets -->
+    <nav class="tabs" id="tabs">
+      <button class="tab tab-on" data-tab="dossiers">Dossiers</button>
+      <button class="tab" data-tab="libres">Dossiers libres</button>
+      <button class="tab" data-tab="partenaires">Partenaires</button>
+    </nav>
+
+    <!-- Filtre (modération) -->
+    <div class="row filters" id="filters">
+      <label class="filter-lab" for="status">Afficher</label>
+      <select id="status">
+        <option value="open">À traiter</option>
+        <option value="closed">Traités</option>
+        <option value="all">Tous</option>
+      </select>
+    </div>
+
+    <!-- Créer un partenaire -->
+    <section class="card card-pad panel-partners hidden" id="panel-partners">
+      <h2>Inviter un partenaire</h2>
+      <div class="grid-2">
+        <div class="field">
+          <label for="p-name">Nom du créateur</label>
+          <input id="p-name" placeholder="Aminata Diallo" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="p-email">Email d'invitation</label>
+          <input id="p-email" type="email" placeholder="aminata@exemple.com" autocomplete="off" />
+        </div>
+      </div>
+      <div class="grid-2 mt14">
+        <div class="field">
+          <label for="p-code">Code (vide = son prénom)</label>
+          <input id="p-code" placeholder="AMINATA" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="p-rate">Taux en % (vide = 30, ou 40 si Fondateur)</label>
+          <input id="p-rate" type="number" min="0" max="100" step="1" placeholder="30" />
+        </div>
+      </div>
+      <div class="row mt14">
+        <span class="inline">
+          <input id="p-founder" type="checkbox" />
+          <label for="p-founder">Cercle Fondateur</label>
+        </span>
+        <span class="spacer"></span>
+        <button class="btn-accent" id="p-create">Créer &amp; inviter</button>
+      </div>
+      <p class="hint">
+        Aucun mot de passe n'est créé ici : le partenaire reçoit un lien et choisit
+        lui-même lien magique ou mot de passe sur <b>/partenaires</b>.
+      </p>
+    </section>
+
+    <div id="out"></div>
   </div>
 </div>
 
-<script>
-(function () {
-  var $ = function (id) { return document.getElementById(id); };
-  var tab = 'dossiers';
+<!-- Modale de confirmation -->
+<div class="modal-back hidden" id="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 id="modal-title">Confirmer</h2>
+    <p id="modal-text">—</p>
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel">Annuler</button>
+      <button class="btn-primary" id="modal-ok">Confirmer</button>
+    </div>
+  </div>
+</div>
 
-  $('api').value = localStorage.getItem('mb_admin_api') || '';
-  $('secret').value = localStorage.getItem('mb_admin_secret') || '';
+<div class="toasts" id="toasts"></div>
 
-  // Console servie par le backend lui-même : sans URL saisie, on tape la MÊME
-  // origine (plus rien à configurer). Le champ reste là pour pointer ailleurs.
-  function api() {
-    return (localStorage.getItem('mb_admin_api') || window.location.origin).replace(/\/$/, '');
-  }
-  function headers() {
-    return { 'Content-Type': 'application/json', 'x-admin-secret': localStorage.getItem('mb_admin_secret') || '' };
-  }
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
-    });
-  }
-  function dateFr(iso) {
-    if (!iso) return '';
-    var d = new Date(iso);
-    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
-      + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  }
-  function erreur(msg) { $('out').innerHTML = '<div class="err">' + esc(msg) + '</div>'; }
-
-  $('load').onclick = function () {
-    localStorage.setItem('mb_admin_api', $('api').value.trim().replace(/\/$/, ''));
-    localStorage.setItem('mb_admin_secret', $('secret').value.trim());
-    charger();
-  };
-  $('forget').onclick = function () {
-    localStorage.removeItem('mb_admin_secret');
-    $('secret').value = '';
-    $('out').innerHTML = '';
-    $('queue').hidden = true;
-  };
-  $('status').onchange = charger;
-
-  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (el) {
-    el.onclick = function () {
-      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) { t.classList.remove('on'); });
-      el.classList.add('on');
-      tab = el.dataset.tab;
-      var estPartenaires = tab === 'partenaires';
-      $('filtre-status').style.display = estPartenaires ? 'none' : 'flex';
-      $('panel-partenaires').style.display = estPartenaires ? 'block' : 'none';
-      charger();
-    };
-  });
-
-  async function charger() {
-    if (!api()) return erreur('Renseigne l\'URL de l\'API.');
-    $('out').innerHTML = '<div class="empty">Chargement…</div>';
-    try {
-      if (tab === 'partenaires') { await chargerPartenaires(); return; }
-      await compteurs();
-      if (tab === 'dossiers') await chargerDossiers();
-      else await chargerLibres();
-    } catch (e) {
-      erreur('Échec : ' + e.message);
-    }
-  }
-
-  // ── Programme Partenaires ─────────────────────────────────────────────────
-  var EUR = function (cents) {
-    return (Number(cents || 0) / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-  };
-
-  async function chargerPartenaires() {
-    var res = await fetch(api() + '/api/v1/admin/partners', { headers: headers() });
-    if (!res.ok) throw new Error(res.status === 401 ? 'secret refusé' : 'HTTP ' + res.status);
-    var partenaires = (await res.json()).data.partners || [];
-    if (!partenaires.length) {
-      $('out').innerHTML = '<div class="empty">Aucun partenaire pour l\'instant.</div>';
-      return;
-    }
-    var html = '<div class="card"><div class="pad">';
-    partenaires.forEach(function (p) {
-      var gele = p.status === 'frozen';
-      html += '<div style="display:flex; justify-content:space-between; gap:12px; align-items:center;'
-        + ' flex-wrap:wrap; padding:12px 0; border-bottom:1px solid var(--line);">'
-        + '<div><div style="font-weight:600;">' + esc(p.displayName)
-        + (p.isFounder ? ' <span style="font-size:11px;color:var(--accent);">Fondateur</span>' : '')
-        + '</div><div style="font-size:12.5px;color:var(--ink3);">' + esc(p.email)
-        + ' · code <b>' + esc(p.code || '—') + '</b> · ' + (p.rateBps / 100) + ' %'
-        + ' · <span style="color:' + (gele ? 'var(--danger)' : 'var(--accent)') + ';">'
-        + esc(p.status) + '</span></div></div>'
-        + '<div style="display:flex; gap:6px; flex-wrap:wrap;">'
-        + '<button data-act="invite" data-id="' + p.id + '">Réinviter</button>'
-        + '<button class="ok" data-act="payout" data-id="' + p.id + '">Verser</button>'
-        + '<button class="' + (gele ? 'ok' : 'danger') + '" data-act="' + (gele ? 'active' : 'frozen')
-        + '" data-id="' + p.id + '">' + (gele ? 'Réactiver' : 'Geler') + '</button>'
-        + '</div></div>';
-    });
-    $('out').innerHTML = html + '</div></div>';
-
-    Array.prototype.forEach.call($('out').querySelectorAll('button[data-act]'), function (btn) {
-      btn.onclick = async function () {
-        var id = btn.dataset.id, act = btn.dataset.act;
-        btn.disabled = true;
-        try {
-          if (act === 'invite') {
-            var ri = await fetch(api() + '/api/v1/admin/partners/' + id + '/invite', {
-              method: 'POST', headers: headers(),
-              body: JSON.stringify({ redirectTo: window.location.origin + '/partenaires' }),
-            });
-            var rd = (await ri.json()).data;
-            alert(rd.invited
-              ? 'Invitation renvoyée à ' + rd.email + '.'
-              : 'Invitation NON envoyée.\n\nRaison renvoyée par Supabase :\n'
-                + (rd.inviteError || 'inconnue')
-                + '\n\nPistes : SMTP non configuré dans Supabase (le service intégré est très limité),'
-                + ' URL de retour absente de la liste autorisée (Auth → URL Configuration),'
-                + ' ou email déjà inscrit.');
-          } else if (act === 'payout') {
-            var r = await fetch(api() + '/api/v1/admin/partners/' + id + '/payout', {
-              method: 'POST', headers: headers(),
-              body: JSON.stringify({ method: 'Versement manuel' }),
-            });
-            var d = (await r.json()).data;
-            alert(d.count ? 'Versé : ' + EUR(d.amountCents) + ' (' + d.count + ' commissions).'
-                          : 'Rien à verser pour l\'instant.');
-          } else {
-            await fetch(api() + '/api/v1/admin/partners/' + id, {
-              method: 'PATCH', headers: headers(), body: JSON.stringify({ status: act }),
-            });
-          }
-          await chargerPartenaires();
-        } catch (e) { erreur('Échec : ' + e.message); }
-        btn.disabled = false;
-      };
-    });
-  }
-
-  $('p-create').onclick = async function () {
-    var name = $('p-name').value.trim(), email = $('p-email').value.trim();
-    if (!name || !email) return erreur('Nom et email sont requis.');
-    var body = { displayName: name, email: email, isFounder: $('p-founder').checked };
-    if ($('p-code').value.trim()) body.code = $('p-code').value.trim();
-    if ($('p-rate').value) body.rateBps = Math.round(Number($('p-rate').value) * 100);
-    body.redirectTo = window.location.origin + '/partenaires';
-    $('p-create').disabled = true;
-    try {
-      var r = await fetch(api() + '/api/v1/admin/partners', {
-        method: 'POST', headers: headers(), body: JSON.stringify(body),
-      });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      var d = (await r.json()).data;
-      alert('Partenaire créé. Code : ' + d.partner.code
-        + (d.invited
-          ? '\n\nInvitation envoyée par email.'
-          : '\n\n⚠ Invitation NON envoyée.\nRaison renvoyée par Supabase :\n'
-            + (d.inviteError || 'inconnue')
-            + '\n\nLe partenaire et son code existent : utilise « Réinviter » une fois la cause corrigée.'));
-      $('p-name').value = ''; $('p-email').value = ''; $('p-code').value = ''; $('p-rate').value = '';
-      $('p-founder').checked = false;
-      await chargerPartenaires();
-    } catch (e) { erreur('Création impossible : ' + e.message); }
-    $('p-create').disabled = false;
-  };
-
-  async function compteurs() {
-    var res = await fetch(api() + '/api/v1/admin/moderation/counts', { headers: headers() });
-    if (!res.ok) throw new Error(res.status === 401 ? 'secret refusé' : 'HTTP ' + res.status);
-    var j = await res.json();
-    $('queue').hidden = false;
-    $('m-dossiers').textContent = j.data.dossiers;
-    $('m-signalements').textContent = j.data.signalements;
-    $('m-libres').textContent = j.data.dossiersLibres;
-  }
-
-  async function chargerDossiers() {
-    var res = await fetch(api() + '/api/v1/admin/moderation/dossiers?status=' + $('status').value, { headers: headers() });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var j = await res.json();
-    var list = j.data.dossiers;
-    if (!list.length) { $('out').innerHTML = '<div class="empty">Rien à traiter. C\'est une bonne nouvelle.</div>'; return; }
-    $('out').innerHTML = list.map(dossierHtml).join('');
-    brancherActions();
-  }
-
-  function dossierHtml(d) {
-    var av = d.avatarUrl
-      ? '<img class="avatar" src="' + esc(d.avatarUrl) + '" alt="" />'
-      : '<div class="avatar"></div>';
-    var motifs = d.motifs.map(function (m) {
-      return '<span class="motif">' + esc(m.code) + ' × ' + m.nombre + '</span>';
-    }).join('');
-    var signalements = d.signalements.map(function (s) {
-      return '<div class="signalement">'
-        + '<div class="sline"><span>' + esc(s.motifLabel) + '</span><span>' + dateFr(s.le) + '</span></div>'
-        + (s.details ? '<div class="srecit">' + esc(s.details) + '</div>' : '')
-        + '</div>';
-    }).join('');
-
-    return '<div class="card dossier" data-id="' + esc(d.profileId) + '">'
-      + '<div class="dhead">' + av
-      + '<div style="flex:1">'
-      + '<div class="dname">' + esc(d.prenom) + '</div>'
-      + '<div class="dmeta">' + d.signalants + ' signalante' + (d.signalants > 1 ? 's' : '')
-      + ' · dernier le ' + dateFr(d.dernierLe) + '</div>'
-      + '</div>'
-      + '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'
-      + '<span class="pill p-' + esc(d.gravite) + '">' + esc(d.gravite) + '</span>'
-      + (d.dejaRetire ? '<span class="pill p-retire">déjà retiré</span>' : '')
-      + '</div></div>'
-      + '<div class="motifs">' + motifs + '</div>'
-      + signalements
-      + '<div class="actions">'
-      + '<input class="note-input" placeholder="Note interne (facultative)" />'
-      + (d.dejaRetire
-        ? '<button class="ok" data-action="restaurer">Restaurer</button>'
-        : '<button class="danger" data-action="retirer">Retirer de la découverte</button>')
-      + '<button data-action="rejeter">Rejeter</button>'
-      + '</div></div>';
-  }
-
-  async function chargerLibres() {
-    var res = await fetch(api() + '/api/v1/admin/moderation/dossiers-libres?status=' + $('status').value, { headers: headers() });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var list = (await res.json()).data.dossiers;
-    if (!list.length) { $('out').innerHTML = '<div class="empty">Aucun dossier libre.</div>'; return; }
-    $('out').innerHTML = list.map(function (f) {
-      return '<div class="card dossier" data-libre="' + esc(f.id) + '">'
-        + '<div class="dhead"><div style="flex:1">'
-        + '<div class="dname">' + esc(f.signalantePrenom || 'Signalante') + '</div>'
-        + '<div class="dmeta">' + dateFr(f.le) + '</div></div></div>'
-        + '<div class="signalement"><div class="srecit">' + esc(f.texte) + '</div></div>'
-        + (f.note ? '<div class="signalement"><div class="sline"><span>Note</span></div><div class="srecit">' + esc(f.note) + '</div></div>' : '')
-        + '<div class="actions">'
-        + '<input class="note-input" placeholder="Note interne (facultative)" />'
-        + '<button class="ok" data-action="retirer">Marquer traité</button>'
-        + '<button data-action="rejeter">Rejeter</button>'
-        + '</div></div>';
-    }).join('');
-    brancherActions();
-  }
-
-  function brancherActions() {
-    Array.prototype.forEach.call(document.querySelectorAll('.actions button'), function (btn) {
-      btn.onclick = async function () {
-        var carte = btn.closest('.dossier');
-        var note = carte.querySelector('.note-input').value.trim();
-        var action = btn.dataset.action;
-        var libre = carte.dataset.libre;
-        var url = libre
-          ? api() + '/api/v1/admin/moderation/dossiers-libres/' + libre
-          : api() + '/api/v1/admin/moderation/dossiers/' + carte.dataset.id;
-
-        Array.prototype.forEach.call(carte.querySelectorAll('button'), function (b) { b.disabled = true; });
-        try {
-          var res = await fetch(url, {
-            method: 'POST', headers: headers(),
-            body: JSON.stringify({ action: action, note: note || undefined }),
-          });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          carte.style.opacity = '.4';
-          await charger();
-        } catch (e) {
-          alert('Échec : ' + e.message);
-          Array.prototype.forEach.call(carte.querySelectorAll('button'), function (b) { b.disabled = false; });
-        }
-      };
-    });
-  }
-
-  // api() a toujours une valeur (même origine par défaut) : le secret suffit.
-  if (localStorage.getItem('mb_admin_secret')) charger();
-})();
-</script>
+<script src="/admin/admin.js"></script>
 </body>
 </html>

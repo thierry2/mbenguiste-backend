@@ -5,49 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
 <title>Mbenguiste — Page introuvable</title>
-<style>
-  /* Palette `pro` de l'app (src/proTheme.ts) : encre, crème, un seul vert. */
-  :root {
-    --page:#F3F2EF; --sheet:#FFFFFF;
-    --ink:#1B1A1E; --ink2:#66645E; --ink3:#9A968E;
-    --line:rgba(20,18,22,0.09); --line2:rgba(20,18,22,0.14);
-    --accent:#3A6B63; --accent-deep:#2B4E48;
-    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
-    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;background:var(--page);color:var(--ink);
-    display:flex;align-items:center;justify-content:center;padding:28px;
-    font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
-  .card{width:100%;max-width:440px}
-  .brand{font-family:var(--serif);font-size:27px;font-weight:500;letter-spacing:.3px}
-  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:1.6px;text-transform:uppercase;
-    color:var(--ink3);margin:22px 0 10px}
-  h1{font-family:var(--serif);font-size:30px;font-weight:500;line-height:1.15;margin:0 0 12px}
-  p{color:var(--ink2);font-size:15px;margin:0 0 8px}
-  .whisper{font-family:var(--serif);font-style:italic;color:var(--ink3);font-size:14.5px;margin-top:22px}
-  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
-  a.btn{display:inline-block;text-decoration:none;padding:13px 20px;border-radius:13px;
-    background:var(--accent);color:#fff;font-size:14.5px;font-weight:600}
-  a.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2)}
-  .rule{height:1px;background:var(--line);margin:26px 0 0}
-</style>
+<link rel="stylesheet" href="/assets/theme.css" />
+<link rel="stylesheet" href="/assets/page-404.css" />
 </head>
-<body>
-  <div class="card">
+<body class="p404">
+  <main class="p404-card">
     <div class="brand">Mbenguiste</div>
 
-    <div class="eyebrow">Erreur 404</div>
+    <p class="eyebrow p404-eyebrow">Erreur 404</p>
     <h1>Cette page n'existe pas.</h1>
-    <p>Le lien est peut-être ancien, incomplet, ou recopié de travers.</p>
-    <p>Si tu es partenaire, ton espace se trouve juste ici.</p>
+    <p class="sub">Le lien est peut-être ancien, incomplet, ou recopié de travers.</p>
+    <p class="sub">Si tu es partenaire, ton espace se trouve juste ici.</p>
 
-    <div class="actions">
-      <a class="btn" href="/partenaires">Aller à l'Espace Partenaire</a>
-    </div>
+    <p class="p404-actions">
+      <a class="btn btn-accent" href="/partenaires">Aller à l'Espace Partenaire</a>
+    </p>
 
     <div class="rule"></div>
     <p class="whisper">« On n'aligne pas des profils — on ouvre des histoires. »</p>
-  </div>
+  </main>
 </body>
 </html>

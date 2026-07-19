@@ -1,0 +1,6 @@
+/* Page 404 — mise en page seule ; tout le reste vient de theme.css. */
+.p404 { display: flex; align-items: center; justify-content: center; padding: 28px; }
+.p404-card { width: 100%; max-width: 440px; }
+.p404-eyebrow { margin: 22px 0 10px; }
+.p404 .sub { margin-bottom: 8px; }
+.p404-actions { margin: 26px 0 0; }

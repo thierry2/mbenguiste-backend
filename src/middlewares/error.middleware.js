@@ -72,7 +72,17 @@ function errorHandler(err, req, res, next) {
     // Lien protégé atteint sans droits → on renvoie vers la porte d'entrée
     // plutôt que d'afficher une erreur sèche.
     if (statusCode === 401 || statusCode === 403) return res.redirect('/partenaires');
-    if (statusCode === 404) return res.status(404).sendFile(NOT_FOUND_PAGE);
+    if (statusCode === 404) {
+      // La page 404 charge /assets/theme.css : sans ces en-têtes ici, elle
+      // sortirait moins protégée que les pages servies par app.js.
+      res.set('Content-Security-Policy',
+        "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
+        + "img-src 'self' data:; style-src 'self'; script-src 'self'");
+      res.set('X-Robots-Tag', 'noindex, nofollow');
+      res.set('X-Content-Type-Options', 'nosniff');
+      res.set('Referrer-Policy', 'no-referrer');
+      return res.status(404).sendFile(NOT_FOUND_PAGE);
+    }
   }
 
   res.status(statusCode).json({
