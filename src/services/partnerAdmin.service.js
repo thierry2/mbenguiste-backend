@@ -1,7 +1,18 @@
 'use strict';
 const supabase = require('../config/supabase');
+const config = require('../config');
 const logger = require('../utils/logger');
 const partnersModel = require('../models/partners.model');
+
+/**
+ * Où le lien d'invitation doit ramener. Décidé par le SERVEUR (PUBLIC_BASE_URL),
+ * jamais par le navigateur : sinon inviter depuis une console ouverte en local
+ * fabrique un lien vers localhost, que le partenaire ne pourra pas ouvrir.
+ * Vide → on n'envoie pas de redirectTo et Supabase applique son « Site URL ».
+ */
+function redirectUrl() {
+  return config.publicBaseUrl ? config.publicBaseUrl + '/partenaires' : undefined;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gestion des partenaires côté console admin (secret partagé). Création + code +
@@ -42,7 +53,7 @@ async function sendInvite(email, redirectTo) {
  * Crée un partenaire, son code, et l'invite par email (il choisira lien magique
  * ou mot de passe via le lien). Renvoie { partner, invited, inviteError }.
  */
-async function createAndInvite({ displayName, email, code, isFounder = false, rateBps, redirectTo }) {
+async function createAndInvite({ displayName, email, code, isFounder = false, rateBps }) {
   const rate = rateBps != null ? rateBps : (isFounder ? 4000 : undefined);
   const partner = await partnersModel.create({ displayName, email, isFounder, rateBps: rate });
   const finalCode = await partnersModel.createCode({
@@ -50,7 +61,7 @@ async function createAndInvite({ displayName, email, code, isFounder = false, ra
     partnerId: partner.id,
   });
 
-  const { invited, authUserId, error } = await sendInvite(partner.email, redirectTo);
+  const { invited, authUserId, error } = await sendInvite(partner.email, redirectUrl());
   if (authUserId) await partnersModel.attachAuthUser(partner.id, authUserId);
 
   return { partner: { ...partner, code: finalCode }, invited, inviteError: error };
@@ -60,14 +71,14 @@ async function createAndInvite({ displayName, email, code, isFounder = false, ra
  * Relance l'invitation d'un partenaire existant (email non reçu, lien expiré).
  * Renvoie { invited, inviteError }.
  */
-async function reinvite(partnerId, redirectTo) {
+async function reinvite(partnerId) {
   const partner = await partnersModel.findById(partnerId);
   if (!partner) return { invited: false, inviteError: 'Partenaire introuvable' };
 
-  const { invited, authUserId, error } = await sendInvite(partner.email, redirectTo);
+  const { invited, authUserId, error } = await sendInvite(partner.email, redirectUrl());
   if (authUserId) await partnersModel.attachAuthUser(partner.id, authUserId);
 
-  return { invited, inviteError: error, email: partner.email };
+  return { invited, inviteError: error, email: partner.email, redirectTo: redirectUrl() || null };
 }
 
 module.exports = { createAndInvite, reinvite, sendInvite, defaultCode };

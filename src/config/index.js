@@ -8,6 +8,14 @@ const config = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 4000,
 
+  // Adresse PUBLIQUE de ce service (ex. https://mbenguiste-backend-production.up.railway.app).
+  // Elle sert à fabriquer les liens d'INVITATION partenaire côté serveur. Sans elle,
+  // le lien reçu par email pointerait vers l'adresse depuis laquelle la console a
+  // été ouverte (localhost si tu travailles en local) — piège classique. C'est aussi
+  // une question de sécurité : le navigateur ne doit jamais dicter où mène un lien
+  // d'authentification. Vide → on laisse Supabase utiliser son « Site URL ».
+  publicBaseUrl: (process.env.PUBLIC_BASE_URL || '').trim().replace(/\/+$/, ''),
+
   supabase: {
     // Valeurs « placeholder » : permettent de charger l'app (et les tests) sans
     // vraies credentials. Les requêtes réelles échoueront tant qu'elles ne sont pas définies.

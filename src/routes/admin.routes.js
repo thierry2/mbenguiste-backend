@@ -116,20 +116,23 @@ router.get('/partners', catchAsync(async (_req, res) => {
   res.json({ success: true, data: { partners: await partnersModel.list() } });
 }));
 
-// POST /api/v1/admin/partners  body: { displayName, email, code?, isFounder?, rateBps?, redirectTo? }
+// POST /api/v1/admin/partners  body: { displayName, email, code?, isFounder?, rateBps? }
+// L'URL de retour du lien d'invitation n'est PAS acceptée du client : elle vient
+// de PUBLIC_BASE_URL côté serveur (cf. partnerAdmin.service).
 router.post('/partners', catchAsync(async (req, res) => {
-  const { displayName, email, code, isFounder, rateBps, redirectTo } = req.body ?? {};
+  const { displayName, email, code, isFounder, rateBps } = req.body ?? {};
   if (!displayName || !email) throw ApiError.badRequest('displayName et email sont requis');
   if (rateBps != null && (rateBps < 0 || rateBps > 10000)) throw ApiError.badRequest('rateBps hors bornes (0..10000)');
-  const result = await partnerAdminService.createAndInvite({ displayName, email, code, isFounder, rateBps, redirectTo });
+  const result = await partnerAdminService.createAndInvite({ displayName, email, code, isFounder, rateBps });
   res.status(201).json({ success: true, data: result });
 }));
 
-// POST /api/v1/admin/partners/:id/invite  body: { redirectTo? }
+// POST /api/v1/admin/partners/:id/invite
 // Relance l'invitation (email non reçu, lien expiré). L'erreur Supabase est
 // remontée telle quelle : c'est la seule façon de savoir pourquoi ça ne part pas.
+// La réponse renvoie aussi l'URL de retour utilisée, pour la vérifier d'un coup d'œil.
 router.post('/partners/:id/invite', catchAsync(async (req, res) => {
-  const result = await partnerAdminService.reinvite(req.params.id, (req.body || {}).redirectTo);
+  const result = await partnerAdminService.reinvite(req.params.id);
   res.json({ success: true, data: result });
 }));
 

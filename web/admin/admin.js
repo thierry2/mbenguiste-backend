@@ -378,11 +378,17 @@
       var reinv = el('button', 'btn btn-sm', 'Réinviter');
       reinv.addEventListener('click', function () {
         reinv.disabled = true;
-        api('/partners/' + p.id + '/invite', {
-          method: 'POST', body: { redirectTo: window.location.origin + '/partenaires' },
-        }).then(function (d) {
+        // Aucune URL envoyée : c'est le serveur (PUBLIC_BASE_URL) qui décide où
+        // le lien ramène. Inviter depuis une console locale ne fabrique donc plus
+        // un lien vers localhost.
+        api('/partners/' + p.id + '/invite', { method: 'POST', body: {} }).then(function (d) {
           reinv.disabled = false;
-          if (d.invited) { toast('Invitation renvoyée à ' + d.email + '.', 'ok'); return; }
+          if (d.invited) {
+            toast('Invitation renvoyée à ' + d.email + '.'
+              + (d.redirectTo ? '\nLe lien ramènera sur : ' + d.redirectTo
+                : '\n⚠ PUBLIC_BASE_URL non définie : Supabase utilisera son « Site URL ».'), 'ok');
+            return;
+          }
           toast('Invitation NON envoyée.\nRaison : ' + (d.inviteError || 'inconnue')
             + '\nPistes : SMTP non configuré dans Supabase, URL de retour non autorisée, ou email déjà inscrit.',
           'err');
@@ -437,8 +443,7 @@
     var nom = $('p-name').value.trim();
     var email = $('p-email').value.trim();
     if (!nom || !email) return toast('Nom et email sont requis.', 'err');
-    var body = { displayName: nom, email: email, isFounder: $('p-founder').checked,
-      redirectTo: window.location.origin + '/partenaires' };
+    var body = { displayName: nom, email: email, isFounder: $('p-founder').checked };
     if ($('p-code').value.trim()) body.code = $('p-code').value.trim();
     if ($('p-rate').value) body.rateBps = Math.round(Number($('p-rate').value) * 100);
 
