@@ -3,483 +3,300 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mbenguiste — L'amour par-delà les frontières</title>
-<meta name="description" content="Mbenguiste relie les cœurs d'un continent à l'autre. Une rencontre qui se mérite : le Mystère, puis l'Aventure vécue à deux. Réservé aux personnes majeures.">
+<title>Mbenguiste — On n'aligne pas des profils. On ouvre des histoires.</title>
+<meta name="description" content="Application de rencontre pour adultes. Le Mystère : ses mots avant son visage. L'Aventure : une histoire traversée à deux. Gratuit, sans publicité.">
 <meta name="theme-color" content="#16131A">
-<meta property="og:title" content="Mbenguiste — L'amour par-delà les frontières">
-<meta property="og:description" content="Une application de rencontre où l'on ne consomme pas des visages : on traverse quelque chose ensemble.">
+<meta property="og:title" content="Mbenguiste — On n'aligne pas des profils. On ouvre des histoires.">
+<meta property="og:description" content="Ici, une rencontre se mérite. Le Mystère, puis l'Aventure vécue à deux.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="fr_FR">
-<link rel="stylesheet" href="/assets/theme.css">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/landing.css">
 </head>
 <body>
 <a class="skip" href="#main">Aller au contenu</a>
-
-<!-- ── Navigation ─────────────────────────────────────────────────────────── -->
-<nav class="nav nav-dark">
+<nav class="nav" id="nav">
   <div class="nav-in">
-    <a class="nav-brand" href="/">
-      <svg class="seal" viewBox="0 0 40 40" aria-hidden="true" fill="none">
-        <circle cx="20" cy="20" r="18.5" stroke="currentColor" stroke-opacity=".38"/>
-        <path d="M6 25.5C11 12.5 29 12.5 34 25.5" stroke="currentColor" stroke-opacity=".85" stroke-width="1.4" stroke-linecap="round"/>
-        <circle cx="6" cy="25.5" r="2.6" fill="currentColor"/>
-        <circle cx="34" cy="25.5" r="2.6" fill="currentColor"/>
-      </svg>
+    <a class="wordmark" href="#top">
+      <span class="fan fan-xs"><i class="c1"></i><i class="c2"></i><i class="c3">M</i></span>
       Mbenguiste
     </a>
     <div class="nav-links">
-      <a href="#principe">Le principe</a>
+      <a href="#mystere">Le Mystère</a>
       <a href="#aventure">L'Aventure</a>
       <a href="#securite">Sécurité</a>
       <a href="#tarifs">Tarifs</a>
-      <a class="nav-cta" href="#acces">Être prévenu</a>
+      <a class="nav-get" href="#obtenir">Obtenir l'app</a>
     </div>
   </div>
 </nav>
 
 <main id="main">
+<div id="top"></div>
 
-<!-- ── Héros ──────────────────────────────────────────────────────────────── -->
-<header class="hero">
-  <div class="hero-in">
-    <div>
-      <p class="eyebrow">Application de rencontre · 18 ans et plus</p>
-      <h1>L'amour par-delà <em>les frontières</em>.</h1>
-      <p class="hero-lede">
-        Une Ivoirienne peut y chercher un Français. Un Camerounais, une Québécoise.
-        Mbenguiste est neutre en origine : rien n'y suppose que vous veniez du même
-        endroit — seulement que vous alliez quelque part ensemble.
-      </p>
-      <div class="hero-actions">
-        <a class="b b-light" href="#acces">Être prévenu du lancement</a>
-        <a class="b b-ghost" href="#principe">Comprendre le principe</a>
-      </div>
-      <p class="hero-note">
-        Réservé aux personnes majeures. Aucune photo n'est publique tant que vous
-        ne l'avez pas décidé. <a href="/confidentialite">Ce que nous faisons de vos données</a>.
-      </p>
-    </div>
+<!-- ══ HÉROS : le produit, jouable ═══════════════════════════════════════ -->
+<section class="shell hero" id="hero">
+  <div>
+    <p class="eyebrow fade d1">Application de rencontre · 18 ans et plus</p>
+    <h1>
+      <span class="line"><span>On n'aligne pas</span></span>
+      <span class="line"><span>des profils. <em>On ouvre</em></span></span>
+      <span class="line"><span><em>des histoires.</em></span></span>
+    </h1>
+    <p class="breathe fade d2" id="breathe">Quelqu'un, quelque part, te ressemble.</p>
 
-    <div class="hero-art">
-      <!-- Le motif de la marque : deux points, un arc, un globe qui tourne
-           lentement. Dessiné à la main en SVG — aucune image distante, la CSP
-           n'autorise que 'self'. -->
-      <svg viewBox="0 0 460 460" role="img" aria-label="Un arc reliant deux points sur un globe" fill="none">
-        <defs>
-          <radialGradient id="halo" cx="50%" cy="46%" r="52%">
-            <stop offset="0%" stop-color="#3A6B63" stop-opacity=".42"/>
-            <stop offset="100%" stop-color="#3A6B63" stop-opacity="0"/>
-          </radialGradient>
-          <linearGradient id="arc" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0%" stop-color="#C25B54"/>
-            <stop offset="52%" stop-color="#E7D3AC"/>
-            <stop offset="100%" stop-color="#3A6B63"/>
-          </linearGradient>
-        </defs>
-
-        <circle cx="230" cy="228" r="215" fill="url(#halo)"/>
-
-        <!-- Le globe : cercle + méridiens + parallèles, tracés fins. -->
-        <g stroke="#FBFAF7" stroke-opacity=".22" stroke-width="1">
-          <circle cx="230" cy="230" r="150"/>
-          <ellipse cx="230" cy="230" rx="150" ry="52"/>
-          <ellipse cx="230" cy="230" rx="150" ry="104"/>
-          <ellipse cx="230" cy="230" rx="52" ry="150"/>
-          <ellipse cx="230" cy="230" rx="104" ry="150"/>
-          <line x1="80" y1="230" x2="380" y2="230"/>
-        </g>
-
-        <!-- L'arc : la route. Il passe au-dessus du globe, pas dessus. -->
-        <path d="M112 292C150 150 310 150 348 292"
-              stroke="url(#arc)" stroke-width="2.6" stroke-linecap="round"/>
-
-        <!-- Les deux points : là où l'on vit, là où bat l'autre cœur. -->
-        <g>
-          <circle cx="112" cy="292" r="16" fill="#C25B54" fill-opacity=".18"/>
-          <circle cx="112" cy="292" r="6" fill="#C25B54"/>
-          <circle cx="348" cy="292" r="16" fill="#3A6B63" fill-opacity=".22"/>
-          <circle cx="348" cy="292" r="6" fill="#3A6B63"/>
-        </g>
-
-        <!-- Le point culminant de l'arc : le moment de la rencontre. -->
-        <circle cx="230" cy="187" r="4.5" fill="#E7D3AC"/>
-        <circle cx="230" cy="187" r="13" stroke="#E7D3AC" stroke-opacity=".45"/>
-      </svg>
-    </div>
-  </div>
-</header>
-
-<!-- ── Le principe ────────────────────────────────────────────────────────── -->
-<section class="sec" id="principe">
-  <div class="shell">
-    <div class="sec-head">
-      <p class="eyebrow">Le principe</p>
-      <h2 class="display">On ne fait pas défiler des visages. On traverse quelque chose.</h2>
-      <p class="lede">
-        La plupart des applications vous demandent de juger vite et beaucoup.
-        Mbenguiste fait le pari inverse : moins de profils, plus de conséquences.
-        Trois idées portent toute l'application.
-      </p>
-    </div>
-
-    <div class="cards">
-      <article class="tile">
-        <svg class="tile-icon" width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <path d="M5 22C9 10 23 10 27 22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          <circle cx="5" cy="22" r="3" fill="currentColor"/><circle cx="27" cy="22" r="3" fill="currentColor"/>
+    <div class="stores fade d3">
+      <a class="store" href="#obtenir">
+        <svg width="20" height="24" viewBox="0 0 20 24" fill="currentColor" aria-hidden="true"><path d="M14.7 12.7c0-2.4 2-3.6 2.1-3.6-1.1-1.7-2.9-1.9-3.6-1.9-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.2 1-4.1 2.5-1.7 3-.4 7.5 1.3 9.9.8 1.2 1.8 2.5 3.1 2.5 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.4-.9-2.4-3.7zM12.3 4.6c.7-.8 1.1-2 1-3.2-1 0-2.3.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg>
+        <span><span class="k">Télécharger sur</span><span class="n">l'App Store</span></span>
+      </a>
+      <a class="store" href="#obtenir">
+        <svg width="20" height="22" viewBox="0 0 20 22" aria-hidden="true">
+          <path d="M1.6 1.1C1.2 1.4 1 1.9 1 2.6v16.8c0 .7.2 1.2.6 1.5l9-10.4-9-9.4z" fill="#34C4E8"/>
+          <path d="M13.9 7.4 3.6.6C3.1.3 2.6.2 2.2.3l9.2 9.6 2.5-2.5z" fill="#5FDB77"/>
+          <path d="M17.8 9.7 15 8.1l-2.7 2.7 2.6 2.7 2.9-1.6c.8-.5.8-1.7 0-2.2z" fill="#F5C518"/>
+          <path d="M2.2 21.7c.4.1.9 0 1.4-.3l10.3-6-2.5-2.5-9.2 8.8z" fill="#EE5B4E"/>
         </svg>
-        <h3>La route</h3>
-        <p>
-          Chacun dit où il vit et d'où il vient. Pas de promesse d'exil, pas de
-          projet imposé : juste deux points sur une carte et l'espace qu'il y a
-          entre eux. C'est ce qui rend la rencontre concrète.
-        </p>
-      </article>
-
-      <article class="tile">
-        <svg class="tile-icon" width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <circle cx="16" cy="16" r="11" stroke="currentColor" stroke-width="1.8"/>
-          <path d="M16 5v22M5 16h22" stroke="currentColor" stroke-width="1.8" stroke-opacity=".45"/>
-          <circle cx="16" cy="16" r="3.4" fill="currentColor"/>
-        </svg>
-        <h3>Le Mystère</h3>
-        <p>
-          Une fois par jour, un profil vous est proposé sans son visage. Vous ne
-          voyez d'abord que ce qu'il a écrit. L'image se dévoile à mesure — pas
-          contre de l'argent, contre de l'attention.
-        </p>
-      </article>
-
-      <article class="tile">
-        <svg class="tile-icon" width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <path d="M6 26V9l10-4 10 4v17" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-          <path d="M12 26v-8h8v8" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-        </svg>
-        <h3>L'Aventure</h3>
-        <p>
-          Une histoire à embranchements que vous vivez à deux. Chaque choix se
-          prend ensemble. Le désaccord y a un coût réel. C'est là que l'on
-          apprend qui est en face — bien mieux qu'en dix messages polis.
-        </p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<!-- ── L'Aventure, en détail ──────────────────────────────────────────────── -->
-<section class="sec sec-night" id="aventure">
-  <div class="shell">
-    <div class="split">
-      <div>
-        <p class="eyebrow">Ce qui remplace le match</p>
-        <h2 class="display">Une rencontre qui se mérite.</h2>
-        <p class="lede">
-          Ailleurs, un like réciproque ouvre une conversation vide que personne
-          n'ose commencer. Ici, il ouvre une porte. Ce qu'il y a derrière, vous
-          le franchissez à deux — ou pas du tout.
-        </p>
-        <ol class="steps">
-          <li>
-            <strong>Vous vous plaisez</strong>
-            <span>Le geste reste simple : un cœur. Rien ne s'affiche encore côté visage.</span>
-          </li>
-          <li>
-            <strong>Le Mystère s'ouvre</strong>
-            <span>Vous échangez sans vous voir. Les mots passent avant l'image, volontairement.</span>
-          </li>
-          <li>
-            <strong>L'Aventure commence</strong>
-            <span>Une histoire courte, à embranchements. Chaque nœud demande une décision commune.</span>
-          </li>
-          <li>
-            <strong>Révélation — ou silence</strong>
-            <span>Si vous arrivez au bout ensemble, vous vous découvrez. Sinon, l'histoire se referme et une autre s'ouvre demain.</span>
-          </li>
-        </ol>
-      </div>
-
-      <div>
-        <div class="tile">
-          <h3>Payer n'achète jamais l'autre</h3>
-          <p>
-            Un abonnement peut accélérer une Aventure, jamais la sauter. Il ne
-            permet pas de forcer une révélation, ni d'obtenir l'attention de
-            quelqu'un qui ne vous l'a pas donnée. Ce que l'argent ne peut pas
-            acheter chez nous : le consentement, l'identité de qui vous a aimé
-            sans réciprocité, et l'issue d'une histoire.
-          </p>
-        </div>
-        <div class="tile">
-          <h3>Vos messages, dans votre langue</h3>
-          <p>
-            Le nouchi, le wolof, le camfranglais ne sont pas des obstacles : une
-            traduction automatique les rend lisibles sans les aplatir. Les
-            messages traduits sont signalés comme tels, et le texte d'origine
-            reste consultable. <a href="/intelligence-artificielle">Comment l'IA est utilisée</a>.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── Sécurité ───────────────────────────────────────────────────────────── -->
-<section class="sec sec-warm" id="securite">
-  <div class="shell">
-    <div class="sec-head">
-      <p class="eyebrow">Sécurité &amp; respect</p>
-      <h2 class="display">Une application de rencontre se juge à ce qu'elle fait quand ça se passe mal.</h2>
-      <p class="lede">
-        Nous avons construit le centre de sécurité avant d'ouvrir les
-        inscriptions. Il est accessible depuis n'importe quel écran de
-        l'application, y compris après avoir retiré un match.
-      </p>
+        <span><span class="k">Disponible sur</span><span class="n">Google Play</span></span>
+      </a>
     </div>
 
-    <div class="cards">
-      <article class="tile">
-        <h3>Signaler, bloquer, partir</h3>
-        <p>
-          Chaque profil, chaque message et chaque photo peut être signalé en deux
-          gestes. Bloquer quelqu'un le fait disparaître dans les deux sens,
-          immédiatement et définitivement.
-          <a href="/moderation">Notre procédure de modération</a>.
-        </p>
-      </article>
-      <article class="tile">
-        <h3>Zéro tolérance pour les mineurs</h3>
-        <p>
-          Mbenguiste est interdit aux moins de 18 ans. Tout contenu relevant de
-          l'exploitation d'enfants entraîne une suppression, un bannissement
-          définitif et un signalement aux autorités.
-          <a href="/securite-enfants">Nos standards de protection de l'enfance</a>.
-        </p>
-      </article>
-      <article class="tile">
-        <h3>Vous restez maître de vos données</h3>
-        <p>
-          Position approximative seulement, jamais votre adresse. Export complet
-          de vos données en un tap. Suppression du compte avec un délai de grâce
-          pour changer d'avis. <a href="/confidentialite">Politique de confidentialité</a>.
-        </p>
-      </article>
-    </div>
-
-    <div class="doc-next">
-      <a href="/regles-communaute">Règles de la communauté</a>
-      <a href="/conseils-securite">Conseils de sécurité</a>
-      <a href="/moderation">Signaler un contenu illicite</a>
-      <a href="/supprimer-compte">Supprimer son compte</a>
-    </div>
-  </div>
-</section>
-
-<!-- ── Tarifs ─────────────────────────────────────────────────────────────── -->
-<section class="sec" id="tarifs">
-  <div class="shell">
-    <div class="sec-head center">
-      <p class="eyebrow">Tarifs</p>
-      <h2 class="display">Gratuit pour rencontrer. Payant pour aller plus vite.</h2>
-      <p class="lede">
-        L'essentiel — voir des profils, aimer, discuter avec vos matchs, vivre
-        une Aventure — ne coûte rien. Les abonnements lèvent des limites de
-        rythme, ils n'achètent pas de personnes.
-      </p>
-    </div>
-
-    <div class="plans">
-      <article class="plan">
-        <p class="plan-name">Plus</p>
-        <p class="plan-price"><b>3,99 €</b> / semaine</p>
-        <p class="plan-from">ou 8,99 € par mois · 17,99 € pour 3 mois</p>
-        <ul>
-          <li>Likes sans limite quotidienne</li>
-          <li>Revenir sur le profil précédent</li>
-          <li>Mode incognito</li>
-          <li>Filtres de découverte étendus</li>
-        </ul>
-      </article>
-
-      <article class="plan plan-featured">
-        <span class="plan-tag">Le plus choisi</span>
-        <p class="plan-name">Or</p>
-        <p class="plan-price"><b>5,99 €</b> / semaine</p>
-        <p class="plan-from">ou 11,99 € par mois · 59,99 € pour 12 mois</p>
-        <ul>
-          <li>Tout ce que contient Plus</li>
-          <li>Voir qui vous a aimé</li>
-          <li>Coups de cœur du jour</li>
-          <li>Super Likes mensuels inclus</li>
-        </ul>
-      </article>
-
-      <article class="plan">
-        <p class="plan-name">Prestige</p>
-        <p class="plan-price"><b>19,99 €</b> / mois</p>
-        <p class="plan-from">ou 44,99 € pour 3 mois · 74,99 € pour 6 mois</p>
-        <ul>
-          <li>Tout ce que contient Or</li>
-          <li>Vos likes passent en priorité</li>
-          <li>Un mot joint avant le match</li>
-          <li>Assistance prioritaire</li>
-        </ul>
-      </article>
-    </div>
-
-    <div class="callout" role="note">
-      <p>
-        <strong>Reconduction automatique.</strong> Les abonnements sont souscrits
-        et facturés par l'App Store d'Apple ou Google Play, et se renouvellent
-        automatiquement à échéance sauf résiliation au moins 24 heures avant la
-        fin de la période en cours, depuis les réglages de votre compte App Store
-        ou Google Play. Les prix affichés sont en euros toutes taxes comprises et
-        peuvent varier selon le pays et la boutique.
-        <a href="/cgv">Conditions d'abonnement, rétractation et remboursement</a>.
-      </p>
-    </div>
-  </div>
-</section>
-
-<!-- ── FAQ ────────────────────────────────────────────────────────────────── -->
-<section class="sec sec-tight">
-  <div class="shell">
-    <div class="sec-head">
-      <p class="eyebrow">Questions fréquentes</p>
-      <h2 class="display">Ce qu'on nous demande le plus souvent.</h2>
-    </div>
-
-    <div class="faq">
-      <details>
-        <summary>Faut-il venir d'un pays africain pour s'inscrire ?</summary>
-        <div class="faq-body"><p>
-          Non. Mbenguiste est neutre en origine : l'application ne suppose ni ne
-          privilégie aucune nationalité. Elle est simplement construite pour que
-          la distance et la différence de pays ne soient pas un obstacle.
-        </p></div>
-      </details>
-      <details>
-        <summary>Mon visage est-il visible tout de suite ?</summary>
-        <div class="faq-body"><p>
-          Non. Vos photos ne sont montrées qu'aux personnes à qui l'application
-          vous propose, et le Mystère les présente d'abord floutées. Vous pouvez
-          activer le mode incognito pour n'être visible que des personnes que
-          vous avez vous-même aimées.
-        </p></div>
-      </details>
-      <details>
-        <summary>L'application est-elle payante ?</summary>
-        <div class="faq-body"><p>
-          Non. On peut s'inscrire, découvrir des profils, aimer, discuter avec
-          ses matchs et vivre une Aventure sans jamais payer. Les abonnements
-          Plus, Or et Prestige lèvent des limites de rythme et ajoutent du
-          confort. Ils n'achètent l'attention de personne.
-        </p></div>
-      </details>
-      <details>
-        <summary>Que faites-vous de ma position ?</summary>
-        <div class="faq-body"><p>
-          Nous en dérivons une distance approximative pour vous proposer des
-          personnes atteignables. Votre position exacte n'est jamais transmise à
-          un autre membre, et l'autorisation de localisation peut être refusée :
-          vous saisissez alors votre ville à la main.
-          <a href="/confidentialite">Détail dans la politique de confidentialité</a>.
-        </p></div>
-      </details>
-      <details>
-        <summary>Comment supprimer mon compte ?</summary>
-        <div class="faq-body"><p>
-          Depuis Réglages → Supprimer mon compte, dans l'application. La
-          suppression devient définitive au bout de 30 jours : pendant ce délai
-          de grâce, une simple reconnexion vous permet de tout annuler et de
-          retrouver votre compte intact. Passé ce délai, l'effacement est
-          irréversible.
-          <a href="/supprimer-compte">Procédure complète, y compris sans l'application</a>.
-        </p></div>
-      </details>
-      <details>
-        <summary>Puis-je m'inscrire si j'ai moins de 18 ans ?</summary>
-        <div class="faq-body"><p>
-          Non, en aucun cas. La majorité est une condition d'accès vérifiée à
-          l'inscription et tout compte suspecté d'appartenir à un mineur est
-          fermé. Si vous pensez qu'un mineur utilise Mbenguiste, signalez-le
-          immédiatement : <a href="/securite-enfants">protection de l'enfance</a>.
-        </p></div>
-      </details>
-    </div>
-  </div>
-</section>
-
-<!-- ── Appel final ────────────────────────────────────────────────────────── -->
-<section class="sec-night" id="acces">
-  <div class="finale">
-    <h2>Il y a quelqu'un,<br>quelque part sur cette carte.</h2>
-    <p>
-      Mbenguiste ouvre bientôt. Laissez-nous une adresse et vous serez parmi les
-      premiers prévenus — nous ne nous en servirons pour rien d'autre.
+    <p class="hero-note fade d4">
+      Gratuit, sans publicité. Aucune photo n'est publique tant que tu ne l'as pas
+      décidé. <a href="/confidentialite">Ce qu'on fait de tes données</a>.
     </p>
-    <div class="hero-actions">
-      <a class="b b-light" href="mailto:hello@mbenguiste.com?subject=Liste%20d%27attente%20Mbenguiste">Rejoindre la liste d'attente</a>
-      <a class="b b-ghost" href="/legal">Lire nos engagements</a>
+  </div>
+
+  <div class="stage fade d2">
+    <div>
+      <div class="deck" id="deck" role="group" aria-label="Aperçu jouable : glisse la carte, ou utilise les flèches du clavier" tabindex="0">
+        <!-- Les cartes sont injectées ici -->
+        <!-- La rangée flotte SUR la carte, comme dans l'app. Elle vit dans le
+             deck mais au-dessus des cartes : elle ne part pas avec elles. -->
+        <div class="deck-ctl">
+          <button class="rb" id="btnPass" type="button" aria-label="Passer ce profil">
+            <!-- Croix à traits épais, redessinée comme CrossIcon (pas une icône de librairie). -->
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FBFAF7" stroke-width="3" stroke-linecap="round" aria-hidden="true">
+              <line x1="6.5" y1="6.5" x2="17.5" y2="17.5"/><line x1="17.5" y1="6.5" x2="6.5" y2="17.5"/>
+            </svg>
+          </button>
+          <button class="rb love" id="btnLike" type="button" aria-label="Aimer ce profil">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 21s-8-5.1-8-10.4C4 7.4 6.2 5.4 8.8 5.4c1.7 0 2.7.8 3.2 1.6.5-.8 1.5-1.6 3.2-1.6 2.6 0 4.8 2 4.8 5.2C20 15.9 12 21 12 21z"/></svg>
+          </button>
+          <button class="rb" id="btnSuper" type="button" aria-label="Super Like">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="#E7D3AC" aria-hidden="true"><path d="M12 2.6l2.7 6.1 6.6.6-5 4.4 1.5 6.5L12 16.8 6.2 20.2l1.5-6.5-5-4.4 6.6-.6z"/></svg>
+          </button>
+        </div>
+
+        <div class="myst" id="myst">
+          <div class="blur pf g2"></div>
+          <div class="inner">
+            <p class="h">Le Mystère s'ouvre.</p>
+            <p class="s">Vous allez vous parler sans vous voir. Son visage viendra après ses mots.</p>
+            <button class="again" id="again" type="button">Rejouer</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="deck-hint">Glisse la carte — c'est exactement l'app</p>
     </div>
   </div>
 </section>
 
-</main>
+<!-- ══ MANIFESTE ═════════════════════════════════════════════════════════ -->
+<section class="shell manifesto rise">
+  <p class="big">Ici, une rencontre <span class="dim">se mérite.</span></p>
+  <p class="sub">
+    Ailleurs, un like réciproque ouvre une conversation vide que personne n'ose
+    commencer. Chez nous, il ouvre une porte — et ce qu'il y a derrière, vous le
+    franchissez à deux, ou pas du tout.
+  </p>
+</section>
 
-<!-- ── Pied de page ───────────────────────────────────────────────────────── -->
-<footer class="foot">
-  <div class="shell">
-    <div class="foot-grid">
-      <div>
-        <p class="foot-brand">Mbenguiste</p>
-        <p class="foot-say">
-          L'amour par-delà les frontières. Une application de rencontre pour
-          adultes consentants, où la rencontre se mérite.
-        </p>
+<!-- ══ COLONNE VERTÉBRALE ════════════════════════════════════════════════ -->
+<div class="shell spine">
+  <div class="story">
+    <section id="mystere" data-state="mystere">
+      <p class="eyebrow">Le Mystère</p>
+      <h2>D'abord ses mots. Son visage vient après.</h2>
+      <p>
+        De temps en temps, quelqu'un t'est proposé sans son visage. Tu ne vois que
+        ce qu'il a écrit. L'image se dévoile à mesure que vous vous parlez — pas
+        contre de l'argent, contre de l'attention.
+      </p>
+      <p class="pull">« Les mystères sont rares. C'est ce qui les rend bons. »</p>
+    </section>
+
+    <section id="aventure" data-state="aventure">
+      <p class="eyebrow">L'Aventure</p>
+      <h2>Une histoire que vous traversez à deux.</h2>
+      <p>
+        Une fiction courte, à embranchements, jouée en même temps. Chaque nœud
+        demande une décision commune, et le désaccord a un coût réel. On apprend
+        plus de quelqu'un en deux choix qu'en dix messages polis.
+      </p>
+      <p>
+        Aller au bout ensemble, c'est se découvrir. Échouer, c'est voir la porte se
+        refermer — et une autre s'ouvrir demain.
+      </p>
+    </section>
+
+    <section id="apres" data-state="match">
+      <p class="eyebrow">Et ensuite</p>
+      <h2>Le reste ne nous regarde plus.</h2>
+      <p>
+        Quand vous vous êtes trouvés, notre travail s'arrête. Pas de compteur qui
+        tourne, pas de relance pour vous ramener, pas de mécanique conçue pour vous
+        garder là.
+      </p>
+      <p class="pull">« Cette fois, prends ton temps. »</p>
+    </section>
+  </div>
+
+  <div class="rail">
+    <div class="morph" id="morph">
+      <article class="mc" data-card="mystere">
+        <div class="pf g1 blurred"></div>
+        <div class="silhouette">
+          <svg width="128" height="128" viewBox="0 0 24 24" fill="#FBFAF7" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>
+        </div>
+        <div class="veil"></div>
+        <span class="tag">Mystère</span>
+        <div class="meta"><div class="nm">?</div><div class="qt">« J'écris mieux que je ne parle. »</div></div>
+      </article>
+
+      <article class="mc" data-card="aventure">
+        <div class="adv">
+          <span class="tag">Aventure · nœud 3</span>
+          <p class="q">La porte est entrouverte. Il est trois heures du matin.</p>
+          <div class="opt picked"><span>Entrer sans frapper</span><span class="who">Vous deux</span></div>
+          <div class="opt"><span>Attendre le jour</span><span class="who">—</span></div>
+          <p class="ft">Accord requis pour continuer</p>
+        </div>
+      </article>
+
+      <article class="mc" data-card="match">
+        <div class="pf g2"></div>
+        <div class="veil"></div>
+        <span class="tag">C'est réciproque</span>
+        <div class="meta"><div class="nm">Aïcha, 29</div><div class="qt">Vous êtes allés au bout de l'histoire</div></div>
+      </article>
+
+      <div class="heart" id="heart">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="#FBFAF7" aria-hidden="true"><path d="M12 21s-8-5.1-8-10.4C4 7.4 6.2 5.4 8.8 5.4c1.7 0 2.7.8 3.2 1.6.5-.8 1.5-1.6 3.2-1.6 2.6 0 4.8 2 4.8 5.2C20 15.9 12 21 12 21z"/></svg>
       </div>
-
-      <div>
-        <h4>L'application</h4>
-        <ul>
-          <li><a href="#principe">Le principe</a></li>
-          <li><a href="#aventure">L'Aventure</a></li>
-          <li><a href="#tarifs">Tarifs</a></li>
-          <li><a href="/intelligence-artificielle">Usage de l'IA</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4>Sécurité</h4>
-        <ul>
-          <li><a href="/regles-communaute">Règles de la communauté</a></li>
-          <li><a href="/conseils-securite">Conseils de sécurité</a></li>
-          <li><a href="/securite-enfants">Protection de l'enfance</a></li>
-          <li><a href="/moderation">Modération &amp; signalement</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <h4>Informations légales</h4>
-        <ul>
-          <li><a href="/mentions-legales">Mentions légales</a></li>
-          <li><a href="/cgu">Conditions d'utilisation</a></li>
-          <li><a href="/cgv">Conditions d'abonnement</a></li>
-          <li><a href="/confidentialite">Confidentialité</a></li>
-          <li><a href="/cookies">Cookies</a></li>
-          <li><a href="/supprimer-compte">Supprimer son compte</a></li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="foot-bottom">
-      <span class="age-badge">18+</span>
-      <span>© 2026 Mbenguiste. Tous droits réservés.</span>
-      <span>Éditeur : <span class="fill">[[À COMPLÉTER — dénomination sociale]]</span></span>
-      <span><a href="mailto:contact@mbenguiste.com">contact@mbenguiste.com</a></span>
     </div>
   </div>
+</div>
+
+<!-- ══ SÉCURITÉ ══════════════════════════════════════════════════════════ -->
+<section class="shell band rise" id="securite">
+  <p class="eyebrow">Sécurité &amp; respect</p>
+  <h2>Une app de rencontre se juge à ce qu'elle fait quand ça se passe mal.</h2>
+  <p class="lede">
+    Le centre de sécurité a été construit avant l'ouverture des inscriptions. Il
+    reste accessible depuis n'importe quel écran — y compris après avoir retiré
+    quelqu'un de tes conversations.
+  </p>
+  <div class="ledger">
+    <div>
+      <h3>Signaler, bloquer, partir</h3>
+      <p>Deux gestes sur n'importe quel profil, message ou photo. Bloquer fait disparaître dans les deux sens, sans notification, et le signalement reste possible après avoir retiré quelqu'un. <a href="/moderation">La procédure de modération</a>.</p>
+    </div>
+    <div>
+      <h3>Zéro tolérance pour les mineurs</h3>
+      <p>Interdit aux moins de 18 ans. Tout contenu relevant de l'exploitation d'enfants entraîne une suppression, un bannissement définitif et un signalement aux autorités. <a href="/securite-enfants">Nos standards de protection de l'enfance</a>.</p>
+    </div>
+    <div>
+      <h3>Tes données restent tiennes</h3>
+      <p>Position approximative seulement, jamais ton adresse. Export complet en un tap. Suppression du compte avec un délai pour changer d'avis. <a href="/confidentialite">Politique de confidentialité</a>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ TARIFS ════════════════════════════════════════════════════════════ -->
+<section class="shell band rise" id="tarifs">
+  <p class="eyebrow">Tarifs</p>
+  <h2>Gratuit pour rencontrer. Payant pour aller plus vite.</h2>
+  <p class="lede">
+    Voir des profils, aimer, discuter, vivre une Aventure : rien de tout cela ne
+    coûte quoi que ce soit. Les abonnements lèvent des limites de rythme — ils
+    n'achètent l'attention de personne.
+  </p>
+  <div class="plans">
+    <div class="plan">
+      <div class="pn">Plus</div>
+      <div class="pp">3,99 € <span class="per">/ semaine</span></div>
+      <ul><li>Likes sans limite</li><li>Revenir sur le profil précédent</li><li>Mode incognito</li></ul>
+    </div>
+    <div class="plan gold">
+      <div class="pn">Or</div>
+      <div class="pp">5,99 € <span class="per">/ semaine</span></div>
+      <ul><li>Tout ce que contient Plus</li><li>Voir qui t'a aimé</li><li>Coups de cœur du jour</li></ul>
+    </div>
+    <div class="plan">
+      <div class="pn">Prestige</div>
+      <div class="pp">19,99 € <span class="per">/ mois</span></div>
+      <ul><li>Tout ce que contient Or</li><li>Tes likes passent en priorité</li><li>Un mot joint avant le match</li></ul>
+    </div>
+  </div>
+  <p class="fine">
+    Reconduction automatique jusqu'à résiliation au moins 24 h avant la fin de la
+    période en cours, depuis les réglages de ton compte App Store ou Google Play.
+    Prix TTC en euros, variables selon le pays et la boutique.
+    <a href="/cgv">Conditions d'abonnement</a>.
+  </p>
+</section>
+
+<!-- ══ FAQ ═══════════════════════════════════════════════════════════════ -->
+<section class="shell band rise">
+  <p class="eyebrow">Questions fréquentes</p>
+  <h2>Ce qu'on nous demande le plus.</h2>
+  <div class="faq">
+    <details open><summary>Faut-il venir d'un pays en particulier ?</summary><div class="ans">Non. Mbenguiste ne suppose ni ne privilégie aucune origine. L'app est simplement construite pour que la distance et la différence de pays ne soient pas un obstacle.</div></details>
+    <details><summary>Mon visage est-il visible tout de suite ?</summary><div class="ans">Non. Tes photos ne sont montrées qu'aux personnes à qui l'app te propose, et le Mystère les présente d'abord floutées. Le mode incognito te rend visible des seules personnes que tu as aimées.</div></details>
+    <details><summary>L'application est-elle payante ?</summary><div class="ans">Non. On peut s'inscrire, découvrir, aimer, discuter et vivre une Aventure sans jamais payer.</div></details>
+    <details><summary>Que faites-vous de ma position ?</summary><div class="ans">On en dérive une distance approximative pour te proposer des personnes atteignables. Ta position exacte n'est jamais transmise à un autre membre, et tu peux refuser la localisation — tu saisis alors ta ville à la main.</div></details>
+    <details><summary>Comment supprimer mon compte ?</summary><div class="ans">Réglages → Supprimer mon compte. La suppression devient définitive au bout de 30 jours ; d'ici là, une reconnexion suffit à tout annuler. <a href="/supprimer-compte">Procédure complète</a>.</div></details>
+  </div>
+</section>
+
+<!-- ══ APPEL FINAL ═══════════════════════════════════════════════════════ -->
+<section class="finale rise" id="obtenir">
+  <p class="eyebrow">Mbenguiste</p>
+  <h2>Il y a quelqu'un.<br>Prends ton temps.</h2>
+  <p>Gratuit. Réservé aux majeurs. Aucune publicité, jamais.</p>
+  <div class="stores">
+    <a class="store" href="#obtenir">
+      <svg width="20" height="24" viewBox="0 0 20 24" fill="currentColor" aria-hidden="true"><path d="M14.7 12.7c0-2.4 2-3.6 2.1-3.6-1.1-1.7-2.9-1.9-3.6-1.9-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.8-1.7 0-3.2 1-4.1 2.5-1.7 3-.4 7.5 1.3 9.9.8 1.2 1.8 2.5 3.1 2.5 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.4-.9-2.4-3.7zM12.3 4.6c.7-.8 1.1-2 1-3.2-1 0-2.3.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg>
+      <span><span class="k">Télécharger sur</span><span class="n">l'App Store</span></span>
+    </a>
+    <a class="store" href="#obtenir">
+      <svg width="20" height="22" viewBox="0 0 20 22" aria-hidden="true">
+        <path d="M1.6 1.1C1.2 1.4 1 1.9 1 2.6v16.8c0 .7.2 1.2.6 1.5l9-10.4-9-9.4z" fill="#34C4E8"/>
+        <path d="M13.9 7.4 3.6.6C3.1.3 2.6.2 2.2.3l9.2 9.6 2.5-2.5z" fill="#5FDB77"/>
+        <path d="M17.8 9.7 15 8.1l-2.7 2.7 2.6 2.7 2.9-1.6c.8-.5.8-1.7 0-2.2z" fill="#F5C518"/>
+        <path d="M2.2 21.7c.4.1.9 0 1.4-.3l10.3-6-2.5-2.5-9.2 8.8z" fill="#EE5B4E"/>
+      </svg>
+      <span><span class="k">Disponible sur</span><span class="n">Google Play</span></span>
+    </a>
+  </div>
+</section>
+
+<!-- ══ PIED DE PAGE ══════════════════════════════════════════════════════ -->
+<footer class="shell foot">
+  <div class="foot-grid">
+    <div>
+      <a class="wordmark" href="#top"><span class="fan fan-xs"><i class="c1"></i><i class="c2"></i><i class="c3">M</i></span> Mbenguiste</a>
+      <p class="foot-say">On n'aligne pas des profils. On ouvre des histoires.</p>
+    </div>
+    <div><h4>L'app</h4><ul><li><a href="#mystere">Le Mystère</a></li><li><a href="#aventure">L'Aventure</a></li><li><a href="#tarifs">Tarifs</a></li><li><a href="/intelligence-artificielle">Usage de l'IA</a></li></ul></div>
+    <div><h4>Sécurité</h4><ul><li><a href="/regles-communaute">Règles de la communauté</a></li><li><a href="/conseils-securite">Conseils de sécurité</a></li><li><a href="/securite-enfants">Protection de l'enfance</a></li><li><a href="/moderation">Modération</a></li></ul></div>
+    <div><h4>Légal</h4><ul><li><a href="/mentions-legales">Mentions légales</a></li><li><a href="/cgu">Conditions d'utilisation</a></li><li><a href="/cgv">Conditions d'abonnement</a></li><li><a href="/confidentialite">Confidentialité</a></li><li><a href="/supprimer-compte">Supprimer son compte</a></li></ul></div>
+  </div>
+  <div class="foot-bot"><span class="age">18+</span><span>© 2026 Mbenguiste</span><span>contact@mbenguiste.com</span></div>
 </footer>
 
+</main>
+<script src="/assets/landing.js" defer></script>
 </body>
 </html>

@@ -77,11 +77,15 @@ app.get(['/admin', '/admin/'], pageHeaders, (_req, res) =>
   res.sendFile(path.join(WEB_DIR, 'admin', 'index.html')));
 
 // ── Site public : vitrine + documents légaux ─────────────────────────────────
-// En-têtes DISTINCTS de `pageHeaders` sur deux points qui comptent :
-//   • pas de `noindex` — Apple, Google Play et les autorités doivent pouvoir
-//     atteindre ces URLs, et la page CSAE doit être « globally accessible » ;
-//   • `script-src 'none'` — ces pages n'ont pas une ligne de JavaScript (les
-//     accordéons de la FAQ sont des <details> natifs), autant l'interdire.
+// En-têtes DISTINCTS de `pageHeaders` sur un point qui compte : pas de
+// `noindex`. Apple, Google Play et les autorités doivent pouvoir atteindre ces
+// URLs, et la page CSAE doit être « globally accessible ».
+//
+// `script-src 'self'` (et non 'none' comme à l'origine) : la landing embarque
+// le deck jouable du héros. Le script vit dans /assets/landing.js — AUCUN
+// inline, AUCUN CDN, donc la directive reste stricte et ne s'ouvre ni à
+// 'unsafe-inline' ni à un tiers. Les documents légaux, eux, restent sans une
+// ligne de JavaScript : leurs accordéons sont des <details> natifs.
 const SITE_CSP = [
   "default-src 'self'",
   "base-uri 'none'",
@@ -91,7 +95,7 @@ const SITE_CSP = [
   "img-src 'self' data:",
   "font-src 'self'",
   "style-src 'self'",
-  "script-src 'none'",
+  "script-src 'self'",
 ].join('; ');
 
 function siteHeaders(_req, res, next) {
