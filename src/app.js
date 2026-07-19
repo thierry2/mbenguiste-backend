@@ -27,13 +27,19 @@ const CSP = [
   "object-src 'none'",
   "frame-ancestors 'none'",   // pas d'iframe : anti-clickjacking
   "form-action 'self'",
-  // `blob:` — la console affiche des images (selfie de vérification, photos du
-  // profil examiné) qu'elle récupère en fetch AUTHENTIFIÉ auprès de notre propre
-  // API, puis pose en objet blob. Aucune origine externe n'est ouverte : le
-  // selfie ne transite jamais sous forme d'URL signée dans le DOM, où elle
-  // serait copiable et donnerait accès à une photo biométrique sans aucune
-  // authentification pendant toute sa durée de vie.
-  "img-src 'self' data: blob:",
+  // Deux sources d'images dans la console, traitées DIFFÉREMMENT selon leur
+  // sensibilité — la différence est volontaire :
+  //
+  //  • `blob:` — le SELFIE de vérification. Photo biométrique, bucket privé : la
+  //    console va chercher les octets en fetch AUTHENTIFIÉ auprès de notre API
+  //    puis les pose en blob. Aucune URL signée ne touche le DOM, où elle serait
+  //    copiable et ouvrirait la photo sans authentification jusqu'à expiration.
+  //
+  //  • l'origine Supabase — les PHOTOS DE PROFIL comparées au selfie. Elles sont
+  //    déjà publiques (c'est le bucket que toute l'app affiche) : les relayer
+  //    par le backend coûterait de la bande passante sans rien protéger. Même
+  //    origine que `connect-src` ci-dessous, à laquelle la console parle déjà.
+  `img-src 'self' data: blob: ${config.supabase.url}`,
   "font-src 'self'",
   "style-src 'self'",         // zéro style inline
   "script-src 'self'",        // zéro script inline, zéro CDN
