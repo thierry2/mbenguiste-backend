@@ -138,6 +138,14 @@
 .terms span { color: var(--ink2); }
 .terms b { text-align: right; }
 
+/* Pastille d'initiale : elle donne le rythme de la LISTE mobile. En tableau
+   (grand écran), les colonnes suffisent — elle ne serait que du bruit. */
+.ava { display: none; }
+/* Une cellule vide reçoit son tiret par le CSS, jamais par le texte : le mobile
+   peut ainsi la MASQUER au lieu d'afficher un tiret orphelin au milieu d'une
+   ligne, et le tableau garde sa colonne alignée. */
+#t-referrals td:empty::after, #t-payouts td:empty::after { content: "—"; color: var(--ink3); }
+
 /* Le bouton de déconnexion de l'en-tête n'existe QUE sur mobile (sur grand
    écran, il vit en bas de la navigation latérale). */
 .logout-mobile { display: none; }
@@ -209,17 +217,49 @@
   .card table tr:last-child { border-bottom: none; }
   .card table td { padding: 0; border: none; }
 
-  /* Filleuls : membre · (date · palier · statut) · part */
+  /* ── Filleuls ────────────────────────────────────────────────────────────
+     Une ligne = une personne : pastille d'initiale, pseudonyme et montant sur
+     la 1re ligne, puis une méta compacte (date · palier · statut). Les cellules
+     sans donnée sont MASQUÉES — un « — » perdu au milieu d'une phrase est du
+     bruit, pas de l'information. */
   #t-referrals tr {
-    grid-template-columns: auto auto 1fr auto;
-    grid-template-areas: "membre membre membre part" "date palier statut statut";
+    grid-template-columns: auto auto auto 1fr auto;
+    grid-template-areas:
+      "ava nom  nom    nom    part"
+      "ava date palier statut statut";
+    column-gap: 7px; row-gap: 2px; padding: 11px 16px;
+    align-items: center;
   }
-  #t-referrals td:nth-child(1) { grid-area: membre; font-weight: 650; font-size: 15px; }
+  #t-referrals td:empty { display: none; }        /* pas de tiret orphelin */
+  #t-referrals td:empty::after { content: none; }
+
+  #t-referrals td:nth-child(1) {
+    grid-area: nom; display: flex; align-items: center; gap: 0;
+    font-weight: 650; font-size: 15px;
+  }
+  /* La pastille est posée dans la cellule « membre » mais occupe la colonne de
+     gauche sur les deux lignes : d'où le positionnement absolu maîtrisé. */
+  #t-referrals tr { position: relative; padding-left: 62px; }
+  #t-referrals .ava {
+    display: flex; align-items: center; justify-content: center;
+    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--accent-tint); color: var(--accent-deep);
+    font-family: var(--serif); font-size: 15px; font-weight: 600;
+  }
   #t-referrals td:nth-child(2) { grid-area: date; color: var(--ink3); font-size: 12.5px; }
   #t-referrals td:nth-child(3) { grid-area: palier; color: var(--ink2); font-size: 12.5px; }
   #t-referrals td:nth-child(3)::before { content: "· "; color: var(--ink3); }
   #t-referrals td:nth-child(4) { grid-area: statut; justify-self: start; }
-  #t-referrals td:nth-child(5) { grid-area: part; font-weight: 700; color: var(--accent-deep); }
+  #t-referrals td:nth-child(4)::before { content: "· "; color: var(--ink3); }
+  #t-referrals td:nth-child(5) { grid-area: part; font-weight: 700; font-size: 15px;
+    color: var(--accent-deep); }
+
+  /* Dans une méta, une pastille pleine alourdit : le statut redevient du texte
+     coloré, à la même hauteur que le reste de la ligne. */
+  #t-referrals .pill { background: none; padding: 0; font-size: 12.5px; font-weight: 600; }
+  #t-referrals .pill-off { color: var(--ink3); }
+  #t-referrals .pill-ok { color: var(--accent-deep); }
 
   /* Versements : date · (moyen · référence) · montant */
   #t-payouts tr {
