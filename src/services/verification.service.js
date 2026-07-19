@@ -184,9 +184,19 @@ async function submitSelfie(userId, file) {
 
   const { path } = await uploadService.uploadVerificationSelfie(file, userId);
 
-  const updated = await model.attachSelfie(request.id, path);
+  // À partir d'ici le fichier EXISTE dans le bucket. Tout chemin de sortie qui
+  // n'aboutit pas à une ligne `pending_review` doit l'effacer, sinon on accumule
+  // des selfies orphelins — des photos de visages que plus rien ne référence,
+  // donc que plus rien ne viendra jamais supprimer.
+  let updated;
+  try {
+    updated = await model.attachSelfie(request.id, path);
+  } catch (err) {
+    await uploadService.removeVerificationSelfie(path).catch(() => {});
+    throw err;
+  }
   if (!updated) {
-    // Course perdue (double envoi) : on ne laisse pas le fichier orphelin.
+    // Course perdue (double envoi) : même nettoyage.
     await uploadService.removeVerificationSelfie(path).catch(() => {});
     throw ApiError.badRequest('Ta vérification est déjà en cours d\'examen');
   }
