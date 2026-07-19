@@ -461,5 +461,16 @@
   });
 
   /* ── Démarrage ────────────────────────────────────────────────────────── */
+
+  // Hygiène : l'ANCIENNE console stockait le secret admin EN CLAIR dans
+  // localStorage, de façon permanente. Il y dort encore dans les navigateurs qui
+  // l'ont utilisée. On l'efface au premier passage ici — le laisser traîner
+  // annulerait tout le bénéfice du jeton de session.
+  try {
+    ['mb_admin_secret', 'mb_admin_api'].forEach(function (k) {
+      if (localStorage.getItem(k) !== null) localStorage.removeItem(k);
+    });
+  } catch (e) { /* stockage indisponible : rien à purger */ }
+
   if (token()) entrer(); else ouvrirGate();
 })();
