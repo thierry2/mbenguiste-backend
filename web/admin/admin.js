@@ -381,18 +381,11 @@
 
       // En-tête : qui, quelle tentative, depuis quand.
       var head = el('div', 'dossier-head');
-      // Pastille vide plutôt qu'une <img src=""> : un src vide affiche l'icône
-      // « image cassée » du navigateur, ce qui donne l'air d'une panne alors que
-      // la personne n'a simplement pas d'avatar.
-      if (v.avatarUrl) {
-        var av = document.createElement('img');
-        av.className = 'verif-avatar';
-        av.alt = '';
-        av.src = v.avatarUrl;
-        head.appendChild(av);
-      } else {
-        head.appendChild(el('div', 'verif-avatar'));
-      }
+      // Avatar : la 1re photo du profil D'ABORD, `avatar_url` seulement en repli.
+      // `avatar_url` est figé à l'ajout de la toute première photo et n'est pas
+      // remis à jour quand elle est supprimée : il pointe donc régulièrement sur
+      // un fichier qui n'existe plus. C'était ça, la pastille cassée en haut.
+      head.appendChild(photoOuPastille((v.photos || [])[0] || v.avatarUrl, 'verif-avatar'));
 
       var id = el('div', 'dossier-id');
       id.appendChild(el('p', 'dossier-name', v.prenom || 'Sans prénom'));
@@ -420,11 +413,13 @@
       var gauche = el('div', 'verif-col');
       gauche.appendChild(el('p', 'verif-col-lab', 'Selfie de vérification'));
       if (v.aSelfie) {
-        var selfie = document.createElement('img');
-        selfie.className = 'verif-selfie';
-        selfie.alt = 'Selfie de vérification';
-        gauche.appendChild(selfie);
-        chargerSelfie(v.id, selfie, gauche);
+        // Squelette pendant le téléchargement. Contrairement aux photos du
+        // profil (<img src> direct, peintes au fil des octets), le selfie passe
+        // par un fetch authentifié : rien ne s'affiche tant que le fichier
+        // entier n'est pas là. Sans ce repère, l'attente ressemble à une panne.
+        var attente = el('div', 'verif-selfie skeleton');
+        gauche.appendChild(attente);
+        chargerSelfie(v.id, attente, gauche);
       } else {
         // Aucun fichier attaché. On affiche la ligne au lieu de la masquer :
         // une demande invisible resterait « en attente » pour toujours.
@@ -437,11 +432,10 @@
       droite.appendChild(el('p', 'verif-col-lab', 'Photos du profil'));
       var grille = el('div', 'verif-photos');
       (v.photos || []).forEach(function (url) {
-        var p = document.createElement('img');
-        p.className = 'verif-photo';
-        p.alt = '';
-        p.src = url;
-        p.addEventListener('click', function () { window.open(url, '_blank', 'noopener'); });
+        var p = photoOuPastille(url, 'verif-photo');
+        if (p.tagName === 'IMG') {
+          p.addEventListener('click', function () { window.open(url, '_blank', 'noopener'); });
+        }
         grille.appendChild(p);
       });
       if (!(v.photos || []).length) {
@@ -497,6 +491,27 @@
     $('out').appendChild(frag);
   }
 
+  /**
+   * Une image de profil, ou une pastille neutre si elle manque OU si elle casse.
+   *
+   * Le `onerror` n'est pas décoratif : les URL de photos peuvent pointer sur un
+   * fichier supprimé. Sans lui, le navigateur affiche son icône « image
+   * cassée », qui donne l'air d'une panne de la console alors que c'est une
+   * donnée périmée. Une pastille grise dit la même chose sans accuser à tort.
+   */
+  function photoOuPastille(url, classe) {
+    if (!url) return el('div', classe);
+    var img = document.createElement('img');
+    img.className = classe;
+    img.alt = '';
+    img.addEventListener('error', function () {
+      var vide = el('div', classe);
+      if (img.parentNode) img.parentNode.replaceChild(vide, img);
+    });
+    img.src = url;
+    return img;
+  }
+
   // Les blobs posés dans le DOM tiennent la mémoire tant qu'on ne les révoque
   // pas. La file se recharge à chaque décision : sans ce ménage, une session de
   // modération d'une heure accumulerait toutes les photos jamais affichées.
@@ -514,7 +529,7 @@
    * signée déposée dans le DOM est copiable — elle ouvrirait une photo
    * biométrique sans aucune authentification jusqu'à son expiration.
    */
-  function chargerSelfie(id, img, zone) {
+  function chargerSelfie(id, attente, zone) {
     fetch('/api/v1/admin/verifications/' + id + '/selfie', {
       headers: { Authorization: 'Bearer ' + token() },
     }).then(function (r) {
@@ -523,13 +538,22 @@
     }).then(function (blob) {
       var url = URL.createObjectURL(blob);
       blobsPoses.push(url);
-      img.src = url;
+
+      var img = document.createElement('img');
+      img.className = 'verif-selfie';
+      img.alt = 'Selfie de vérification';
+      // On ne remplace le squelette qu'une fois l'image DÉCODÉE : l'échanger
+      // dès l'affectation du src laisserait un cadre blanc le temps du décodage.
+      img.addEventListener('load', function () {
+        if (attente.parentNode) attente.parentNode.replaceChild(img, attente);
+      });
       // Plein écran au clic : juger une pose sur une vignette est impossible.
       img.addEventListener('click', function () { window.open(url, '_blank', 'noopener'); });
+      img.src = url;
     }).catch(function () {
       // Fichier effacé, storage injoignable : on le DIT, sinon l'admin reste
-      // devant un cadre gris sans savoir s'il doit attendre ou trancher.
-      img.remove();
+      // devant un squelette qui tourne sans savoir s'il doit attendre ou trancher.
+      attente.remove();
       zone.appendChild(el('p', 'verif-missing',
         'Selfie illisible. Refuse la demande : la personne pourra recommencer.'));
     });
