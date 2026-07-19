@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { summarizeBalance, sumSince, payableRows } = require('../../src/domain/partnerStats');
+const { summarizeBalance, sumSince, payableRows, dailySeries } = require('../../src/domain/partnerStats');
 
 const NOW = new Date('2026-07-18T12:00:00Z');
 const past = new Date('2026-07-01T00:00:00Z').toISOString();   // hold écoulé
@@ -40,4 +40,20 @@ test('payableRows : validées explicites + pending au hold écoulé', () => {
   const payable = payableRows(ROWS, NOW);
   assert.equal(payable.length, 1);
   assert.equal(payable[0].commissionCents, 300);
+});
+
+test('dailySeries : un point par jour, zéros compris, du plus ancien au plus récent', () => {
+  const serie = dailySeries(ROWS, { days: 7, now: NOW });
+  assert.equal(serie.length, 7);
+  assert.equal(serie[0].date, '2026-07-12');
+  assert.equal(serie[6].date, '2026-07-18');
+  // Le 15/07 porte la commission de 252 ; les autres jours de la fenêtre sont à 0.
+  assert.equal(serie.find((p) => p.date === '2026-07-15').cents, 252);
+  assert.equal(serie.find((p) => p.date === '2026-07-14').cents, 0);
+});
+
+test('dailySeries : ignore les remboursées et ce qui sort de la fenêtre', () => {
+  const serie = dailySeries(ROWS, { days: 7, now: NOW });
+  // 999 (remboursée, le 02/07) et 300/407 (hors fenêtre) ne comptent pas.
+  assert.equal(serie.reduce((s, p) => s + p.cents, 0), 252);
 });

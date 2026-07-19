@@ -51,11 +51,30 @@ async function activeSubscribersCount(partnerId) {
 async function recentReferrals(partnerId, limit = 12) {
   const { data } = await supabase
     .from('referrals')
-    .select('attributed_at, source, profiles:profile_id (first_name, premium_tier, is_premium)')
+    .select('profile_id, attributed_at, source, profiles:profile_id (first_name, premium_tier, is_premium)')
     .eq('partner_id', partnerId)
     .order('attributed_at', { ascending: false })
     .limit(limit);
-  return (data || []).map((r) => {
+
+  const lignes = data || [];
+  const ids = lignes.map((r) => r.profile_id);
+
+  // « Ta part / mois » : la DERNIÈRE commission réellement inscrite pour ce
+  // membre — donc ce qu'il rapporte à chaque échéance. Chiffre tiré du registre,
+  // jamais une estimation.
+  const parMembre = new Map();
+  if (ids.length) {
+    const { data: comms } = await supabase
+      .from('commission_ledger')
+      .select('profile_id, commission_cents, occurred_at')
+      .eq('partner_id', partnerId)
+      .in('profile_id', ids)
+      .neq('status', 'reversed')
+      .order('occurred_at', { ascending: true });
+    for (const c of comms || []) parMembre.set(c.profile_id, c.commission_cents); // le dernier écrase
+  }
+
+  return lignes.map((r) => {
     const p = r.profiles || {};
     const initial = (p.first_name || '?').trim().charAt(0).toUpperCase();
     return {
@@ -63,6 +82,7 @@ async function recentReferrals(partnerId, limit = 12) {
       attributedAt: r.attributed_at,
       tier: p.premium_tier || null,
       active: !!p.is_premium,
+      shareCents: parMembre.get(r.profile_id) ?? null,
     };
   });
 }
