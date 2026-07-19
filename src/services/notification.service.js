@@ -46,7 +46,30 @@ function createNotificationService({ sendPush, supabase }) {
     }
   }
 
-  return { onSuperLikeReceived };
+  /**
+   * Décision de vérification (validée / refusée). La revue humaine peut prendre
+   * plusieurs jours : sans push, la personne devrait rouvrir l'écran au hasard
+   * pour savoir. Best-effort, comme le reste.
+   *
+   * On ne détaille PAS le motif de refus ici — il s'affiche dans l'app, où il y
+   * a la place de l'expliquer et de proposer de recommencer.
+   */
+  async function onVerificationDecided(userId, approved) {
+    try {
+      if (await _isPushOff(userId)) return;
+      await sendPush(userId, {
+        title: 'Mbenguiste',
+        body: approved
+          ? 'Ton profil est vérifié ✅'
+          : 'Ta vérification n\'a pas pu être validée — tu peux réessayer',
+        data: { type: 'verification', approved },
+      });
+    } catch (e) {
+      console.error('[notif] onVerificationDecided:', e?.message);
+    }
+  }
+
+  return { onSuperLikeReceived, onVerificationDecided };
 }
 
 const defaultService = createNotificationService({
@@ -57,4 +80,5 @@ const defaultService = createNotificationService({
 module.exports = {
   createNotificationService,
   onSuperLikeReceived: defaultService.onSuperLikeReceived,
+  onVerificationDecided: defaultService.onVerificationDecided,
 };

@@ -4,6 +4,7 @@ const adminModel = require('../models/adminModeration.model');
 const partnerAdminService = require('../services/partnerAdmin.service');
 const partnersModel = require('../models/partners.model');
 const partnerStats = require('../models/partnerStats.model');
+const verifC = require('../controllers/verification.controller');
 const { requireAdmin } = require('../middlewares/auth.middleware');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
@@ -106,6 +107,17 @@ router.post('/moderation/dossiers-libres/:id', catchAsync(async (req, res) => {
   const result = await adminService.traiterDossierLibre(req.params.id, { action, note });
   res.json({ success: true, data: result });
 }));
+
+// ── Vérifications par selfie ─────────────────────────────────────────────────
+
+// GET /api/v1/admin/verifications — file d'attente (selfies signés 10 min).
+router.get('/verifications', verifC.adminList);
+
+// GET /api/v1/admin/verifications/count — bandeau de la console.
+router.get('/verifications/count', verifC.adminCount);
+
+// POST /api/v1/admin/verifications/:id  body: { action: 'valider'|'refuser', motif? }
+router.post('/verifications/:id', verifC.adminDecide);
 
 // ── Programme Partenaires ────────────────────────────────────────────────────
 

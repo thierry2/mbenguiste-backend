@@ -16,7 +16,7 @@
 .topbar .sub { margin-top: 2px; }
 
 /* ── File d'attente ────────────────────────────────────────────────────── */
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
 .stat { padding: 15px 16px; }
 .stat .lab { font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px;
   text-transform: uppercase; color: var(--ink3); margin: 0; }
@@ -65,6 +65,39 @@
 .actions-bar input { flex: 1; min-width: 200px; }
 .treated { padding: 12px 20px; border-top: 1px solid var(--line); color: var(--ink3); font-size: 13px; }
 
+/* ── Vérifications par selfie ──────────────────────────────────────────── */
+.verif-avatar { width: 42px; height: 42px; border-radius: 21px; object-fit: cover;
+  background: var(--field); flex: 0 0 42px; }
+
+/* La consigne imposée, mise en évidence : c'est le critère de la décision. */
+.verif-consigne { padding: 14px 20px; border-top: 1px solid var(--line);
+  background: var(--field); }
+.verif-consigne-lab { font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink3); margin: 0; }
+.verif-consigne-txt { font-size: 16px; font-weight: 600; margin: 5px 0 0; }
+.verif-consigne-hint { font-size: 13px; color: var(--ink2); margin: 3px 0 0; }
+
+/* Face à face selfie / photos du profil — c'est la comparaison qui décide. */
+.verif-duel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 20px;
+  border-top: 1px solid var(--line); }
+.verif-col-lab { font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink3); margin: 0 0 8px; }
+.verif-selfie { width: 100%; border-radius: 12px; background: var(--field);
+  aspect-ratio: 3 / 4; object-fit: cover; cursor: zoom-in; display: block; }
+.verif-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.verif-photo { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px;
+  background: var(--field); cursor: zoom-in; display: block; }
+.verif-missing { font-size: 13px; color: var(--ink3); line-height: 1.5; margin: 0; }
+.verif-motif { flex: 1; min-width: 200px; }
+
+@media (max-width: 720px) {
+  /* Sur téléphone, le face-à-face s'empile : mieux vaut deux grandes images
+     l'une sous l'autre qu'une comparaison illisible côte à côte. */
+  .verif-duel { grid-template-columns: 1fr; }
+  .verif-selfie { aspect-ratio: auto; max-height: 62vh; object-fit: contain; }
+  .verif-motif { width: 100%; min-width: 0; }
+}
+
 /* ── Partenaires ───────────────────────────────────────────────────────── */
 .partner { display: flex; gap: 14px; align-items: center; justify-content: space-between;
   padding: 16px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
@@ -80,7 +113,7 @@
    signalement grave n'attend pas d'être devant un ordinateur). Les actions
    doivent rester atteignables au pouce, sans zoom ni défilement latéral. */
 @media (max-width: 720px) {
-  .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .stat { padding: 11px 10px; }
   .stat .lab { font-size: 8.5px; letter-spacing: .6px; }
   .stat .val { font-size: 19px; margin-top: 5px; }
@@ -113,5 +146,4 @@
 
 @media (max-width: 400px) {
   .stats { grid-template-columns: 1fr 1fr; }
-  .stats .stat:last-child { grid-column: 1 / -1; }
 }

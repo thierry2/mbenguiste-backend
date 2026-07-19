@@ -136,6 +136,7 @@ create table if not exists public.profiles (
   occupation         text,                                -- métier / profession, texte libre
 
   is_verified        boolean not null default false,      -- photo/ID verification
+  verified_at        timestamptz,                         -- quand le sceau a été accordé (migration 030)
   is_premium         boolean not null default false,      -- denormalized cache of an active subscription
   premium_until      timestamptz,
 
@@ -353,6 +354,43 @@ create index if not exists idx_freeform_reports_status on public.freeform_report
 -- l'app). Seule la clé service, côté backend, lit ces récits. Même régime que
 -- `reports` : ces deux tables ne doivent JAMAIS être joignables depuis le client.
 alter table public.freeform_reports enable row level security;
+
+-- Vérification par selfie (migration 030) : le serveur tire une pose au hasard,
+-- la personne prend un selfie EN DIRECT, un humain valide → is_verified = true.
+-- Le bucket privé `verification-selfies` et les policies Storage vivent dans la
+-- migration (elles dépendent du schéma `storage` de Supabase, absent ici).
+create table if not exists public.verification_requests (
+  id                 uuid primary key default gen_random_uuid(),
+  user_id            uuid not null references public.profiles(id) on delete cascade,
+  pose_code          text not null,                    -- pose imposée, tirée au hasard
+  selfie_path        text,                             -- chemin bucket PRIVÉ (null tant que pas capturé)
+  status             text not null default 'awaiting_selfie',
+  attempt_no         int  not null default 1,          -- n° de tentative (cooldown après rejet)
+  capture_expires_at timestamptz,                      -- fin de la fenêtre de CAPTURE (start→envoi) uniquement
+  submitted_at       timestamptz,
+  reviewed_at        timestamptz,
+  reviewed_by        text,                             -- marqueur admin
+  rejection_reason   text,
+  created_at         timestamptz not null default now(),
+  constraint chk_verification_status check (
+    status in ('awaiting_selfie', 'pending_review', 'approved', 'rejected', 'expired')
+  )
+);
+-- Au plus UNE requête active par personne (capture en cours OU en attente de revue).
+create unique index if not exists uniq_active_verification_per_user
+  on public.verification_requests (user_id)
+  where status in ('awaiting_selfie', 'pending_review');
+create index if not exists idx_verification_review_queue
+  on public.verification_requests (status, submitted_at);
+create index if not exists idx_verification_user
+  on public.verification_requests (user_id, created_at desc);
+-- RLS : la personne ne touche que ses propres demandes ; le backend service_role
+-- (console admin) contourne la RLS. Aucune fuite côté clé anon.
+alter table public.verification_requests enable row level security;
+drop policy if exists verification_own on public.verification_requests;
+create policy verification_own on public.verification_requests
+  for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create table if not exists public.subscriptions (
   id           uuid primary key default gen_random_uuid(),

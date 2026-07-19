@@ -3,8 +3,13 @@ const supabase = require('../config/supabase');
 // Buckets (créés par db/migrations/002_storage_and_media.sql).
 const BUCKET_PHOTOS = 'photos';      // PUBLIC : photos de profil, visibles en découverte.
 const BUCKET_CHAT   = 'chat-media';  // PRIVÉ  : images de messages, servies via URL signée.
+const BUCKET_VERIF  = 'verification-selfies'; // PRIVÉ : selfies de vérification (migration 030).
 
 const CHAT_SIGNED_URL_TTL = 60 * 60; // 1 h — une URL qui fuite expire vite.
+
+// Le selfie de vérification est une pièce d'identité de fait : l'URL signée ne
+// vit que le temps de la revue à l'écran, bien moins qu'un média de chat.
+const VERIF_SIGNED_URL_TTL = 10 * 60; // 10 min
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = MAX_IMAGE_SIZE;       // garde-fou dur pour multer (voir routes).
@@ -74,10 +79,44 @@ async function signChatUrls(paths) {
   return map;
 }
 
+/**
+ * Selfie de vérification → bucket PRIVÉ. Renvoie le CHEMIN uniquement.
+ * Jamais d'URL publique : seule la console admin y accède, via une URL signée
+ * courte (signVerificationUrl), le temps de la revue.
+ */
+async function uploadVerificationSelfie(file, userId) {
+  assertImage(file);
+  const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext(file.mimetype)}`;
+
+  const { data, error } = await supabase.storage
+    .from(BUCKET_VERIF)
+    .upload(path, file.buffer, { contentType: file.mimetype, upsert: false });
+  if (error) throw Object.assign(new Error(`Upload échoué : ${error.message}`), { statusCode: 500 });
+
+  return { path: data.path };
+}
+
+/** Signe un selfie de vérification pour la console admin (ou null). */
+async function signVerificationUrl(path) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from(BUCKET_VERIF).createSignedUrl(path, VERIF_SIGNED_URL_TTL);
+  if (error || !data?.signedUrl) return null;
+  return data.signedUrl;
+}
+
+/** Efface un selfie du bucket privé (après décision : on ne garde pas le biométrique). */
+async function removeVerificationSelfie(path) {
+  if (!path) return;
+  await supabase.storage.from(BUCKET_VERIF).remove([path]);
+}
+
 module.exports = {
   MAX_UPLOAD_SIZE,
   uploadProfilePhoto,
   uploadChatImage,
   signChatUrl,
   signChatUrls,
+  uploadVerificationSelfie,
+  signVerificationUrl,
+  removeVerificationSelfie,
 };
