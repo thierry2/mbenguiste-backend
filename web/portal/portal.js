@@ -272,10 +272,17 @@
 
   /* ── Tableau de bord ─────────────────────────────────────────────────── */
   function openDashboard() {
-    hide('boot'); hide('auth'); show('dashboard');
+    // On n'affiche PAS le tableau de bord avant d'avoir la réponse : sinon un
+    // compte non partenaire voit d'abord un tableau de bord vide, qui bascule
+    // ensuite vers un refus. Écran d'attente jusqu'à confirmation.
+    hide('auth'); hide('dashboard');
+    $('boot').textContent = 'Chargement de ton espace…';
+    show('boot');
 
     api('/me').then(function (d) {
       var p = d.partner;
+      hide('boot');
+      show('dashboard');
       $('d-name').textContent = p.displayName || 'Partenaire';
       $('k-rate').textContent = (p.rateBps / 100).toFixed(0) + ' %';
       if (p.isFounder) show('d-founder');
@@ -330,9 +337,10 @@
         pb.appendChild(tr);
       });
     }).catch(function (e) {
+      hide('boot');
+      hide('dashboard');
       if (e && e.status === 403) { showAuth('view-notpartner'); return; }
       if (e && e.status === 401) { showAuth('view-login'); return; }
-      hide('dashboard');
       showAuth('view-login');
       notice($('login-msg'), 'Impossible de charger ton espace pour le moment.', 'err');
     });

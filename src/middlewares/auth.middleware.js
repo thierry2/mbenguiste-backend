@@ -109,7 +109,22 @@ function requireAdmin(req, res, next) {
 async function requirePartner(req, res, next) {
   try {
     const partnersModel = require('../models/partners.model');
-    const partner = await partnersModel.findByAuthUser(req.user.id);
+    let partner = await partnersModel.findByAuthUser(req.user.id);
+
+    // Rattachement de secours. Supabase CRÉE le compte au moment de l'invitation,
+    // même si l'email ne part pas ; dans ce cas la fiche partenaire restait sans
+    // auth_user_id et son propriétaire se voyait refuser l'entrée pour toujours.
+    // Ici, un compte dont l'email correspond à une fiche NON ENCORE reliée est
+    // rattaché une fois pour toutes. Sûr : c'est Supabase qui a authentifié cet
+    // email, et on ne touche jamais à une fiche déjà liée à quelqu'un d'autre.
+    if (!partner && req.user.email) {
+      const parEmail = await partnersModel.findByEmail(req.user.email);
+      if (parEmail && !parEmail.authUserId) {
+        await partnersModel.attachAuthUser(parEmail.id, req.user.id);
+        partner = parEmail;
+      }
+    }
+
     if (!partner) throw ApiError.forbidden('Accès partenaire refusé');
     if (partner.status === 'frozen') throw ApiError.forbidden('Compte partenaire suspendu');
     req.partner = partner;
