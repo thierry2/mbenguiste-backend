@@ -3,6 +3,7 @@ const config = require('./config');
 const { verifyConnection } = require('./config/db');
 const logger = require('./utils/logger');
 const { purgeExpiredAccounts } = require('./models/profile.model');
+const { runScheduledPass } = require('./services/mystere.service');
 
 let server;
 
@@ -30,6 +31,13 @@ async function start() {
   // la ligne est anonymisée et deleted_at posé (voir profile.model).
   setInterval(async () => {
     try { await purgeExpiredAccounts(); } catch (e) { logger.warn(`Purge comptes : ${e.message}`); }
+  }, 60 * 1000);
+
+  // Passe d'appariement du Mystère : la fonction décide elle-même si c'est le
+  // moment (fenêtre de tirage + throttle ~pass_minutes). Un tick par minute, la
+  // plupart ne font rien — c'est voulu, ça évite de figer l'heure dans le cron.
+  setInterval(async () => {
+    try { await runScheduledPass(); } catch (e) { logger.warn(`Passe Mystère : ${e.message}`); }
   }, 60 * 1000);
 }
 
