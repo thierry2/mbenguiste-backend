@@ -1173,5 +1173,129 @@ alter table public.commission_ledger  enable row level security;
 -- l'API backend (service_role, qui bypass la RLS) après validation du jeton.
 
 -- =============================================================================
+--  14. MYSTÈRE & AVENTURE TEMPS RÉEL  (cf. migration 031)
+-- =============================================================================
+--  Appariement mutuel algorithmique (AUCUN like) + sessions d'aventure jouées
+--  à deux en Realtime. Anonymat : aucune table lisible par le client ne porte
+--  l'id du partenaire ; l'auteur d'une réponse est désigné par son RÔLE
+--  ('a'=user_low, 'b'=user_high), et la correspondance rôle→id vit seulement
+--  dans mystere_pairs (fermée). Voir la migration pour le détail commenté.
+
+create table if not exists public.mystere_pairs (
+  id          uuid primary key default gen_random_uuid(),
+  user_low    uuid not null references public.profiles(id) on delete cascade,
+  user_high   uuid not null references public.profiles(id) on delete cascade,
+  state       text not null default 'proposed'
+              check (state in ('proposed','active','won','lost','dissolved')),
+  drawn_at    timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  constraint chk_pair_order check (user_low < user_high),
+  unique (user_low, user_high)
+);
+create index if not exists idx_mystere_pairs_low  on public.mystere_pairs(user_low)  where state in ('proposed','active');
+create index if not exists idx_mystere_pairs_high on public.mystere_pairs(user_high) where state in ('proposed','active');
+
+create or replace function public.mystere_one_active() returns trigger
+language plpgsql as $$
+begin
+  if new.state in ('proposed','active') then
+    if exists (
+      select 1 from public.mystere_pairs p
+      where p.id <> new.id
+        and p.state in ('proposed','active')
+        and (p.user_low  in (new.user_low, new.user_high)
+          or p.user_high in (new.user_low, new.user_high))
+    ) then
+      raise exception 'mystere: un participant a déjà un mystère actif';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists mystere_one_active_trg on public.mystere_pairs;
+create trigger mystere_one_active_trg
+  before insert or update on public.mystere_pairs
+  for each row execute function public.mystere_one_active();
+
+create or replace function public.mystere_role(p_pair uuid, p_uid uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select case
+    when p.user_low  = p_uid then 'a'
+    when p.user_high = p_uid then 'b'
+    else null
+  end
+  from public.mystere_pairs p where p.id = p_pair;
+$$;
+
+alter table public.mystere_pairs enable row level security;
+-- Aucune policy : FERMÉE au client (backend service_role uniquement).
+
+create table if not exists public.aventure_sessions (
+  id            uuid primary key default gen_random_uuid(),
+  pair_id       uuid not null references public.mystere_pairs(id) on delete cascade,
+  graph_id      text not null,
+  current_node  text not null,
+  phase         text not null default 'scene',
+  outcome       text check (outcome in ('match','echec','left')),
+  joker_used    boolean not null default false,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  unique (pair_id)
+);
+create index if not exists idx_aventure_sessions_pair on public.aventure_sessions(pair_id);
+
+alter table public.aventure_sessions enable row level security;
+drop policy if exists aventure_sessions_read on public.aventure_sessions;
+create policy aventure_sessions_read on public.aventure_sessions
+  for select to authenticated
+  using (public.mystere_role(pair_id, auth.uid()) is not null);
+
+create table if not exists public.aventure_answers (
+  id            uuid primary key default gen_random_uuid(),
+  session_id    uuid not null references public.aventure_sessions(id) on delete cascade,
+  node_id       text not null,
+  role          text not null check (role in ('a','b')),
+  answer_index  int,
+  message_text  text,
+  created_at    timestamptz not null default now(),
+  unique (session_id, node_id, role)
+);
+create index if not exists idx_aventure_answers_session on public.aventure_answers(session_id);
+
+alter table public.aventure_answers enable row level security;
+drop policy if exists aventure_answers_read on public.aventure_answers;
+create policy aventure_answers_read on public.aventure_answers
+  for select to authenticated
+  using (exists (
+    select 1 from public.aventure_sessions s
+    where s.id = aventure_answers.session_id
+      and public.mystere_role(s.pair_id, auth.uid()) is not null
+  ));
+drop policy if exists aventure_answers_write on public.aventure_answers;
+create policy aventure_answers_write on public.aventure_answers
+  for insert to authenticated
+  with check (role = public.mystere_role(
+    (select s.pair_id from public.aventure_sessions s where s.id = aventure_answers.session_id),
+    auth.uid()
+  ));
+
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    begin alter publication supabase_realtime add table public.aventure_answers; exception when duplicate_object then null; end;
+    begin alter publication supabase_realtime add table public.aventure_sessions; exception when duplicate_object then null; end;
+  end if;
+end $$;
+
+insert into public.app_settings (key, value) values
+  ('mystere.draw_hour_utc',      '21'::jsonb),
+  ('mystere.window_minutes',     '120'::jsonb),
+  ('mystere.pass_minutes',       '10'::jsonb),
+  ('mystere.floor_in_window',    '10'::jsonb),
+  ('mystere.floor_out_window',   '20'::jsonb),
+  ('mystere.assortative_weight', '20'::jsonb)
+on conflict (key) do nothing;
+
+-- =============================================================================
 --  Done. Backend connects with SUPABASE_SERVICE_ROLE_KEY (bypasses RLS).
 -- =============================================================================
