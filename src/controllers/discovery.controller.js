@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const ApiError = require('../utils/apiError');
 const config = require('../config');
 const discoveryModel = require('../models/discovery.model');
+const mystereModel = require('../models/mystere.model');
 const accessService = require('../services/access.service');
 const swipeService = require('../services/swipe.service');
 const picksService = require('../services/picks.service');
@@ -114,18 +115,23 @@ const online = (lastActiveAt) => !!lastActiveAt && Date.now() - new Date(lastAct
  * du deck — donc quelqu'un que les préférences et le score ont déjà retenu, ce
  * qui est la bonne forme. Seul ce choix bougera ; le contrat de sortie, non.
  */
+/**
+ * Le Mystère du membre : sa PAIRE réelle (`mystere_pairs`), servie MASQUÉE.
+ *
+ * Change du 20/07 : on lit désormais la vraie paire tirée par le job de passe,
+ * plus le « premier candidat du deck » (béquille interim). Aucune paire → aucun
+ * Mystère, et on l'assume (doctrine : mieux vaut rare et juste). Le jeton reste
+ * opaque : le client ne peut pas déduire qui est en face.
+ */
 const mystere = catchAsync(async (req, res) => {
   const viewerId = req.user.id;
-  const [cible] = await discoveryModel.candidates(viewerId, { limit: 1 });
-  if (!cible) return res.json({ success: true, data: { mystere: null } });
+  const pair = await mystereModel.pairForUser(viewerId);
+  if (!pair) return res.json({ success: true, data: { mystere: null } });
 
-  const masked = await discoveryModel.maskedCardsByIds([cible.id]);
-  const m = masked.get(cible.id);
-  // On sert en priorité le masque HÉROS (plein écran, calibré pour montrer la
-  // forme sans le visage). Repli sur le masque tuile tant que le backfill héros
-  // n'est pas passé : plus flou, mais MASQUÉ tout autant — jamais la photo nette.
-  // Aucune des deux → pas de Mystère : mieux vaut un écran sans photo qu'un
-  // visage révélé par accident.
+  const masked = await discoveryModel.maskedCardsByIds([pair.partnerId]);
+  const m = masked.get(pair.partnerId);
+  // Masque HÉROS (plein écran) en priorité, repli sur le masque tuile. Aucun des
+  // deux → pas de Mystère : jamais un visage révélé par accident.
   const blurUrl = m?.blurHeroUrl ?? m?.blurUrl ?? null;
   if (!blurUrl) return res.json({ success: true, data: { mystere: null } });
 
@@ -133,12 +139,26 @@ const mystere = catchAsync(async (req, res) => {
     success: true,
     data: {
       mystere: {
-        id: maskToken(viewerId, cible.id), // jeton opaque : aucune fuite d'identité
+        id: maskToken(viewerId, pair.partnerId), // jeton opaque : aucune fuite d'identité
         blurUrl,
         enLigne: online(m.lastActiveAt),
+        etat: pair.state,                        // 'proposed' | 'active' (aventure en cours)
       },
     },
   });
+});
+
+/**
+ * Lancer / reprendre l'Aventure : verrouille la paire et crée sa session. Rend
+ * la session + MON rôle ('a'/'b') pour le Realtime. Le graphe est encore le
+ * mock côté client tant que les vrais clips ne sont pas tournés.
+ */
+const startMystere = catchAsync(async (req, res) => {
+  const { graphId, startNode } = req.body || {};
+  if (!graphId || !startNode) throw ApiError.badRequest('graphId et startNode requis');
+  const session = await mystereModel.startAdventure(req.user.id, { graphId, startNode });
+  if (!session) throw ApiError.notFound('Aucun mystère à lancer');
+  res.json({ success: true, data: { session } });
 });
 
 const likesReceived = catchAsync(async (req, res) => {
@@ -229,4 +249,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere };
+module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere };

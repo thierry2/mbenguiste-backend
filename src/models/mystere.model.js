@@ -13,6 +13,7 @@
 const supabase = require('../config/supabase');
 const { candidates } = require('./discovery.model');
 const { compatibilityScore } = require('../domain/picks');
+const { roleDe, partenaireDe, etatApresIssue } = require('../domain/mystere');
 
 const LAST_PASS_KEY = 'mystere.last_pass_at';
 
@@ -138,9 +139,81 @@ async function loadVivier() {
   return { profils, eligibles };
 }
 
+// ── Cycle de vie d'une paire (mon Mystère → démarrer → révéler) ──────────────
+
+/** La paire NON TERMINALE de `userId` (proposée ou active), ou null. */
+async function pairForUser(userId) {
+  const { data } = await supabase
+    .from('mystere_pairs')
+    .select('id, user_low, user_high, state')
+    .in('state', ['proposed', 'active'])
+    .or(`user_low.eq.${userId},user_high.eq.${userId}`)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    pairId: data.id,
+    partnerId: partenaireDe(data, userId),
+    role: roleDe(data, userId),
+    state: data.state,
+  };
+}
+
+/**
+ * Lancer l'Aventure : verrouille la paire (proposed → active) et crée sa
+ * session si elle n'existe pas. Idempotent : rappelé, il rend la même session.
+ */
+async function startAdventure(userId, { graphId, startNode }) {
+  const p = await pairForUser(userId);
+  if (!p) return null;
+
+  await supabase.from('mystere_pairs')
+    .update({ state: 'active', updated_at: new Date().toISOString() })
+    .eq('id', p.pairId).eq('state', 'proposed');
+
+  const { data: exist } = await supabase
+    .from('aventure_sessions').select('id, current_node').eq('pair_id', p.pairId).maybeSingle();
+  if (exist) return { sessionId: exist.id, role: p.role, graphId, startNode: exist.current_node };
+
+  const { data: s, error } = await supabase
+    .from('aventure_sessions')
+    .insert({ pair_id: p.pairId, graph_id: graphId, current_node: startNode })
+    .select('id').single();
+  if (error) throw error;
+  return { sessionId: s.id, role: p.role, graphId, startNode };
+}
+
+/**
+ * Clore l'Aventure sur son issue. 'match' → on crée le MATCH (la vraie photo
+ * passe alors par les routes existantes), 'echec'/'left' → on clôt sans match.
+ * Renvoie l'id du match créé, ou null.
+ */
+async function revealAndMatch(pairId, issue) {
+  const etat = etatApresIssue(issue);
+  if (!etat) throw new Error(`issue inconnue : ${issue}`);
+
+  const { data: pair } = await supabase
+    .from('mystere_pairs').select('user_low, user_high').eq('id', pairId).single();
+
+  await supabase.from('mystere_pairs')
+    .update({ state: etat, updated_at: new Date().toISOString() }).eq('id', pairId);
+  await supabase.from('aventure_sessions')
+    .update({ outcome: issue, updated_at: new Date().toISOString() }).eq('pair_id', pairId);
+
+  if (issue !== 'match') return null;
+  const { data: m, error } = await supabase.from('matches')
+    .upsert(
+      { user_low: pair.user_low, user_high: pair.user_high, last_message_at: new Date().toISOString() },
+      { onConflict: 'user_low,user_high' },
+    )
+    .select('id').single();
+  if (error) throw error;
+  return m.id;
+}
+
 module.exports = {
   loadConfig, getLastPassAt, setLastPassAt,
   loadStaleProposed, dissolvePairs, loadLockedPairs, writePairs, loadVivier,
+  pairForUser, startAdventure, revealAndMatch,
   scoreOf: compatibilityScore,
   desirabiliteOf: (p) => (Number.isFinite(p?.desirabilite) ? p.desirabilite : 0.5),
 };

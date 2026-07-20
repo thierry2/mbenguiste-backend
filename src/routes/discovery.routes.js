@@ -21,6 +21,8 @@ router.post('/picks/:id/like', authenticate, validate(schemas.pickLike), c.likeP
 // Le Mystère — la personne à découvrir, TOUJOURS masquée (jamais /likes, qui
 // renvoie du clair aux comptes Or).
 router.get('/mystere', authenticate, c.mystere);
+// Lancer / reprendre l'Aventure : verrouille la paire, crée la session, rend mon rôle.
+router.post('/mystere/start', authenticate, c.startMystere);
 // « Qui t'a liké » — total toujours, profils réservés à l'Or.
 router.get('/likes', authenticate, c.likesReceived);
 // Swiper un profil : POST /discovery/:id/swipe { action }.
