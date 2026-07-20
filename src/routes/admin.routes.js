@@ -5,6 +5,7 @@ const partnerAdminService = require('../services/partnerAdmin.service');
 const partnersModel = require('../models/partners.model');
 const partnerStats = require('../models/partnerStats.model');
 const verifC = require('../controllers/verification.controller');
+const { runScheduledPass } = require('../services/mystere.service');
 const { requireAdmin } = require('../middlewares/auth.middleware');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
@@ -66,6 +67,14 @@ router.use((req, _res, next) => {
   if (req.method !== 'GET') adminAuth.audit(req, `admin.${req.method} ${req.path}`);
   next();
 });
+
+// POST /api/v1/admin/mystere/pass  — déclenche une passe d'appariement À LA
+// DEMANDE (pour tester hors des heures de tirage). `force` ignore la fenêtre et
+// le throttle, JAMAIS le plancher. Réservé admin.
+router.post('/mystere/pass', catchAsync(async (_req, res) => {
+  const r = await runScheduledPass({ force: true });
+  res.json({ success: true, data: r });
+}));
 
 const ACTIONS = ['retirer', 'restaurer', 'rejeter'];
 
