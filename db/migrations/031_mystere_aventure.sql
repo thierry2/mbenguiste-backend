@@ -106,10 +106,13 @@ create table if not exists public.aventure_sessions (
   phase         text not null default 'scene',
   outcome       text check (outcome in ('match','echec','left')), -- null tant qu'en cours
   joker_used    boolean not null default false,
+  tours_desaccord int not null default 0, -- mémoire de la boucle de désaccord (par nœud)
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   unique (pair_id)                       -- une seule aventure par paire
 );
+-- Idempotence : si la table existait déjà sans la colonne (031 partiellement passée).
+alter table public.aventure_sessions add column if not exists tours_desaccord int not null default 0;
 create index if not exists idx_aventure_sessions_pair on public.aventure_sessions(pair_id);
 
 alter table public.aventure_sessions enable row level security;

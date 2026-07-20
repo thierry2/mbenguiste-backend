@@ -1238,6 +1238,10 @@ create table if not exists public.aventure_sessions (
   phase         text not null default 'scene',
   outcome       text check (outcome in ('match','echec','left')),
   joker_used    boolean not null default false,
+  -- Compteur de tours de désaccord SUR LE NŒUD COURANT : le serveur le lit pour
+  -- savoir quand la boucle de désaccord atteint le plafond (= mort). Remis à 0
+  -- dès qu'on quitte le nœud. Sans lui, la résolution serveur n'a pas de mémoire.
+  tours_desaccord int not null default 0,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   unique (pair_id)

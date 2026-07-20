@@ -8,6 +8,8 @@ const mystereModel = require('../models/mystere.model');
 const accessService = require('../services/access.service');
 const swipeService = require('../services/swipe.service');
 const picksService = require('../services/picks.service');
+const aventureService = require('../services/aventure.service');
+const { filtrerMessageIntime } = require('../domain/intimeFilter');
 const creditsModel = require('../models/credits.model');
 
 /** File de profils à découvrir. */
@@ -161,6 +163,62 @@ const startMystere = catchAsync(async (req, res) => {
   res.json({ success: true, data: { session } });
 });
 
+/**
+ * Soumettre MA réponse à l'étape courante — le keystone du temps réel.
+ *
+ * On DÉRIVE la session de l'utilisateur (jamais un id fourni par le client :
+ * impossible de répondre pour la session d'autrui). Le message intime est
+ * REFILTRÉ côté serveur avant d'être écrit (jamais confiance au filtre client).
+ * Le serveur tranche (domaine autoritaire) ; sa réponse dit `waiting` (l'autre
+ * n'a pas encore répondu) ou l'issue résolue — c'est aussi ce que l'autre reçoit
+ * en Realtime.
+ */
+const submitMystereAnswer = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const body = req.body || {};
+
+  let answerIndex = null;
+  if (body.answerIndex !== undefined && body.answerIndex !== null) {
+    answerIndex = Number(body.answerIndex);
+    if (answerIndex !== 0 && answerIndex !== 1) throw ApiError.badRequest('answerIndex doit valoir 0 ou 1');
+  }
+
+  const s = await mystereModel.sessionForUser(userId);
+  if (!s) throw ApiError.notFound('Aucune aventure en cours');
+
+  // Refiltrage serveur du message intime (la migration 031 le promet).
+  let cleanMessage = null;
+  let filtered = null;
+  if (typeof body.message === 'string' && body.message.trim()) {
+    const f = filtrerMessageIntime(body.message.trim());
+    cleanMessage = f.clean;
+    if (f.flagged) filtered = { reasons: f.reasons };
+  }
+
+  const result = await aventureService.soumettre({
+    sessionId: s.sessionId, userId, answerIndex, message: cleanMessage,
+  });
+  if (result.error === 'not-member') throw ApiError.forbidden('Pas ta session');
+  if (result.error === 'no-session') throw ApiError.notFound('Aventure introuvable');
+
+  res.json({ success: true, data: { ...result, filtered } });
+});
+
+/**
+ * Jouer le Joker — le seul achat du parcours. Dépense 1 Joker, renvoie à
+ * l'épreuve finale et pose `joker_used` côté serveur (autoritaire) : la relecture
+ * réussira. 402 JOKER_EMPTY si le solde est vide (le front ouvre le paywall).
+ */
+const playJokerMystere = catchAsync(async (req, res) => {
+  const r = await mystereModel.playJoker(req.user.id);
+  if (r.error === 'no-session') throw ApiError.notFound('Aucune aventure à rejouer');
+  if (r.error === 'no-final') throw ApiError.badRequest('Graphe sans épreuve finale');
+  if (r.error === 'no-joker') {
+    throw ApiError.paymentRequired('Tu n’as pas de Joker.', { code: 'JOKER_EMPTY', source: 'mystere_joker' });
+  }
+  res.json({ success: true, data: r });
+});
+
 const likesReceived = catchAsync(async (req, res) => {
   const viewerId = req.user.id;
   const pending = await discoveryModel.likersPending(viewerId);
@@ -249,4 +307,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere };
+module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere };
