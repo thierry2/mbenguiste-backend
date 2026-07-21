@@ -158,17 +158,13 @@ const mystere = catchAsync(async (req, res) => {
  * mock côté client tant que les vrais clips ne sont pas tournés.
  */
 const startMystere = catchAsync(async (req, res) => {
+  // Le GRAPHE EST TIRÉ AU SORT côté serveur (parmi ceux enregistrés) : le client
+  // ne le choisit pas. On accepte un graphId/startNode facultatif comme SEUL repli
+  // si la table de graphes est vide (utile en dev), jamais comme choix imposé.
   const { graphId, startNode } = req.body || {};
-  if (!graphId || !startNode) throw ApiError.badRequest('graphId et startNode requis');
-  // On ne fait PAS confiance au client sur le graphe : un graphId inconnu (ou un
-  // startNode absent du graphe) figerait la résolution serveur (graph null →
-  // crash). On valide contre le graphe réellement chargé (BD ou repli code).
-  const graph = graphsModel.grapheRuntime(graphId);
-  if (!graph || !graph.nodes || !graph.nodes[startNode]) {
-    throw ApiError.badRequest('graphId / startNode inconnus');
-  }
   const session = await mystereModel.startAdventure(req.user.id, { graphId, startNode });
   if (!session) throw ApiError.notFound('Aucun mystère à lancer');
+  if (session.error === 'no-graph') throw ApiError.badRequest('Aucun scénario configuré (sauve un graphe dans /admin)');
   res.json({ success: true, data: { session } });
 });
 

@@ -14,7 +14,7 @@ const supabase = require('../config/supabase');
 const { candidates } = require('./discovery.model');
 const { compatibilityScore } = require('../domain/picks');
 const { roleDe, partenaireDe, etatApresIssue } = require('../domain/mystere');
-const { grapheRuntime } = require('./graphs.model');
+const { grapheRuntime, randomGraph } = require('./graphs.model');
 const { trouveEpreuveFinale } = require('../domain/aventure');
 const credits = require('./credits.model');
 
@@ -183,7 +183,7 @@ async function pairForUser(userId) {
  * Lancer l'Aventure : verrouille la paire (proposed → active) et crée sa
  * session si elle n'existe pas. Idempotent : rappelé, il rend la même session.
  */
-async function startAdventure(userId, { graphId, startNode }) {
+async function startAdventure(userId, opts = {}) {
   const p = await pairForUser(userId);
   if (!p) return null;
 
@@ -191,9 +191,21 @@ async function startAdventure(userId, { graphId, startNode }) {
     .update({ state: 'active', updated_at: new Date().toISOString() })
     .eq('id', p.pairId).eq('state', 'proposed');
 
+  // Session déjà là (reprise) : on rend SON graphe — tiré au sort une seule fois,
+  // à la création, puis FIXE. On lit le vrai graph_id stocké, jamais l'argument.
   const { data: exist } = await supabase
-    .from('aventure_sessions').select('id, current_node').eq('pair_id', p.pairId).maybeSingle();
-  if (exist) return { sessionId: exist.id, role: p.role, graphId, startNode: exist.current_node };
+    .from('aventure_sessions').select('id, graph_id, current_node').eq('pair_id', p.pairId).maybeSingle();
+  if (exist) {
+    return { sessionId: exist.id, role: p.role, graphId: exist.graph_id, startNode: exist.current_node };
+  }
+
+  // Nouvelle session : le GRAPHE EST TIRÉ AU SORT côté serveur parmi ceux
+  // enregistrés (le client ne choisit pas son scénario). Repli sur l'éventuel
+  // graphe fourni si la table est vide ; sinon, aucun scénario → on le dit.
+  const tir = await randomGraph();
+  const graphId = tir?.id ?? opts.graphId ?? null;
+  const startNode = tir?.start ?? opts.startNode ?? null;
+  if (!graphId || !startNode) return { error: 'no-graph' };
 
   const { data: s, error } = await supabase
     .from('aventure_sessions')

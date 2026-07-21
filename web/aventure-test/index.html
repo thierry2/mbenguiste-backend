@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aventure — 2ᵉ joueur (test)</title>
+  <link rel="stylesheet" href="/aventure-test/styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <h1>Aventure · 2ᵉ joueur</h1>
+    <p class="sub">Page de test — pilote le compte partenaire pendant que tu joues sur le téléphone.</p>
+
+    <!-- Connexion -->
+    <section id="login" class="card">
+      <label>Email
+        <input id="email" type="email" autocomplete="username" placeholder="seedm001@mbenguiste.dev" />
+      </label>
+      <label>Mot de passe
+        <input id="password" type="password" autocomplete="current-password" value="Demo!2026" />
+      </label>
+      <button id="btn-login" class="primary">Se connecter</button>
+      <p id="login-msg" class="msg"></p>
+    </section>
+
+    <!-- Jeu -->
+    <section id="game" class="card hidden">
+      <div class="row">
+        <span id="who" class="pill"></span>
+        <span id="state" class="pill dim"></span>
+        <button id="btn-refresh" class="ghost">↻</button>
+      </div>
+      <p id="ambiance" class="dim small"></p>
+      <h2 id="question">…</h2>
+      <div id="options"></div>
+      <div id="intime" class="hidden">
+        <textarea id="msg" rows="3" placeholder="Écris ton message…"></textarea>
+        <button id="btn-send" class="primary">Envoyer</button>
+      </div>
+      <p id="game-msg" class="msg"></p>
+      <div id="end" class="hidden">
+        <h2 id="end-title"></h2>
+        <button id="btn-joker" class="gold hidden">Jouer le Joker</button>
+        <button id="btn-leave" class="ghost">Terminer le mystère</button>
+      </div>
+    </section>
+  </main>
+  <script src="/aventure-test/app.js"></script>
+</body>
+</html>

@@ -73,6 +73,15 @@ app.use('/vendor', pageHeaders, express.static(path.join(WEB_DIR, 'vendor'), sta
 app.use('/partenaires', pageHeaders, express.static(path.join(WEB_DIR, 'portal'), staticOpts));
 app.use('/admin', pageHeaders, express.static(path.join(WEB_DIR, 'admin'), staticOpts));
 
+// Page de TEST : jouer le 2ᵉ compte d'une Aventure depuis le navigateur (quand on
+// n'a qu'un téléphone). Même origine que l'API → aucun souci CORS/CSP ; l'auth se
+// fait sur Supabase (connect-src l'autorise). Config publique servie à part.
+app.get('/aventure-test/config.json', pageHeaders, (_req, res) =>
+  res.json({ supabaseUrl: config.supabase.url, supabaseAnonKey: config.supabase.anonKey }));
+app.use('/aventure-test', pageHeaders, express.static(path.join(WEB_DIR, 'aventure-test'), staticOpts));
+app.get(['/aventure-test', '/aventure-test/'], pageHeaders, (_req, res) =>
+  res.sendFile(path.join(WEB_DIR, 'aventure-test', 'index.html')));
+
 // Chemins EXACTS seulement : un sous-chemin inventé tombe en 404 plutôt que de
 // servir la console. Les écrans d'authentification du portail ont chacun leur
 // URL (le retour Supabase arrive sur /partenaires, avec fragment ou ?code).
