@@ -86,6 +86,28 @@
     });
   }
 
+  // Upload d'un clip vidéo (multipart, avec progression). Le helper `api()` force
+  // application/json → inutilisable ici ; on passe par XHR pour la barre d'upload.
+  // Le serveur COMPRESSE (720p/faststart) puis stocke, et renvoie { clipId, url }.
+  function uploadClipVideo(clipId, file, onProgress) {
+    return new Promise(function (resolve, reject) {
+      var fd = new FormData();
+      fd.append('clipId', clipId);
+      fd.append('file', file);
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/v1/admin/graphs/clip');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token());
+      xhr.upload.onprogress = function (e) { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+      xhr.onload = function () {
+        var j; try { j = JSON.parse(xhr.responseText); } catch (e) { j = {}; }
+        if (xhr.status >= 200 && xhr.status < 300 && j.success !== false) resolve(j.data);
+        else reject(new Error(j.message || ('HTTP ' + xhr.status)));
+      };
+      xhr.onerror = function () { reject(new Error('réseau')); };
+      xhr.send(fd);
+    });
+  }
+
   function ouvrirGate(message) {
     hide('console'); show('gate');
     if (message) notice($('gate-msg'), message, 'wait');
@@ -778,6 +800,64 @@
     taWrap.appendChild(ta);
     box.appendChild(taWrap);
 
+    // ── Clips vidéo : sélectionner → compresser (720p/faststart) → stocker →
+    //    l'URL s'écrit automatiquement dans la table « clips » du JSON. ────────
+    var clipsBox = el('div', 'field mt14');
+    var clipsHead = el('div', 'row');
+    clipsHead.appendChild(el('label', null, 'Clips vidéo'));
+    clipsHead.appendChild(el('span', 'spacer'));
+    var refreshClips = el('button', 'btn', '↻ Lire les clips du JSON');
+    clipsHead.appendChild(refreshClips);
+    clipsBox.appendChild(clipsHead);
+    clipsBox.appendChild(el('p', 'hint', 'Une vidéo par clip : elle est COMPRESSÉE (720p, faststart) puis stockée, et son URL s’écrit toute seule dans « clips ». Enregistre le graphe ensuite.'));
+    var clipsList = el('div'); clipsList.id = 'g-clips';
+    clipsBox.appendChild(clipsList);
+    box.appendChild(clipsBox);
+
+    function clipsDuJson() {
+      try { var g = JSON.parse(ta.value); return (g && g.clips && typeof g.clips === 'object') ? g.clips : {}; }
+      catch (e) { return null; } // JSON invalide
+    }
+    function ecrireUrlClip(key, url) {
+      var g; try { g = JSON.parse(ta.value); } catch (e) { return false; }
+      if (!g.clips || typeof g.clips !== 'object') g.clips = {};
+      g.clips[key] = url;
+      ta.value = JSON.stringify(g, null, 2);
+      return true;
+    }
+    function rendreClips() {
+      clipsList.innerHTML = '';
+      var clips = clipsDuJson();
+      if (clips === null) { clipsList.appendChild(el('p', 'err', 'JSON invalide — corrige-le pour gérer les clips.')); return; }
+      var keys = Object.keys(clips);
+      if (!keys.length) { clipsList.appendChild(el('p', 'hint', 'Aucune clé dans « clips ». Ajoute-les dans le JSON (ex. "n1", "n1_succes"…).')); return; }
+      keys.forEach(function (key) {
+        var row = el('div', 'row mt14'); row.style.alignItems = 'center'; row.style.gap = '10px';
+        var lab = el('code', null, key); lab.style.minWidth = '110px';
+        var stat = el('span', 'hint'); stat.style.flex = '1'; stat.style.overflow = 'hidden'; stat.style.textOverflow = 'ellipsis'; stat.style.whiteSpace = 'nowrap';
+        stat.textContent = clips[key] ? ('✓ ' + clips[key]) : '— aucune vidéo';
+        if (clips[key]) stat.style.color = '#3A6B63';
+        var input = document.createElement('input'); input.type = 'file'; input.accept = 'video/*'; input.style.maxWidth = '190px';
+        var btn = el('button', 'btn-accent', 'Compresser & téléverser'); btn.disabled = true;
+        input.addEventListener('change', function () { btn.disabled = !input.files.length; });
+        btn.addEventListener('click', function () {
+          if (!input.files.length) return;
+          btn.disabled = true; stat.style.color = ''; stat.textContent = 'Compression + envoi… 0%';
+          uploadClipVideo(key, input.files[0], function (r) { stat.textContent = 'Compression + envoi… ' + Math.round(r * 100) + '%'; })
+            .then(function (d) {
+              if (!ecrireUrlClip(key, d.url)) { stat.style.color = '#b4432f'; stat.textContent = 'JSON invalide — corrige-le puis réessaie.'; return; }
+              stat.style.color = '#3A6B63'; stat.textContent = '✓ ' + d.url;
+              input.value = ''; btn.disabled = true;
+              toast('Clip « ' + key + ' » compressé et stocké', 'ok');
+            })
+            .catch(function (e) { stat.style.color = '#b4432f'; stat.textContent = 'Échec : ' + e.message; btn.disabled = false; });
+        });
+        row.appendChild(lab); row.appendChild(stat); row.appendChild(input); row.appendChild(btn);
+        clipsList.appendChild(row);
+      });
+    }
+    refreshClips.addEventListener('click', function () { rendreClips(); });
+
     var msg = el('div', 'msgzone'); msg.id = 'g-msg'; box.appendChild(msg);
 
     var actions = el('div', 'row mt14');
@@ -790,17 +870,20 @@
 
     // Nouveau graphe par défaut.
     ta.value = JSON.stringify(TEMPLATE_GRAPHE, null, 2);
+    rendreClips();
 
     sel.addEventListener('change', function () {
       notice($('g-msg'), '', '');
       if (sel.value === '__new__') {
         $('g-id').value = ''; $('g-title').value = ''; ta.value = JSON.stringify(TEMPLATE_GRAPHE, null, 2);
+        rendreClips();
         return;
       }
       api('/graphs/' + encodeURIComponent(sel.value)).then(function (d) {
         $('g-id').value = d.graph.id;
         $('g-title').value = d.graph.title || '';
         ta.value = JSON.stringify(d.graph.data, null, 2);
+        rendreClips();
       }).catch(function (e) { if (!e.handled) notice($('g-msg'), e.message, 'err'); });
     });
 
