@@ -93,11 +93,34 @@ const getEntitlements = catchAsync(async (req, res) => {
   res.json({ success: true, data: { entitlements } });
 });
 
+/**
+ * Enregistre le token push de CET appareil.
+ *
+ * ⚠ L'erreur de l'`update` était AVALÉE, et le nombre de lignes touchées jamais
+ * vérifié : l'endpoint répondait `success: true` quoi qu'il arrive. Le client
+ * journalisait donc « token ENREGISTRÉ ✔ » pendant que la colonne restait vide,
+ * et le serveur, plus tard, ne trouvait « pas de token valide en base ». Deux
+ * demi-vérités opposées, aucune erreur nulle part — la panne du 21/07.
+ *
+ * On vérifie donc les DEUX : l'erreur SQL, et qu'une ligne a bien été touchée
+ * (un profil absent ne lève aucune erreur — il ne met simplement rien à jour).
+ */
 const savePushToken = catchAsync(async (req, res) => {
   const { pushToken } = req.body;
   if (!pushToken) throw ApiError.badRequest('pushToken requis');
+  // Forme exigée par l'API Expo. Un token d'une autre forme ne sera JAMAIS
+  // livrable : autant le refuser ici que le découvrir des heures plus tard.
+  if (!String(pushToken).startsWith('ExponentPushToken')) {
+    throw ApiError.badRequest('pushToken invalide (attendu : ExponentPushToken[…])');
+  }
   const supabase = require('../config/supabase');
-  await supabase.from('profiles').update({ push_token: pushToken }).eq('id', req.user.id);
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ push_token: pushToken })
+    .eq('id', req.user.id)
+    .select('id');
+  if (error) throw error;
+  if (!data || !data.length) throw ApiError.notFound('profil introuvable — token NON enregistré');
   res.json({ success: true });
 });
 
