@@ -12,6 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const supabase = require('../config/supabase');
 const codeGraphe = require('../domain/aventureGraphe');
+const { choisirGraphe } = require('../domain/grapheChoix');
 
 const _cache = new Map();
 
@@ -41,17 +42,25 @@ async function getGraph(id) {
 }
 
 /**
- * TIRE un graphe AU SORT parmi ceux enregistrés (plusieurs scénarios possibles ;
- * chaque aventure en reçoit un, tiré au hasard, puis FIXE). Renvoie { id, start }
- * ou null si aucun graphe n'est en BD. Serveur-autoritaire : le client ne choisit
- * jamais son scénario.
+ * LE SCÉNARIO D'UNE PAIRE — dérivé de son id (cf. domain/grapheChoix), donc
+ * identique partout sans rien stocker. Renvoie { id, start }, ou null si aucun
+ * graphe jouable n'est en BD. Serveur-autoritaire : le client ne choisit jamais.
+ *
+ * Remplace l'ancien tirage `Math.random()` : l'onglet Mystère précharge les
+ * clips AVANT que la session existe, il doit donc pouvoir calculer le MÊME
+ * résultat que la création de session — sinon il précharge le mauvais scénario
+ * et on retombe sur le buffering que le préchargement devait supprimer.
+ *
+ * Un graphe sans `start` ni `nodes` est ÉCARTÉ : un brouillon enregistré dans
+ * l'admin ne doit pas pouvoir tomber sur quelqu'un.
  */
-async function randomGraph() {
+async function grapheDePaire(pairId) {
   const { data } = await supabase.from('aventure_graphs').select('id, data');
-  const rows = (data || []).filter((r) => r.data && r.data.start && r.data.nodes);
-  if (!rows.length) return null;
-  const row = rows[Math.floor(Math.random() * rows.length)];
-  return { id: row.id, start: row.data.start };
+  const jouables = (data || []).filter((r) => r.data && r.data.start && r.data.nodes);
+  if (!jouables.length) return null;
+  const id = choisirGraphe(jouables.map((r) => r.id), pairId);
+  const row = jouables.find((r) => r.id === id);
+  return row ? { id: row.id, start: row.data.start } : null;
 }
 
 /** Upsert un graphe, puis rafraîchit le cache (le runtime le voit tout de suite). */
@@ -64,4 +73,4 @@ async function saveGraph(id, { title, data }) {
   return getGraph(id);
 }
 
-module.exports = { refreshCache, grapheRuntime, randomGraph, listGraphs, getGraph, saveGraph, _cache };
+module.exports = { refreshCache, grapheRuntime, grapheDePaire, listGraphs, getGraph, saveGraph, _cache };

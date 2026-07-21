@@ -15,7 +15,8 @@ const { candidates } = require('./discovery.model');
 const { compatibilityScore } = require('../domain/picks');
 const { roleDe, partenaireDe, etatApresIssue, attributsIndices } = require('../domain/mystere');
 const { ageFromBirthDate } = require('./profile.model');
-const { grapheRuntime, randomGraph } = require('./graphs.model');
+const { grapheRuntime, grapheDePaire } = require('./graphs.model');
+const { progressionAventure } = require('../domain/aventureProgression');
 const { trouveEpreuveFinale } = require('../domain/aventure');
 const credits = require('./credits.model');
 
@@ -212,10 +213,11 @@ async function startAdventure(userId, opts = {}) {
     return { sessionId: exist.id, role: p.role, graphId: exist.graph_id, startNode: exist.current_node };
   }
 
-  // Nouvelle session : le GRAPHE EST TIRÉ AU SORT côté serveur parmi ceux
-  // enregistrés (le client ne choisit pas son scénario). Repli sur l'éventuel
-  // graphe fourni si la table est vide ; sinon, aucun scénario → on le dit.
-  const tir = await randomGraph();
+  // Nouvelle session : le GRAPHE EST DÉRIVÉ DE LA PAIRE côté serveur (le client
+  // ne choisit pas son scénario). Déterministe, donc l'onglet Mystère a pu
+  // précharger LES BONS clips avant même que cette session existe. Repli sur
+  // l'éventuel graphe fourni si la table est vide ; sinon on le dit.
+  const tir = await grapheDePaire(p.pairId);
   const graphId = tir?.id ?? opts.graphId ?? null;
   const startNode = tir?.start ?? opts.startNode ?? null;
   if (!graphId || !startNode) return { error: 'no-graph' };
@@ -333,6 +335,22 @@ async function getSession(sessionId) {
  * l'identité du partenaire. `null` si la paire n'existe pas — l'appelant
  * n'invente alors personne (et n'envoie rien).
  */
+/**
+ * LA PROGRESSION d'une paire — `{ etape, total }` pour la jauge de l'onglet
+ * (le flou de la carte EST cette jauge). Dérivée du nœud courant de la session
+ * et du graphe joué, jamais d'un compteur client. Aucune session encore (paire
+ * seulement proposée) → 0 franchi, mais le TOTAL du scénario qui l'attend.
+ */
+async function progressionDePaire(pairId) {
+  const { data } = await supabase
+    .from('aventure_sessions').select('graph_id, current_node').eq('pair_id', pairId).maybeSingle();
+  if (data) return progressionAventure(grapheRuntime(data.graph_id), data.current_node);
+  const prevu = await grapheDePaire(pairId);
+  return prevu
+    ? { etape: 0, total: progressionAventure(grapheRuntime(prevu.id), prevu.start).total }
+    : { etape: 0, total: 0 };
+}
+
 async function membresDePaire(pairId) {
   const { data } = await supabase
     .from('mystere_pairs').select('user_low, user_high').eq('id', pairId).maybeSingle();
@@ -498,7 +516,7 @@ module.exports = {
   forcePair,
   pairForUser, startAdventure, revealAndMatch, leaveMystere,
   // I/O de session (deps du service de résolution) + cycle Joker
-  getSession, roleOf, membresDePaire, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,
+  getSession, roleOf, membresDePaire, progressionDePaire, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,
   partnerIndices,
   scoreOf: compatibilityScore,
   desirabiliteOf: (p) => (Number.isFinite(p?.desirabilite) ? p.desirabilite : 0.5),

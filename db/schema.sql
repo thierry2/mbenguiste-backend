@@ -1192,9 +1192,16 @@ create table if not exists public.mystere_pairs (
               check (state in ('proposed','active','won','lost','left','dissolved')),
   drawn_at    timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
-  constraint chk_pair_order check (user_low < user_high),
-  unique (user_low, user_high)
+  constraint chk_pair_order check (user_low < user_high)
+  -- ⚠ PAS d'unicité simple sur (user_low, user_high) : elle interdisait à deux
+  -- personnes ayant DÉJÀ terminé un mystère ensemble d'en refaire un un jour
+  -- (la ligne terminale restait et bloquait toute insertion). Cf. migration 036 :
+  -- l'unicité est PARTIELLE, limitée aux paires vivantes, juste en dessous.
 );
+-- Un seul mystère VIVANT par duo ; l'historique, lui, ne bloque rien.
+create unique index if not exists uniq_mystere_pair_vivante
+  on public.mystere_pairs (user_low, user_high)
+  where state in ('proposed', 'active');
 create index if not exists idx_mystere_pairs_low  on public.mystere_pairs(user_low)  where state in ('proposed','active');
 create index if not exists idx_mystere_pairs_high on public.mystere_pairs(user_high) where state in ('proposed','active');
 
