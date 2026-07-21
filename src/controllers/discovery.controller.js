@@ -9,6 +9,7 @@ const accessService = require('../services/access.service');
 const swipeService = require('../services/swipe.service');
 const picksService = require('../services/picks.service');
 const aventureService = require('../services/aventure.service');
+const graphsModel = require('../models/graphs.model');
 const { filtrerMessageIntime } = require('../domain/intimeFilter');
 const creditsModel = require('../models/credits.model');
 
@@ -251,6 +252,16 @@ const submitMystereMessage = catchAsync(async (req, res) => {
   res.json({ success: true, data: { ok: true } });
 });
 
+/**
+ * Le GRAPHE DE PRÉSENTATION servi au client : nœuds (questions, options, clips,
+ * ambiances) + routage. C'est ce que le client joue — plus de graphe en dur.
+ * `null` si aucun graphe n'est enregistré → le client retombe sur son mock.
+ */
+const mystereGraph = catchAsync(async (req, res) => {
+  const g = await graphsModel.getGraph(req.params.id);
+  res.json({ success: true, data: { graph: g ? g.data : null } });
+});
+
 const likesReceived = catchAsync(async (req, res) => {
   const viewerId = req.user.id;
   const pending = await discoveryModel.likersPending(viewerId);
@@ -339,4 +350,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere, mystereReveal, submitMystereMessage };
+module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere, mystereReveal, submitMystereMessage, mystereGraph };

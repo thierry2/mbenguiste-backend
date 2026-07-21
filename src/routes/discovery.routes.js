@@ -28,6 +28,8 @@ router.post('/mystere/start', authenticate, c.startMystere);
 router.post('/mystere/answer', authenticate, c.submitMystereAnswer);
 // Jouer le Joker : dépense 1 Joker, renvoie à l'épreuve finale (402 si vide).
 router.post('/mystere/joker', authenticate, c.playJokerMystere);
+// Le graphe de présentation (nœuds + clips) que le client joue — plus de mock.
+router.get('/mystere/graph/:id', authenticate, c.mystereGraph);
 // La révélation : le vrai profil du partenaire, une fois l'aventure gagnée.
 router.get('/mystere/reveal', authenticate, c.mystereReveal);
 // Un message de négociation (désaccord répété) — échange libre, sans résolution.

@@ -727,6 +727,13 @@
       fin_mort: { kind: 'end', end: 'echec' },
       fin_desaccord: { kind: 'end', end: 'echec' },
       fin_separes: { kind: 'end', end: 'left' }
+    },
+    // clips : identifiant (celui des champs « clip » ci-dessus) → URL de la vidéo.
+    // C'est CE que le client joue. Colle une URL .mp4 par identifiant.
+    clips: {
+      n1: '', n1_succes: '', n1_mort: '', n1_reprise: '',
+      n2: '', n2b: '',
+      n3: '', n3_succes: '', n3_mort: '', n3_reprise: ''
     }
   };
 
@@ -750,7 +757,7 @@
     $('out').innerHTML = '';
     var box = el('div', 'card card-pad');
     box.appendChild(el('h2', null, 'Graphes d’aventure'));
-    box.appendChild(el('p', 'hint', 'Le graphe pilote le routage (serveur) et la présentation (clips, questions). Enregistré ici, il remplace le graphe en dur — validé avant écriture. La clé « clip » d’un nœud est l’identifiant de sa vidéo.'));
+    box.appendChild(el('p', 'hint', 'Le graphe pilote le routage (serveur) ET la présentation jouée par le client. Chaque nœud a un identifiant de clip (champ « clip ») ; la table « clips » associe cet identifiant à l’URL de la vidéo. Enregistré ici, il remplace le mock — validé avant écriture.'));
 
     var row = el('div', 'row mt14');
     var sel = el('select'); sel.id = 'g-select';
