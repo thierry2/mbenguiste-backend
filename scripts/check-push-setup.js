@@ -42,10 +42,42 @@ async function resolveId(ident) {
   throw new Error(`compte introuvable : ${ident}`);
 }
 
+/**
+ * RECHERCHE INVERSE — quel compte porte ce token ?
+ *
+ * L'appareil journalise son token, mais pas SOUS QUEL COMPTE il l'a enregistré.
+ * On peut donc chercher la panne sur deux comptes de test… pendant que le
+ * téléphone est connecté à un troisième. Cette question-là ne se pose qu'une
+ * fois, mais sans elle on tourne longtemps.
+ */
+async function quiPorte(token) {
+  const { data } = await sb
+    .from('profiles').select('id, first_name').eq('push_token', token).limit(5);
+  console.log(`\n── recherche inverse : ${token.slice(0, 30)}…`);
+  if (!data || !data.length) {
+    console.log('   ❌ AUCUN compte ne porte ce token en base.');
+    console.log('      → l’appareil l’a obtenu d’Expo, mais l’enregistrement serveur');
+    console.log('        n’a jamais abouti (regarde la réponse de POST /profiles/me/push-token).');
+    return;
+  }
+  for (const p of data) console.log(`   ✔ ${p.first_name || '—'} (${p.id})`);
+  if (data.length > 1) console.log('   ⚠ plusieurs comptes : le dernier connecté a écrasé les autres.');
+}
+
 (async () => {
-  const idents = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+  const args = process.argv.slice(2);
+  const iWho = args.indexOf('--who');
+  if (iWho !== -1) {
+    const token = args[iWho + 1];
+    if (!token) { console.error('Usage: --who "ExponentPushToken[…]"'); process.exit(1); }
+    await quiPorte(token);
+    return;
+  }
+
+  const idents = args.filter((a) => !a.startsWith('--'));
   if (!idents.length) {
     console.error('Usage: node scripts/check-push-setup.js <email|uuid> [<email|uuid>…]');
+    console.error('       node scripts/check-push-setup.js --who "ExponentPushToken[…]"');
     process.exit(1);
   }
 
