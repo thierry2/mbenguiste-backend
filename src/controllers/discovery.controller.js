@@ -236,6 +236,20 @@ const playJokerMystere = catchAsync(async (req, res) => {
   if (r.error === 'no-joker') {
     throw ApiError.paymentRequired('Tu n’as pas de Joker.', { code: 'JOKER_EMPTY', source: 'mystere_joker' });
   }
+
+  // PRÉVENIR L'AUTRE. Le Joker change TOUT pour lui : la dernière épreuve se
+  // rejoue et sa réponse est de nouveau attendue. S'il est dans le lecteur, le
+  // Realtime l'a déjà fait suivre ; s'il est ailleurs ou app fermée, RIEN ne le
+  // lui disait — il restait devant son écran d'échec, à attendre une partie qui
+  // avait repris sans lui. Best-effort : jamais au prix du Joker déjà débité.
+  try {
+    const membres = await mystereModel.membresDePaire(r.pairId ?? null);
+    const partenaire = (membres || []).find((m) => m && m !== req.user.id);
+    if (partenaire) notificationService.onMystereTurn(partenaire).catch(() => {});
+  } catch (e) {
+    console.error('[joker] notification partenaire:', e?.message);
+  }
+
   res.json({ success: true, data: r });
 });
 
