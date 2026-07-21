@@ -51,14 +51,23 @@ async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, m
   const role = await roleOf(session.pairId, userId);
   if (!role) return { error: 'not-member' };
 
+  // ── GARDE-FOU : le nœud courant DOIT être jouable. ──
+  // Un nœud `end` (ou absent du graphe) est TERMINAL : il ne prend aucune
+  // réponse. Sans ce garde, un client resté bloqué qui croit être sur la finale
+  // — alors que le serveur est déjà passé à `fin_mort` (échec) — faisait
+  // enregistrer sa réponse SOUS le nœud de fin, puis on tentait de « résoudre »
+  // une fin, ce qui n'a aucun sens et figeait la partie (sonde diag 22/07).
+  // On charge donc le graphe AVANT d'enregistrer quoi que ce soit.
+  const graph = graphe(session.graphId);
+  const node = graph && graph.nodes && graph.nodes[session.currentNode];
+  if (!node || node.kind === 'end') return { error: 'terminal', role };
+
   await recordAnswer({ sessionId, nodeId: session.currentNode, role, answerIndex, message });
 
   const rep = await answersForNode(sessionId, session.currentNode);
   if (!rep.aRepondu || !rep.bRepondu) return { waiting: true, role };
 
   // ── Les deux ont répondu → le serveur tranche. ──
-  const graph = graphe(session.graphId);
-  const node = graph.nodes[session.currentNode];
   const r = resoudreEtape(graph, node, { a: rep.a, b: rep.b }, {
     jokerUsed: session.jokerUsed, toursDesaccord: session.toursDesaccord,
   });

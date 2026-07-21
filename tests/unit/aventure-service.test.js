@@ -44,6 +44,37 @@ test('un seul a répondu → on ATTEND (rien n’avance)', async () => {
   assert.equal(d._journal().avance.length, 0);
 });
 
+// ── NŒUD TERMINAL : une fin ne prend AUCUNE réponse ──────────────────────────
+// Bug trouvé le 22/07 (sonde diag-aventure) : un client resté bloqué croit être
+// sur la finale alors que le serveur est déjà sur `fin_mort` (échec). Le serveur
+// enregistrait la réponse sous SON nœud courant — un nœud `end` — puis tentait
+// de le « résoudre », ce qui n'a aucun sens et figeait tout. Une fin est
+// terminale : elle ne s'enregistre pas et ne se résout pas.
+test('réponse sur un nœud de FIN → refusée, RIEN enregistré, RIEN résolu', async () => {
+  const d = deps({
+    getSession: async () => ({
+      id: 'S', pairId: 'P', graphId: 'grotte-ci', currentNode: 'fin_mort',
+      jokerUsed: false, toursDesaccord: 0, outcome: 'echec',
+    }),
+  });
+  const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
+  assert.equal(r.error, 'terminal');
+  assert.equal(d._journal().answers.length, 0, 'aucune réponse enregistrée sur une fin');
+  assert.equal(d._journal().avance.length, 0, 'aucune résolution sur une fin');
+});
+
+test('réponse sur un nœud INCONNU du graphe → refusée, rien enregistré', async () => {
+  const d = deps({
+    getSession: async () => ({
+      id: 'S', pairId: 'P', graphId: 'grotte-ci', currentNode: 'nexiste-pas',
+      jokerUsed: false, toursDesaccord: 0, outcome: null,
+    }),
+  });
+  const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
+  assert.equal(r.error, 'terminal');
+  assert.equal(d._journal().answers.length, 0);
+});
+
 test('les DEUX d’accord → survie, la session avance au nœud suivant', async () => {
   const d = deps(); // b déjà répondu (0,0) sur n2
   const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
