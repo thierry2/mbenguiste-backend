@@ -4,7 +4,7 @@ const supabase = require('../config/supabase');
 // Envoi de push via l'API Expo (portage à l'identique d'AfrikMoms). Aucune clé
 // n'est requise côté serveur : l'endpoint Expo est public, c'est le lien
 // Expo↔FCM (credentials du projet EAS) qui authentifie la livraison.
-// Le token vit dans profiles.push_token (posé par POST /profile/me/push-token).
+// Le token vit dans profiles.push_token (posé par POST /profiles/me/push-token).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
