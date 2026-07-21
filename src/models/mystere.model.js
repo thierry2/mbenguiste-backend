@@ -14,7 +14,7 @@ const supabase = require('../config/supabase');
 const { candidates } = require('./discovery.model');
 const { compatibilityScore } = require('../domain/picks');
 const { roleDe, partenaireDe, etatApresIssue } = require('../domain/mystere');
-const { graphe } = require('../domain/aventureGraphe');
+const { grapheRuntime } = require('./graphs.model');
 const { trouveEpreuveFinale } = require('../domain/aventure');
 const credits = require('./credits.model');
 
@@ -321,7 +321,7 @@ async function playJoker(userId) {
   const { data: sess } = await supabase
     .from('aventure_sessions').select('id, graph_id').eq('pair_id', p.pairId).maybeSingle();
   if (!sess) return { error: 'no-session' };
-  const finale = trouveEpreuveFinale(graphe(sess.graph_id));
+  const finale = trouveEpreuveFinale(grapheRuntime(sess.graph_id));
   if (!finale) return { error: 'no-final' };
 
   // On débite APRÈS avoir tout validé, AVANT d'appliquer : un Joker n'est jamais

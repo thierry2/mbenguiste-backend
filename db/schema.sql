@@ -1291,6 +1291,15 @@ begin
   end if;
 end $$;
 
+-- Graphes d'Aventure éditables (migration 032). FERMÉE au client (backend only).
+create table if not exists public.aventure_graphs (
+  id          text primary key,
+  title       text,
+  data        jsonb not null,
+  updated_at  timestamptz not null default now()
+);
+alter table public.aventure_graphs enable row level security;
+
 insert into public.app_settings (key, value) values
   ('mystere.draw_hour_utc',      '21'::jsonb),
   ('mystere.window_minutes',     '120'::jsonb),

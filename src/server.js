@@ -4,6 +4,7 @@ const { verifyConnection } = require('./config/db');
 const logger = require('./utils/logger');
 const { purgeExpiredAccounts } = require('./models/profile.model');
 const { runScheduledPass } = require('./services/mystere.service');
+const graphsModel = require('./models/graphs.model');
 
 let server;
 
@@ -17,6 +18,12 @@ async function start() {
         'Vérifiez SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY et appliquez db/schema.sql.'
     );
   }
+
+  // Graphes d'Aventure éditables : on charge le cache une fois au boot. S'il n'y
+  // en a aucun en BD, la résolution retombe sur le graphe en code (sans effet).
+  graphsModel.refreshCache()
+    .then((n) => logger.info(`Graphes d'aventure chargés : ${n}`))
+    .catch((e) => logger.warn(`Chargement graphes : ${e.message}`));
 
   server = app.listen(config.port, () => {
     logger.info(`Mbenguiste API démarrée sur le port ${config.port} (${config.env})`);

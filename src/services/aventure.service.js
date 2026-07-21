@@ -65,9 +65,10 @@ async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, m
 /** Câblage réel : assemble le modèle Supabase et soumet une réponse. */
 async function soumettre({ sessionId, userId, answerIndex, message }) {
   const model = require('../models/mystere.model');
-  const { graphe } = require('../domain/aventureGraphe');
+  // Graphe depuis la BD (éditable /admin), repli sur le code si la table est vide.
+  const { grapheRuntime } = require('../models/graphs.model');
   return soumettreReponse(
-    { ...model, graphe, clore: model.revealAndMatch },
+    { ...model, graphe: grapheRuntime, clore: model.revealAndMatch },
     { sessionId, userId, answerIndex, message },
   );
 }

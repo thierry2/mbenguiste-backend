@@ -101,4 +101,32 @@ function trouveEpreuveFinale(graph) {
   return null;
 }
 
-module.exports = { comboKey, estEpreuveFinale, trouveEpreuveFinale, resoudreEtape, MAX_DESACCORDS };
+/**
+ * Valide un graphe édité (console admin) AVANT de l'enregistrer : un graphe cassé
+ * bloquerait des aventures en cours. Renvoie la liste des problèmes (vide = OK).
+ * On vérifie l'essentiel du ROUTAGE : start présent, et toute cible référencée
+ * existe (une flèche vers un nœud inexistant = aventure figée).
+ */
+function validerGraphe(g) {
+  if (!g || typeof g !== 'object') return ['graphe vide'];
+  if (!g.nodes || typeof g.nodes !== 'object') return ['aucun nœud'];
+  const problems = [];
+  const ids = new Set(Object.keys(g.nodes));
+  if (!g.start || !ids.has(g.start)) problems.push(`start « ${g.start} » absent des nœuds`);
+
+  for (const [id, node] of Object.entries(g.nodes)) {
+    const cibles = [];
+    if (node.next) cibles.push(node.next);
+    if (node.oui) cibles.push(node.oui);
+    if (node.non) cibles.push(node.non);
+    if (node.accord && node.accord.survie && node.accord.survie.next) cibles.push(node.accord.survie.next);
+    if (node.accord && node.accord.mort && node.accord.mort.next) cibles.push(node.accord.mort.next);
+    if (node.desaccord && node.desaccord.mort) cibles.push(node.desaccord.mort);
+    for (const t of cibles) {
+      if (!ids.has(t)) problems.push(`« ${id} » pointe vers « ${t} » qui n'existe pas`);
+    }
+  }
+  return problems;
+}
+
+module.exports = { comboKey, estEpreuveFinale, trouveEpreuveFinale, resoudreEtape, validerGraphe, MAX_DESACCORDS };
