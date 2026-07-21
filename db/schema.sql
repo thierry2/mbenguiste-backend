@@ -1185,8 +1185,11 @@ create table if not exists public.mystere_pairs (
   id          uuid primary key default gen_random_uuid(),
   user_low    uuid not null references public.profiles(id) on delete cascade,
   user_high   uuid not null references public.profiles(id) on delete cascade,
+  -- proposed/active : non terminales · won/lost : issue de l'aventure ·
+  -- left : SORTIE PROPRE (l'un a mis fin, ou refus mutuel au consentement) ·
+  -- dissolved : défaite par une passe. 'left' était absent → sortie propre KO.
   state       text not null default 'proposed'
-              check (state in ('proposed','active','won','lost','dissolved')),
+              check (state in ('proposed','active','won','lost','left','dissolved')),
   drawn_at    timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   constraint chk_pair_order check (user_low < user_high),

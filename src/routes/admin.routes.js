@@ -7,6 +7,7 @@ const partnerStats = require('../models/partnerStats.model');
 const verifC = require('../controllers/verification.controller');
 const { runScheduledPass } = require('../services/mystere.service');
 const graphsModel = require('../models/graphs.model');
+const mystereModel = require('../models/mystere.model');
 const { validerGraphe } = require('../domain/aventure');
 const { requireAdmin } = require('../middlewares/auth.middleware');
 const catchAsync = require('../utils/catchAsync');
@@ -75,6 +76,20 @@ router.use((req, _res, next) => {
 // le throttle, JAMAIS le plancher. Réservé admin.
 router.post('/mystere/pass', catchAsync(async (_req, res) => {
   const r = await runScheduledPass({ force: true });
+  res.json({ success: true, data: r });
+}));
+
+// POST /api/v1/admin/mystere/pair  body: { a, b }  (deux profileId)
+// FORCE une paire de test entre deux comptes, SANS passer par la passe (filtres
+// + plancher + rendez-vous). C'est ce qui permet de tester la VRAIE chaîne à deux
+// devices immédiatement. Réservé admin. 400 si l'un est déjà pris (un seul
+// mystère actif) ou si un id est inconnu.
+router.post('/mystere/pair', catchAsync(async (req, res) => {
+  const { a, b } = req.body || {};
+  if (!a || !b) throw ApiError.badRequest('Deux profileId requis : { a, b }');
+  const r = await mystereModel.forcePair(a, b);
+  if (r.error === 'bad-input') throw ApiError.badRequest('a et b doivent être deux profileId distincts');
+  if (r.error) throw ApiError.badRequest(`Paire impossible : ${r.error}`);
   res.json({ success: true, data: r });
 }));
 

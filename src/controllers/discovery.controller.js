@@ -10,6 +10,7 @@ const swipeService = require('../services/swipe.service');
 const picksService = require('../services/picks.service');
 const aventureService = require('../services/aventure.service');
 const graphsModel = require('../models/graphs.model');
+const notificationService = require('../services/notification.service');
 const { filtrerMessageIntime } = require('../domain/intimeFilter');
 const creditsModel = require('../models/credits.model');
 
@@ -159,6 +160,13 @@ const mystere = catchAsync(async (req, res) => {
 const startMystere = catchAsync(async (req, res) => {
   const { graphId, startNode } = req.body || {};
   if (!graphId || !startNode) throw ApiError.badRequest('graphId et startNode requis');
+  // On ne fait PAS confiance au client sur le graphe : un graphId inconnu (ou un
+  // startNode absent du graphe) figerait la résolution serveur (graph null →
+  // crash). On valide contre le graphe réellement chargé (BD ou repli code).
+  const graph = graphsModel.grapheRuntime(graphId);
+  if (!graph || !graph.nodes || !graph.nodes[startNode]) {
+    throw ApiError.badRequest('graphId / startNode inconnus');
+  }
   const session = await mystereModel.startAdventure(req.user.id, { graphId, startNode });
   if (!session) throw ApiError.notFound('Aucun mystère à lancer');
   res.json({ success: true, data: { session } });
@@ -250,6 +258,19 @@ const submitMystereMessage = catchAsync(async (req, res) => {
     ? filtrerMessageIntime(message.trim()).clean : null;
   await mystereModel.recordAnswer({ sessionId: s.sessionId, nodeId, role, answerIndex: null, message: clean });
   res.json({ success: true, data: { ok: true } });
+});
+
+/**
+ * TERMINER le mystère (sortie propre unilatérale). Le client confirme avant
+ * d'appeler (anti-clic accidentel) ; ici on clôt la paire ('left') et on PRÉVIENT
+ * le partenaire (push anonyme + il reçoit le changement de session en Realtime).
+ * Best-effort sur le push : il ne doit jamais faire échouer la sortie.
+ */
+const leaveMystere = catchAsync(async (req, res) => {
+  const r = await mystereModel.leaveMystere(req.user.id);
+  if (r.error === 'no-pair') throw ApiError.notFound('Aucun mystère à terminer');
+  if (r.partnerId) notificationService.onMystereEnded(r.partnerId).catch(() => {});
+  res.json({ success: true, data: { ended: true } });
 });
 
 /**
@@ -350,4 +371,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere, mystereReveal, submitMystereMessage, mystereGraph };
+module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere, mystereReveal, submitMystereMessage, mystereGraph, leaveMystere };

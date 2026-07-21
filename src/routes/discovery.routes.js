@@ -34,6 +34,9 @@ router.get('/mystere/graph/:id', authenticate, c.mystereGraph);
 router.get('/mystere/reveal', authenticate, c.mystereReveal);
 // Un message de négociation (désaccord répété) — échange libre, sans résolution.
 router.post('/mystere/message', authenticate, c.submitMystereMessage);
+// Terminer le mystère (sortie propre unilatérale, confirmée côté client) : clôt
+// la paire ('left') et prévient le partenaire (push anonyme).
+router.post('/mystere/leave', authenticate, c.leaveMystere);
 // « Qui t'a liké » — total toujours, profils réservés à l'Or.
 router.get('/likes', authenticate, c.likesReceived);
 // Swiper un profil : POST /discovery/:id/swipe { action }.

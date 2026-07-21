@@ -142,6 +142,24 @@ async function loadVivier() {
   return { profils, eligibles };
 }
 
+/**
+ * OUTIL DE TEST (admin) — force une paire 'proposed' entre deux membres, SANS
+ * passer par la passe d'appariement (filtres + plancher). Ordonne low<high. Le
+ * trigger « un seul mystère actif » refuse si l'un est déjà pris, et la clé
+ * étrangère refuse un id inconnu — on remonte le message pour l'admin. Renvoie
+ * { pairId } ou { error }. C'est ce qui permet de tester la VRAIE chaîne à deux
+ * sans attendre le rendez-vous de minuit ni deux profils mutuellement éligibles.
+ */
+async function forcePair(a, b) {
+  if (!a || !b || a === b) return { error: 'bad-input' };
+  const [low, high] = ordonner(a, b);
+  const { data, error } = await supabase.from('mystere_pairs')
+    .insert({ user_low: low, user_high: high, state: 'proposed' })
+    .select('id').single();
+  if (error) return { error: error.message };
+  return { pairId: data.id };
+}
+
 // ── Cycle de vie d'une paire (mon Mystère → démarrer → révéler) ──────────────
 
 /** La paire NON TERMINALE de `userId` (proposée ou active), ou null. */
@@ -197,8 +215,12 @@ async function revealAndMatch(pairId, issue) {
   const { data: pair } = await supabase
     .from('mystere_pairs').select('user_low, user_high').eq('id', pairId).single();
 
-  await supabase.from('mystere_pairs')
+  // On CAPTURE l'erreur : une contrainte violée (ex. état inconnu) ne doit pas
+  // être avalée en silence — sinon la paire reste 'active' et verrouille ses
+  // membres à vie sans que personne ne le sache (le bug 'left' du 21/07).
+  const { error: eState } = await supabase.from('mystere_pairs')
     .update({ state: etat, updated_at: new Date().toISOString() }).eq('id', pairId);
+  if (eState) throw eState;
   await supabase.from('aventure_sessions')
     .update({ outcome: issue, updated_at: new Date().toISOString() }).eq('pair_id', pairId);
 
@@ -211,6 +233,31 @@ async function revealAndMatch(pairId, issue) {
     .select('id').single();
   if (error) throw error;
   return m.id;
+}
+
+/**
+ * TERMINER le mystère (sortie propre UNILATÉRALE) — l'un des deux décide d'y
+ * mettre fin. La paire passe 'left' (état terminal, sans match) et libère les
+ * DEUX membres pour un futur mystère. On clôt aussi la session s'il y en a une
+ * (l'aventure avait commencé). Renvoie le partenaire à prévenir (push), ou
+ * { error: 'no-pair' } s'il n'y a rien à terminer. Idempotent : rappelé, il ne
+ * re-termine pas (la paire n'est déjà plus non terminale).
+ */
+async function leaveMystere(userId) {
+  const p = await pairForUser(userId);
+  if (!p) return { error: 'no-pair' };
+
+  const { error } = await supabase.from('mystere_pairs')
+    .update({ state: 'left', updated_at: new Date().toISOString() })
+    .eq('id', p.pairId).in('state', ['proposed', 'active']);
+  if (error) throw error;
+
+  // La session peut ne pas exister (paire encore 'proposed', jamais lancée).
+  await supabase.from('aventure_sessions')
+    .update({ outcome: 'left', updated_at: new Date().toISOString() })
+    .eq('pair_id', p.pairId);
+
+  return { partnerId: p.partnerId };
 }
 
 // ── I/O de la SESSION D'AVENTURE (ce que le service de résolution attend) ─────
@@ -358,7 +405,8 @@ async function playJoker(userId) {
 module.exports = {
   loadConfig, getLastPassAt, setLastPassAt,
   loadStaleProposed, dissolvePairs, loadLockedPairs, writePairs, loadVivier,
-  pairForUser, startAdventure, revealAndMatch,
+  forcePair,
+  pairForUser, startAdventure, revealAndMatch, leaveMystere,
   // I/O de session (deps du service de résolution) + cycle Joker
   getSession, roleOf, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,
   scoreOf: compatibilityScore,
