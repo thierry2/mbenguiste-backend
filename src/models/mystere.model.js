@@ -484,7 +484,9 @@ async function playJoker(userId) {
   }).eq('id', sess.id);
   // Table rase des réponses : la dernière épreuve se rejoue proprement.
   await supabase.from('aventure_answers').delete().eq('session_id', sess.id);
-  return { ok: true, sessionId: sess.id, currentNode: finale, role: p.role };
+  // `pairId` remonte pour que l'appelant puisse PRÉVENIR le partenaire : le
+  // Joker rouvre la dernière épreuve, sa réponse est de nouveau attendue.
+  return { ok: true, sessionId: sess.id, currentNode: finale, role: p.role, pairId: p.pairId };
 }
 
 /**
