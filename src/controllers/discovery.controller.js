@@ -219,6 +219,38 @@ const playJokerMystere = catchAsync(async (req, res) => {
   res.json({ success: true, data: r });
 });
 
+/**
+ * La RÉVÉLATION — le vrai profil du partenaire, une fois l'aventure GAGNÉE.
+ * Le client n'a jamais eu accès à l'identité pendant le Mystère ; la victoire
+ * (le match) la rend légitime. On sert le profil complet (même sérialisation que
+ * le deck). `null` si l'utilisateur n'a aucune paire gagnée.
+ */
+const mystereReveal = catchAsync(async (req, res) => {
+  const partnerId = await mystereModel.revealedPartner(req.user.id);
+  if (!partnerId) return res.json({ success: true, data: { profil: null } });
+  const cards = await discoveryModel.cardsByIds([partnerId]);
+  res.json({ success: true, data: { profil: cards.get(partnerId) ?? null } });
+});
+
+/**
+ * Un message de NÉGOCIATION (désaccord répété) : un échange libre entre les deux,
+ * sur un « canal » propre au tour (nodeId synthétique côté client). Refiltré
+ * serveur, enregistré SANS résolution — il ne fait pas avancer l'aventure, il
+ * fait parler. L'autre le reçoit par Realtime (comme toute réponse).
+ */
+const submitMystereMessage = catchAsync(async (req, res) => {
+  const { nodeId, message } = req.body || {};
+  if (!nodeId || typeof nodeId !== 'string') throw ApiError.badRequest('nodeId requis');
+  const s = await mystereModel.sessionForUser(req.user.id);
+  if (!s) throw ApiError.notFound('Aucune aventure en cours');
+  const role = await mystereModel.roleOf(s.pairId, req.user.id);
+  if (!role) throw ApiError.forbidden('Pas ta session');
+  const clean = typeof message === 'string' && message.trim()
+    ? filtrerMessageIntime(message.trim()).clean : null;
+  await mystereModel.recordAnswer({ sessionId: s.sessionId, nodeId, role, answerIndex: null, message: clean });
+  res.json({ success: true, data: { ok: true } });
+});
+
 const likesReceived = catchAsync(async (req, res) => {
   const viewerId = req.user.id;
   const pending = await discoveryModel.likersPending(viewerId);
@@ -307,4 +339,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere };
+module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere, mystereReveal, submitMystereMessage };

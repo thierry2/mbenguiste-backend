@@ -307,6 +307,23 @@ async function sessionForUser(userId) {
 }
 
 /**
+ * LE PARTENAIRE RÉVÉLÉ — l'autre membre de la paire GAGNÉE la plus récente.
+ * Après une victoire, l'identité n'est plus secrète (ils sont matchés) : le
+ * client peut afficher le vrai profil. Null si aucune paire gagnée.
+ */
+async function revealedPartner(userId) {
+  const { data } = await supabase
+    .from('mystere_pairs')
+    .select('user_low, user_high, updated_at')
+    .eq('state', 'won')
+    .or(`user_low.eq.${userId},user_high.eq.${userId}`)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? partenaireDe(data, userId) : null;
+}
+
+/**
  * LE JOKER — le seul achat du parcours. Il dépense 1 Joker, renvoie à l'épreuve
  * FINALE et pose `joker_used` : la relecture réussira (cf. `resoudreEtape`), donc
  * il achète littéralement la révélation. Autoritaire : le client ne peut pas se
@@ -343,7 +360,7 @@ module.exports = {
   loadStaleProposed, dissolvePairs, loadLockedPairs, writePairs, loadVivier,
   pairForUser, startAdventure, revealAndMatch,
   // I/O de session (deps du service de résolution) + cycle Joker
-  getSession, roleOf, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker,
+  getSession, roleOf, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,
   scoreOf: compatibilityScore,
   desirabiliteOf: (p) => (Number.isFinite(p?.desirabilite) ? p.desirabilite : 0.5),
 };

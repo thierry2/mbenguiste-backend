@@ -28,6 +28,10 @@ router.post('/mystere/start', authenticate, c.startMystere);
 router.post('/mystere/answer', authenticate, c.submitMystereAnswer);
 // Jouer le Joker : dépense 1 Joker, renvoie à l'épreuve finale (402 si vide).
 router.post('/mystere/joker', authenticate, c.playJokerMystere);
+// La révélation : le vrai profil du partenaire, une fois l'aventure gagnée.
+router.get('/mystere/reveal', authenticate, c.mystereReveal);
+// Un message de négociation (désaccord répété) — échange libre, sans résolution.
+router.post('/mystere/message', authenticate, c.submitMystereMessage);
 // « Qui t'a liké » — total toujours, profils réservés à l'Or.
 router.get('/likes', authenticate, c.likesReceived);
 // Swiper un profil : POST /discovery/:id/swipe { action }.
