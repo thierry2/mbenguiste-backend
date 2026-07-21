@@ -76,10 +76,23 @@ async function resolveId(ident) {
   }
 
   // ── LE VERDICT ──
+  // Le nœud courant est-il TERMINAL (une fin) ? Une fin ne se résout pas : des
+  // réponses posées dessus sont des fantômes (le bug du 22/07).
+  const estFin = /^fin[_-]/i.test(s.current_node) || s.outcome === 'echec' || s.outcome === 'match' || s.outcome === 'left';
   const surNoeud = (rep || []).filter((r) => r.node_id === s.current_node);
   const roles = new Set(surNoeud.map((r) => r.role));
   console.log(`\n── VERDICT (nœud courant : ${s.current_node})`);
-  if (roles.size >= 2) {
+  if (estFin) {
+    console.log(`   ⚑ Le nœud courant est une FIN (outcome: ${s.outcome}).`);
+    if (surNoeud.length) {
+      console.log(`     ❌ ${surNoeud.length} réponse(s) FANTÔME enregistrée(s) sur cette fin.`);
+      console.log('        Une fin ne prend aucune réponse — c’est le bug corrigé le 22/07.');
+      console.log('        Purge la paire pour repartir propre (force-mystere-pair --purge).');
+    } else {
+      console.log('     → l’aventure est TERMINÉE ; les clients doivent afficher l’écran de fin.');
+      console.log('        S’ils attendent encore, c’est le rendu qui n’a pas suivi (Realtime manqué).');
+    }
+  } else if (roles.size >= 2) {
     console.log('   ✔ les DEUX rôles ont répondu sur le nœud courant.');
     console.log('     → le serveur aurait dû résoudre. Si les écrans attendent encore,');
     console.log('       c’est le RENDU client qui n’a pas suivi, pas la résolution.');
