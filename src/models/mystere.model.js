@@ -327,6 +327,18 @@ async function getSession(sessionId) {
   };
 }
 
+/**
+ * Les DEUX membres d'une paire, par id. Sert aux notifications de tour : le
+ * service doit savoir QUI prévenir sans jamais faire confiance au client sur
+ * l'identité du partenaire. `null` si la paire n'existe pas — l'appelant
+ * n'invente alors personne (et n'envoie rien).
+ */
+async function membresDePaire(pairId) {
+  const { data } = await supabase
+    .from('mystere_pairs').select('user_low, user_high').eq('id', pairId).maybeSingle();
+  return data ? [data.user_low, data.user_high] : null;
+}
+
 /** Mon rôle ('a'/'b') dans une paire donnée — via le domaine, pas de SQL de rôle. */
 async function roleOf(pairId, userId) {
   const { data } = await supabase
@@ -486,7 +498,7 @@ module.exports = {
   forcePair,
   pairForUser, startAdventure, revealAndMatch, leaveMystere,
   // I/O de session (deps du service de résolution) + cycle Joker
-  getSession, roleOf, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,
+  getSession, roleOf, membresDePaire, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,
   partnerIndices,
   scoreOf: compatibilityScore,
   desirabiliteOf: (p) => (Number.isFinite(p?.desirabilite) ? p.desirabilite : 0.5),

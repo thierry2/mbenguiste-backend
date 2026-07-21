@@ -7,6 +7,16 @@ const supabase = require('../config/supabase');
 // Le token vit dans profiles.push_token (posé par POST /profile/me/push-token).
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Le canal Android visé selon le type. Les notifications du JEU (« ton binôme a
+ * joué ») partent sur leur propre canal, en importance MAX côté client : elles
+ * doivent s'imposer, et le membre doit pouvoir couper le reste SANS couper le
+ * jeu. Tout le reste garde `default`. Le canal doit exister côté app
+ * (`setupAndroidChannel`) — sinon Android retombe silencieusement sur default,
+ * ce qui reste un comportement acceptable.
+ */
+const CANAUX = { mystere_turn: 'mystere', mystere_reveal: 'mystere' };
+
 async function sendPush(userId, { title, body, data = {}, silent = false }) {
   const { data: profile } = await supabase
     .from('profiles')
@@ -36,7 +46,10 @@ async function sendPush(userId, { title, body, data = {}, silent = false }) {
       body: JSON.stringify(
         silent
           ? { to: token, data: { ...data, title, body, silent: '1' }, priority: 'high' }
-          : { to: token, title, body, data, sound: 'default', channelId: 'default', priority: 'high' },
+          : {
+            to: token, title, body, data, sound: 'default',
+            channelId: CANAUX[data?.type] || 'default', priority: 'high',
+          },
       ),
     });
     // La réponse d'Expo contient un « ticket » par push : status 'ok' OU 'error'

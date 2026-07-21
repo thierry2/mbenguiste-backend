@@ -9,6 +9,8 @@ const { runScheduledPass } = require('../services/mystere.service');
 const graphsModel = require('../models/graphs.model');
 const mystereModel = require('../models/mystere.model');
 const notificationService = require('../services/notification.service');
+const videoCompression = require('../services/videoCompression.service');
+const { videoUpload } = require('../middlewares/upload.middleware');
 const { validerGraphe } = require('../domain/aventure');
 const { requireAdmin } = require('../middlewares/auth.middleware');
 const catchAsync = require('../utils/catchAsync');
@@ -121,6 +123,19 @@ router.put('/graphs/:id', catchAsync(async (req, res) => {
   if (problems.length) throw ApiError.badRequest('Graphe invalide', { problems });
   const graph = await graphsModel.saveGraph(req.params.id, { title, data });
   res.json({ success: true, data: { graph } });
+}));
+
+// POST /admin/graphs/clip  (multipart : field `file` = vidéo, field `clipId`)
+// LE WORKFLOW COMPLET : la console envoie une vidéo brute → on la COMPRESSE
+// (720p / faststart, ffmpeg) → on la stocke dans le bucket public `aventure` →
+// on renvoie l'URL à coller dans la table `clips` du graphe. C'est ce qui évite
+// des clips lourds qui plantent sur réseau faible (cf. aventurePreload).
+router.post('/graphs/clip', videoUpload.single('file'), catchAsync(async (req, res) => {
+  const clipId = (req.body && req.body.clipId) || '';
+  if (!clipId) throw ApiError.badRequest('clipId requis (la clé du clip dans le graphe, ex. n1_succes)');
+  if (!req.file) throw ApiError.badRequest('Aucune vidéo reçue (champ « file »)');
+  const r = await videoCompression.compressAndUploadClip(req.file, clipId);
+  res.json({ success: true, data: r }); // { clipId, url, path }
 }));
 
 const ACTIONS = ['retirer', 'restaurer', 'rejeter'];

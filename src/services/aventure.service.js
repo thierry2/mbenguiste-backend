@@ -14,6 +14,32 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const { resoudreEtape, doitInjecterIntime } = require('../domain/aventure');
 
+/**
+ * PRÉVENIR CELUI QU'ON ATTEND. C'est un jeu à deux en asynchrone : entre deux
+ * étapes, l'un attend l'autre — parfois des heures. Sans ce push, la seule façon
+ * de savoir que son binôme a joué était d'ouvrir l'onglet au hasard, et
+ * l'aventure mourait d'attente (audit 21/07 : le service n'envoyait RIEN).
+ *
+ * On ne notifie QUE sur une résolution : tant que j'attends, l'autre n'a rien de
+ * neuf à voir — il a déjà été prévenu à l'étape précédente, le re-notifier
+ * serait du bruit. Et jamais celui qui vient de jouer : il est devant l'écran.
+ *
+ * BEST-EFFORT ABSOLU : un service de push indisponible ne doit pas bloquer une
+ * partie. Toute erreur est avalée ici, jamais remontée à l'appelant.
+ */
+async function prevenirPartenaire({ notifier, membresDePaire }, { pairId, userId, type }) {
+  if (!notifier || !membresDePaire) return;
+  try {
+    const membres = await membresDePaire(pairId);
+    if (!Array.isArray(membres)) return;
+    const partenaire = membres.find((m) => m && m !== userId);
+    if (!partenaire) return;
+    await notifier(partenaire, type);
+  } catch (e) {
+    console.error('[aventure] notification de tour:', e && e.message);
+  }
+}
+
 async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, message = null }) {
   const {
     getSession, roleOf, recordAnswer, answersForNode, graphe, advanceSession, clore,
@@ -52,6 +78,8 @@ async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, m
       currentNode: session.currentNode, toursDesaccord: r.tour, clearAnswers: true,
       lastIssue: 'boucle', negocier, clipAJouer,
     });
+    // La question se rejoue : on attend de nouveau l'autre → on le prévient.
+    await prevenirPartenaire(deps, { pairId: session.pairId, userId, type: 'mystere_turn' });
     return { resolved: true, issue: 'boucle', role, negocier, clipAJouer, tour: r.tour };
   }
 
@@ -70,6 +98,13 @@ async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, m
   if (outcome === 'match') await clore(session.pairId, 'match');
   else if (outcome === 'left') await clore(session.pairId, 'left');
 
+  // Chaque fin porte son propre message. L'ÉCHEC, lui, n'est pas une fin : la
+  // paire vit encore (le Joker peut rejouer) → on attend toujours l'autre.
+  const type = outcome === 'match' ? 'mystere_reveal'
+    : outcome === 'left' ? 'mystere_ended'
+    : 'mystere_turn';
+  await prevenirPartenaire(deps, { pairId: session.pairId, userId, type });
+
   return {
     resolved: true, issue: r.issue, next: nextNode, outcome, role,
     reveal: r.reveal, clipAJouer, negocier: false,
@@ -81,8 +116,17 @@ async function soumettre({ sessionId, userId, answerIndex, message }) {
   const model = require('../models/mystere.model');
   // Graphe depuis la BD (éditable /admin), repli sur le code si la table est vide.
   const { grapheRuntime } = require('../models/graphs.model');
+  const notif = require('./notification.service');
+  // Un seul aiguillage type → push, pour que le service de résolution n'ait
+  // jamais à connaître la forme d'une notification.
+  const notifier = (uid, type) => {
+    if (type === 'mystere_turn') return notif.onMystereTurn(uid);
+    if (type === 'mystere_reveal') return notif.onMystereReveal(uid);
+    if (type === 'mystere_ended') return notif.onMystereEnded(uid);
+    return Promise.resolve();
+  };
   return soumettreReponse(
-    { ...model, graphe: grapheRuntime, clore: model.revealAndMatch },
+    { ...model, graphe: grapheRuntime, clore: model.revealAndMatch, notifier },
     { sessionId, userId, answerIndex, message },
   );
 }

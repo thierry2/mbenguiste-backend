@@ -110,7 +110,51 @@ function createNotificationService({ sendPush, supabase }) {
     }
   }
 
-  return { onSuperLikeReceived, onVerificationDecided, onMystereEnded, onMystereProposed };
+  /**
+   * TON BINÔME A JOUÉ — c'est à toi. LA notification du jeu : l'Aventure est
+   * asynchrone, les deux joueurs peuvent être séparés par des heures, et sans
+   * elle il fallait ouvrir l'onglet au hasard pour découvrir qu'on nous
+   * attendait (des parties mouraient d'attente). Le tap ramène DIRECTEMENT dans
+   * l'aventure, qui reprend au nœud courant (cf. routage front).
+   *
+   * ANONYME comme tout le reste : on dit qu'on t'attend, jamais qui.
+   */
+  async function onMystereTurn(userId) {
+    try {
+      if (await _isPushOff(userId)) return;
+      await sendPush(userId, {
+        title: 'Mbenguiste',
+        body: 'Ton binôme a joué. À toi 🔮',
+        data: { type: 'mystere_turn' },
+      });
+    } catch (e) {
+      console.error('[notif] onMystereTurn:', e?.message);
+    }
+  }
+
+  /**
+   * L'AVENTURE EST GAGNÉE — le visage tombe. C'est le seul moment où l'autre
+   * cesse d'être anonyme… mais la notification, elle, reste muette sur son
+   * identité : la révélation se joue DANS l'app, jamais dans la barre de
+   * notifications (on ne dévoile pas un visage sur un écran verrouillé).
+   */
+  async function onMystereReveal(userId) {
+    try {
+      if (await _isPushOff(userId)) return;
+      await sendPush(userId, {
+        title: 'Mbenguiste',
+        body: 'Vous avez réussi. Le visage se dévoile ✨',
+        data: { type: 'mystere_reveal' },
+      });
+    } catch (e) {
+      console.error('[notif] onMystereReveal:', e?.message);
+    }
+  }
+
+  return {
+    onSuperLikeReceived, onVerificationDecided,
+    onMystereEnded, onMystereProposed, onMystereTurn, onMystereReveal,
+  };
 }
 
 const defaultService = createNotificationService({
@@ -124,4 +168,6 @@ module.exports = {
   onVerificationDecided: defaultService.onVerificationDecided,
   onMystereEnded: defaultService.onMystereEnded,
   onMystereProposed: defaultService.onMystereProposed,
+  onMystereTurn: defaultService.onMystereTurn,
+  onMystereReveal: defaultService.onMystereReveal,
 };
