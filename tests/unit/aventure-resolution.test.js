@@ -7,9 +7,11 @@
 // pas de hasard, la politique « échec forcé à la dernière épreuve, Joker qui
 // révèle » remplace la proba. Ces tests figent chaque cas.
 // ─────────────────────────────────────────────────────────────────────────────
-const { test } = require('node:test');
+const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { resoudreEtape, estEpreuveFinale, trouveEpreuveFinale, comboKey } = require('../../src/domain/aventure');
+const {
+  resoudreEtape, estEpreuveFinale, trouveEpreuveFinale, comboKey, survitAccord, doitInjecterIntime,
+} = require('../../src/domain/aventure');
 const { GROTTE } = require('../../src/domain/aventureGraphe');
 
 const N = (id) => GROTTE.nodes[id];
@@ -113,4 +115,71 @@ test('un nœud suivant de type end porte l’issue de l’aventure', () => {
   assert.equal(GROTTE.nodes[perte.next].end, 'echec');
   const gagne = resoudreEtape(GROTTE, N('n7'), { a: 0, b: 0 }, ctx({ jokerUsed: true }));
   assert.equal(GROTTE.nodes[gagne.next].end, 'match');
+});
+
+// ── Déterminisme CONFIGURABLE PAR LE GRAPHE (21/07) ──────────────────────────
+// « ça ne doit pas être fixé en dur dans le code » — le graphe pilote la proba
+// de chaque épreuve ; le Joker garde le dernier mot sur la finale.
+describe('survitAccord — le graphe pilote, jamais le code en dur', () => {
+  const graphAvecFin = { nodes: {
+    fin: { kind: 'end', end: 'match' },
+    ep: { kind: 'epreuve', accord: { survie: { next: 'fin' } } }, // ep = finale (mène à match)
+  } };
+
+  test('proba explicite à 1 → survit toujours, même sur la finale sans Joker', () => {
+    const node = { kind: 'epreuve', accord: { proba: 1, survie: { next: 'fin' } } };
+    assert.equal(survitAccord(node, graphAvecFin, { jokerUsed: false }), true);
+  });
+
+  test('proba explicite à 0 → meurt toujours, même hors finale', () => {
+    const node = { kind: 'epreuve', accord: { proba: 0 } };
+    assert.equal(survitAccord(node, { nodes: {} }, {}), false);
+  });
+
+  test('sans proba (graphe legacy) : tout survit, SAUF la finale sans Joker', () => {
+    assert.equal(survitAccord(graphAvecFin.nodes.ep, graphAvecFin, { jokerUsed: false }), false);
+    assert.equal(survitAccord({ kind: 'epreuve', accord: {} }, { nodes: {} }, {}), true);
+  });
+
+  test('le Joker garantit la finale, QUEL QUE SOIT le proba du graphe — mais pas une épreuve qui n’y mène pas', () => {
+    const graph = { nodes: {
+      match: { kind: 'end', end: 'match' },
+      echec: { kind: 'end', end: 'echec' },
+      finale: { kind: 'epreuve', accord: { proba: 0, survie: { next: 'match' } } },
+      autre: { kind: 'epreuve', accord: { proba: 0, survie: { next: 'echec' } } }, // ne mène pas à match : PAS la finale
+    } };
+    assert.equal(survitAccord(graph.nodes.finale, graph, { jokerUsed: true }), true);   // Joker force la finale
+    assert.equal(survitAccord(graph.nodes.autre, graph, { jokerUsed: true }), false);   // pas concernée, proba=0 tient
+  });
+
+  test('rng injectable : le tirage par défaut est déterministe (0)', () => {
+    const node = { kind: 'epreuve', accord: { proba: 0.5 } };
+    assert.equal(survitAccord(node, { nodes: {} }, {}), true); // 0 < 0.5
+    assert.equal(survitAccord(node, { nodes: {} }, { rng: () => 1 }), false); // 1 < 0.5 faux
+  });
+});
+
+test('resoudreEtape respecte le proba du graphe (pas seulement le code en dur)', () => {
+  const graph = { nodes: {
+    fin_mort: { kind: 'end', end: 'echec' },
+    n: { kind: 'epreuve', accord: { proba: 0, survie: { next: 'x' }, mort: { next: 'fin_mort' } } },
+  } };
+  // AA/accord, mais proba=0 dans le graphe → meurt, alors que ce n'est pas la finale.
+  const r = resoudreEtape(graph, graph.nodes.n, { a: 0, b: 0 }, ctx());
+  assert.equal(r.issue, 'mort');
+  assert.equal(r.next, 'fin_mort');
+});
+
+describe('doitInjecterIntime — casser la boucle plutôt que la répéter (miroir front)', () => {
+  test('1er désaccord : pas encore de négociation', () => { assert.equal(doitInjecterIntime(1, 6), false); });
+  test('2e désaccord : négociation', () => { assert.equal(doitInjecterIntime(2, 6), true); });
+  test('3e : non, 4e : oui (une fois sur deux)', () => {
+    assert.equal(doitInjecterIntime(3, 6), false);
+    assert.equal(doitInjecterIntime(4, 6), true);
+  });
+  test('au plafond, plus de négociation (la mort suit)', () => { assert.equal(doitInjecterIntime(6, 6), false); });
+  test('seuls les tours pairs avant le plafond déclenchent', () => {
+    const n = [1, 2, 3, 4, 5, 6].filter((t) => doitInjecterIntime(t, 6));
+    assert.deepEqual(n, [2, 4]);
+  });
 });

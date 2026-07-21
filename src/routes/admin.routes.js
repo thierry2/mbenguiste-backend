@@ -8,6 +8,7 @@ const verifC = require('../controllers/verification.controller');
 const { runScheduledPass } = require('../services/mystere.service');
 const graphsModel = require('../models/graphs.model');
 const mystereModel = require('../models/mystere.model');
+const notificationService = require('../services/notification.service');
 const { validerGraphe } = require('../domain/aventure');
 const { requireAdmin } = require('../middlewares/auth.middleware');
 const catchAsync = require('../utils/catchAsync');
@@ -90,6 +91,10 @@ router.post('/mystere/pair', catchAsync(async (req, res) => {
   const r = await mystereModel.forcePair(a, b);
   if (r.error === 'bad-input') throw ApiError.badRequest('a et b doivent être deux profileId distincts');
   if (r.error) throw ApiError.badRequest(`Paire impossible : ${r.error}`);
+  // « Un mystère t'attend » aux deux membres (anonyme, best-effort). Sans ça, la
+  // paire forcée reste invisible jusqu'à ce qu'ils ouvrent l'onglet au hasard.
+  notificationService.onMystereProposed(a).catch(() => {});
+  notificationService.onMystereProposed(b).catch(() => {});
   res.json({ success: true, data: r });
 }));
 

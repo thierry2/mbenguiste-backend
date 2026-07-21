@@ -12,7 +12,7 @@
 // et la paire reste ACTIVE pour que le Joker rejoue la dernière épreuve. Seuls
 // la victoire ('match') et la sortie propre ('left') closent la paire.
 // ─────────────────────────────────────────────────────────────────────────────
-const { resoudreEtape } = require('../domain/aventure');
+const { resoudreEtape, doitInjecterIntime } = require('../domain/aventure');
 
 async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, message = null }) {
   const {
@@ -39,19 +39,30 @@ async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, m
 
   // Désaccord : on reste sur le nœud, on rejoue (tour incrémenté), on efface les
   // réponses pour repartir sur la même question.
+  //
+  // CERVEAU UNIQUE (034) : `negocier` et `clipAJouer` sont désormais calculés ICI
+  // et ÉCRITS dans la session — les DEUX clients les LISENT (Realtime), aucun ne
+  // les recalcule plus sur son propre `toursDesaccord` local. Avant ça, un
+  // message Realtime manqué désynchronisait les deux compteurs locaux : l'un
+  // voyait la question intime, l'autre non (cf. docs/audit-mystere.md §1).
   if (r.issue === 'boucle') {
+    const negocier = doitInjecterIntime(r.tour, node.desaccord && node.desaccord.maxTours);
+    const clipAJouer = (node.desaccord && node.desaccord.clip) || null;
     await advanceSession(sessionId, {
       currentNode: session.currentNode, toursDesaccord: r.tour, clearAnswers: true,
+      lastIssue: 'boucle', negocier, clipAJouer,
     });
-    return { resolved: true, issue: 'boucle', role };
+    return { resolved: true, issue: 'boucle', role, negocier, clipAJouer, tour: r.tour };
   }
 
   const nextNode = r.next;
   const cible = nextNode ? graph.nodes[nextNode] : null;
   const outcome = cible && cible.kind === 'end' ? cible.end : null; // match|echec|left|null
+  const clipAJouer = r.clip || null; // clip de conséquence (succès/mort), si le graphe en prévoit un
 
   await advanceSession(sessionId, {
     currentNode: nextNode, toursDesaccord: 0, outcome, clearAnswers: true,
+    lastIssue: r.issue, negocier: false, clipAJouer,
   });
 
   // La victoire crée le match ; la sortie propre clôt sans match. L'ÉCHEC laisse
@@ -59,7 +70,10 @@ async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, m
   if (outcome === 'match') await clore(session.pairId, 'match');
   else if (outcome === 'left') await clore(session.pairId, 'left');
 
-  return { resolved: true, issue: r.issue, next: nextNode, outcome, role };
+  return {
+    resolved: true, issue: r.issue, next: nextNode, outcome, role,
+    reveal: r.reveal, clipAJouer, negocier: false,
+  };
 }
 
 /** Câblage réel : assemble le modèle Supabase et soumet une réponse. */

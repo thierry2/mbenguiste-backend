@@ -1,0 +1,20 @@
+-- =============================================================================
+--  Migration 035 — retire l'ÉCRITURE CLIENT sur aventure_answers (cerveau unique)
+-- =============================================================================
+--  Depuis le 21/07, le CLIENT n'écrit plus JAMAIS `aventure_answers` directement :
+--  toute réponse passe par POST /discovery/mystere/answer (backend, service_role,
+--  qui refiltre le message intime ET applique la résolution AUTORITAIRE — cf.
+--  aventure.service / docs/audit-mystere.md §1 et §7).
+--
+--  La policy `aventure_answers_write` n'était donc plus qu'une surface
+--  INUTILISÉE par l'app légitime : un compte authentifié pouvait, en théorie,
+--  forger une réponse brute (contourner le filtre intime serveur, halluciner un
+--  index de réponse) tant qu'il restait membre de la session — le `with check`
+--  empêchait seulement d'USURPER LE RÔLE de l'autre, pas d'écrire sous le SIEN.
+--
+--  On la retire : plus AUCUNE policy INSERT sur cette table ⇒ aucun client ne
+--  peut y écrire, quel que soit son rôle. La LECTURE (Realtime + rattrapage,
+--  `aventure_answers_read`) reste inchangée — c'est elle qui fait arriver la
+--  réponse du partenaire côté client.
+-- =============================================================================
+drop policy if exists aventure_answers_write on public.aventure_answers;

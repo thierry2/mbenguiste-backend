@@ -76,16 +76,59 @@ function resoudreEtape(graph, node, answers, ctx = {}) {
     return { issue: 'boucle', next: null, tour };
   }
 
-  // Accord (AA ou BB, même issue) : survie SAUF la finale sans Joker.
-  const survie = !(nodeEstFinale(node, graph) && !jokerUsed);
+  // Accord (AA ou BB, même issue).
+  const survie = survitAccord(node, graph, { jokerUsed, rng: ctx.rng });
   const acc = node.accord || {};
   const branche = survie ? acc.survie : acc.mort;
   return {
     issue: survie ? 'survie' : 'mort',
     next: (branche && branche.next) || null,
+    clip: (branche && branche.clip) || undefined,
     // L'indice est une récompense : jamais sur une mort.
     reveal: survie ? node.reveal : undefined,
   };
+}
+
+/**
+ * L'accord survit-il ? — DÉTERMINISTE, configurable PAR LE GRAPHE (jamais figé
+ * dans le code, cahier des charges 21/07).
+ *
+ *   · Le Joker GARANTIT la révélation : sur l'épreuve finale, une fois joué, on
+ *     survit toujours, quoi que dise le graphe.
+ *   · Sinon, `node.accord.proba` pilote l'issue : le graphe peut mettre 1 partout
+ *     et 0 sur la finale (« il ne manque que le visage »), puis remonter la
+ *     finale à 1 une fois qu'on veut que l'aventure se termine plus facilement —
+ *     sans toucher une ligne de code.
+ *   · Graphe legacy sans `proba` (ex. les graphes de test créés avant le 21/07) :
+ *     on retombe sur l'ancienne politique en dur (tout réussit sauf la finale
+ *     sans Joker), pour ne rien casser de ce qui tournait déjà.
+ *   · `rng` est injectable (`ctx.rng`, défaut déterministe `() => 0`) : le jour
+ *     où une vraie probabilité est voulue, on remplace juste ce tirage — rien
+ *     d'autre ne change (même levier que côté client, `adventureEngine.ts`).
+ */
+function survitAccord(node, graph, { jokerUsed = false, rng } = {}) {
+  const finale = nodeEstFinale(node, graph);
+  if (finale && jokerUsed) return true;
+  const acc = node.accord || {};
+  const proba = Number.isFinite(acc.proba) ? acc.proba : (finale ? 0 : 1);
+  const tirage = typeof rng === 'function' ? rng : () => 0;
+  return tirage() < proba;
+}
+
+/**
+ * Faut-il glisser un MOMENT INTIME dans une boucle de désaccord ? — miroir EXACT
+ * de `adventureEngine.ts` (front). Deux désaccords d'affilée deviennent
+ * mécaniques ; on casse la boucle par une question intime, une fois sur deux.
+ * ⚠ Ce n'est PAS une étape : elle ne débloque aucun indice.
+ *
+ * Calculée ICI (serveur) et non plus par chaque client sur son PROPRE compteur :
+ * c'est ce qui garantissait auparavant qu'un message Realtime manqué désaccorde
+ * les deux `tours_desaccord` locaux, et donc la décision « négociation ou pas »
+ * (un joueur voit la question intime, l'autre non). Servie par la session, elle
+ * est désormais identique pour les deux.
+ */
+function doitInjecterIntime(tour, maxTours = MAX_DESACCORDS) {
+  return tour > 0 && tour % 2 === 0 && tour < maxTours;
 }
 
 /**
@@ -129,4 +172,7 @@ function validerGraphe(g) {
   return problems;
 }
 
-module.exports = { comboKey, estEpreuveFinale, trouveEpreuveFinale, resoudreEtape, validerGraphe, MAX_DESACCORDS };
+module.exports = {
+  comboKey, estEpreuveFinale, trouveEpreuveFinale, resoudreEtape, validerGraphe,
+  doitInjecterIntime, survitAccord, MAX_DESACCORDS,
+};

@@ -261,9 +261,44 @@ function partenaireDe(pair, userId) {
 const ISSUE_VERS_ETAT = { match: 'won', echec: 'lost', left: 'left' };
 function etatApresIssue(issue) { return ISSUE_VERS_ETAT[issue] ?? null; }
 
+/**
+ * LES INDICES RÉELS du partenaire — dérivés de son profil, en code PUR (l'I/O et
+ * le calcul d'âge sont faits par l'appelant). Chaque cran vaut `null` si la
+ * donnée n'est pas renseignée : décision produit « pas d'info → on n'affiche
+ * rien » (tout le monde n'a pas rempli son profil).
+ *
+ * ⚠ JAMAIS la photo : le visage ne se sert qu'APRÈS le match (/mystere/reveal).
+ * Ici, uniquement du texte — c'est ce qui rend acceptable de tout envoyer d'un
+ * coup (un prénom/une ville sans visage n'identifie ni ne permet de contacter).
+ *
+ * `interets` porte la liste COMPLÈTE (pour remplir la carte progressivement,
+ * comme le deck : N affichés + « +n ») ; `gout` est le premier, pour le cran
+ * unique « Un goût » de l'échelle par défaut.
+ */
+function attributsIndices(row = {}, age = null) {
+  const interets = (row.interests || [])
+    .map((i) => i.interest?.display_name)
+    .filter((v) => typeof v === 'string' && v.trim())
+    .map((v) => v.trim());
+  const prompt = (row.prompts || [])
+    .slice()
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    .find((p) => typeof p.answer === 'string' && p.answer.trim());
+  return {
+    prenom: row.first_name?.trim() || null,
+    age: Number.isFinite(age) && age > 0 ? age : null,
+    ville: row.current_city?.trim() || null,
+    gout: interets[0] ?? null,
+    interets,
+    aveu: prompt
+      ? { question: prompt.prompt?.question?.trim() || null, answer: prompt.answer.trim() }
+      : null,
+  };
+}
+
 module.exports = {
   apparier, desirabiliteParDefaut,
   estDansLaFenetre, prochainTirage, plancherApplicable, tirageDuJour,
-  roleDe, partenaireDe, etatApresIssue,
+  roleDe, partenaireDe, etatApresIssue, attributsIndices,
   CONFIG_DEFAUT,
 };

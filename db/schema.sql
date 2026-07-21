@@ -1238,13 +1238,31 @@ create table if not exists public.aventure_sessions (
   pair_id       uuid not null references public.mystere_pairs(id) on delete cascade,
   graph_id      text not null,
   current_node  text not null,
-  phase         text not null default 'scene',
+  -- SERVEUR AUTORITAIRE (034) : la session porte TOUT ce que l'écran doit
+  -- rendre — les deux clients LISENT, ils ne recalculent plus rien localement.
+  -- Sans ça (avant 034), chaque client rejouait le moteur avec son PROPRE
+  -- `toursDesaccord`/sa propre décision d'intime → deux vérités qui divergent
+  -- (intime vue par un seul, Joker qui bloque l'autre). Cf. docs/audit-mystere.md.
+  phase         text not null default 'scene'
+                check (phase in (
+                  'scene', 'choix', 'attente', 'absent', 'resolution',
+                  'consequence', 'recompense', 'reprise', 'negociation', 'suivant', 'fin'
+                )),
   outcome       text check (outcome in ('match','echec','left')),
   joker_used    boolean not null default false,
   -- Compteur de tours de désaccord SUR LE NŒUD COURANT : le serveur le lit pour
   -- savoir quand la boucle de désaccord atteint le plafond (= mort). Remis à 0
   -- dès qu'on quitte le nœud. Sans lui, la résolution serveur n'a pas de mémoire.
   tours_desaccord int not null default 0,
+  -- L'issue de la DERNIÈRE résolution : dit à l'écran s'il doit jouer un clip de
+  -- conséquence (succès/mort) avant d'atterrir, sans que le client la redéduise.
+  last_issue    text check (last_issue in ('survie', 'mort', 'boucle')),
+  -- Ce désaccord doit-il ouvrir une négociation (question intime) ? Décidé par
+  -- le serveur (doitInjecterIntime), plus par chaque client sur son propre compteur.
+  negocier      boolean not null default false,
+  -- La clé de clip que l'écran doit charger MAINTENANT (scène, reprise, ou
+  -- conséquence) — le client ne choisit plus lui-même quel clip afficher.
+  clip_a_jouer  text,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   unique (pair_id)
@@ -1278,13 +1296,15 @@ create policy aventure_answers_read on public.aventure_answers
     where s.id = aventure_answers.session_id
       and public.mystere_role(s.pair_id, auth.uid()) is not null
   ));
+-- ÉCRITURE : FERMÉE au client (035, cerveau unique). Toute réponse passe par
+-- POST /discovery/mystere/answer (service_role, qui refiltre le message intime
+-- ET applique la résolution AUTORITAIRE — cf. aventure.service). L'ancienne
+-- policy d'écriture client n'était plus qu'une surface INUTILISÉE par l'app
+-- légitime : un compte authentifié pouvait forger une réponse brute (contourner
+-- le filtre intime, halluciner un index) tant qu'il restait membre de la
+-- session. Aucune policy INSERT ⇒ aucun client ne peut écrire, quel que soit
+-- son rôle.
 drop policy if exists aventure_answers_write on public.aventure_answers;
-create policy aventure_answers_write on public.aventure_answers
-  for insert to authenticated
-  with check (role = public.mystere_role(
-    (select s.pair_id from public.aventure_sessions s where s.id = aventure_answers.session_id),
-    auth.uid()
-  ));
 
 do $$
 begin

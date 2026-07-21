@@ -238,6 +238,19 @@ const mystereReveal = catchAsync(async (req, res) => {
 });
 
 /**
+ * LES INDICES RÉELS du partenaire (texte seulement, JAMAIS la photo) — de quoi
+ * remplir la carte du Mystère au fil des étapes gagnées. Le serveur DÉRIVE le
+ * partenaire de la paire active (jamais un id client). On sert tout d'un coup ;
+ * l'écran ne dévoile que ce que l'étape courante autorise (via `node.reveal`).
+ * `{ indices: null }` s'il n'y a pas d'aventure en cours (pas une erreur : l'écran
+ * retombe simplement sur les catégories verrouillées).
+ */
+const mystereIndices = catchAsync(async (req, res) => {
+  const indices = await mystereModel.partnerIndices(req.user.id);
+  res.json({ success: true, data: { indices: indices ?? null } });
+});
+
+/**
  * Un message de NÉGOCIATION (désaccord répété) : un échange libre entre les deux,
  * sur un « canal » propre au tour (nodeId synthétique côté client). Refiltré
  * serveur, enregistré SANS résolution — il ne fait pas avancer l'aventure, il
@@ -367,4 +380,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere, mystereReveal, submitMystereMessage, mystereGraph, leaveMystere };
+module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere, mystereReveal, mystereIndices, submitMystereMessage, mystereGraph, leaveMystere };

@@ -31,6 +31,7 @@ const scoreTest = (v, c) => {
 function deps(over = {}) {
   const ecrit = [];
   const dissoutes = [];
+  const notified = [];
   let lastPass = null;
   const base = {
     loadConfig: async () => CFG,
@@ -40,11 +41,14 @@ function deps(over = {}) {
     dissolvePairs: async (ps) => { dissoutes.push(...ps); },
     loadLockedPairs: async () => [],
     loadVivier: async () => ({ profils: new Map(), eligibles: new Map() }),
-    writePairs: async (ps) => { ecrit.push(...ps); },
+    // Le vrai writePairs renvoie les paires RÉELLEMENT créées (celles non refusées
+    // par le trigger) — l'orchestrateur s'en sert pour notifier et compter.
+    writePairs: async (ps) => { ecrit.push(...ps); return ps; },
+    notifyProposed: async (uid) => { notified.push(uid); },
     scoreOf: scoreTest,
     desirabiliteOf: () => 0.5,
     logger: { info() {}, warn() {} },
-    _lu: () => ({ ecrit, dissoutes, lastPass }),
+    _lu: () => ({ ecrit, dissoutes, notified, lastPass }),
   };
   return { ...base, ...over };
 }
@@ -149,4 +153,31 @@ test('rien à apparier → aucune écriture, mais la passe est enregistrée', as
   assert.equal(r.paires, 0);
   assert.equal(d._lu().ecrit.length, 0);
   assert.equal(d._lu().lastPass, H(21)); // la passe a bien tourné
+});
+
+test('une paire créée → « un mystère t\'attend » aux DEUX membres', async () => {
+  const d = deps({ loadVivier: async () => viviersDeux() });
+  await runMysteryPass(d, H(21));
+  assert.deepEqual(d._lu().notified.slice().sort(), ['a', 'b']);
+});
+
+test('on ne notifie QUE les paires réellement créées (writePairs filtre les refus)', async () => {
+  // Simule un trigger « un seul mystère actif » qui refuse la paire : writePairs
+  // ne renvoie rien → personne n'est notifié (pas de faux « un mystère t'attend »).
+  const d = deps({
+    loadVivier: async () => viviersDeux(),
+    writePairs: async () => [],
+  });
+  const r = await runMysteryPass(d, H(21));
+  assert.equal(r.paires, 0);
+  assert.equal(d._lu().notified.length, 0);
+});
+
+test('aucune notif pour une aventure verrouillée (rien de nouveau créé)', async () => {
+  const d = deps({
+    loadLockedPairs: async () => [['a', 'b']],
+    loadVivier: async () => viviersDeux(), // a,b déjà verrouillés → rien de neuf
+  });
+  await runMysteryPass(d, H(21));
+  assert.equal(d._lu().notified.length, 0);
 });

@@ -75,23 +75,30 @@ test('un TIERS ne voit pas la session, même en connaissant son id', async () =>
 });
 
 // ── Les réponses : le canal Realtime, anonyme ────────────────────────────────
+//
+// CERVEAU UNIQUE (035) : le client ne SCRIT plus jamais `aventure_answers`
+// directement — toute réponse passe par POST /discovery/mystere/answer
+// (service_role, qui refiltre le message intime ET applique la résolution
+// autoritaire). Les lignes ci-dessous sont donc écrites comme le fait le
+// BACKEND (service_role = superuser du test, pas `asUser`) ; ce qu'on VÉRIFIE
+// ici, c'est que le client peut toujours LIRE (Realtime) mais plus ÉCRIRE.
 
-test('chaque joueur écrit sous SON rôle, et l’autre le reçoit', async () => {
+test('le backend écrit sous CHAQUE rôle, et les deux membres le LISENT', async () => {
   // a = user_low = rôle 'a' ; b = user_high = rôle 'b'.
   const [low] = ordered(a, b);
   const roleA = low === a ? 'a' : 'b';
   const roleB = roleA === 'a' ? 'b' : 'a';
 
-  await asUser(db, a, () => db.query(
+  await db.query(
     `INSERT INTO aventure_answers (session_id, node_id, role, answer_index)
      VALUES ($1::uuid, 'n1', $2, 0)`, [sessionId, roleA],
-  ));
-  await asUser(db, b, () => db.query(
+  );
+  await db.query(
     `INSERT INTO aventure_answers (session_id, node_id, role, answer_index)
      VALUES ($1::uuid, 'n1', $2, 1)`, [sessionId, roleB],
-  ));
+  );
 
-  // b voit LES DEUX réponses (c'est ce que Realtime lui livrera)…
+  // b LIT les deux réponses (c'est ce que Realtime lui livrera)…
   const vues = await asUser(db, b, async () => {
     const r = await db.query(
       'SELECT role, answer_index FROM aventure_answers WHERE session_id = $1::uuid ORDER BY role',
@@ -112,13 +119,13 @@ test('ANONYMAT : un tiers ne lit aucune réponse de la session', async () => {
   assert.equal(rows.length, 0);
 });
 
-test('on ne peut pas USURPER le rôle de l’autre', async () => {
+test('FERMÉE AU CLIENT (035) : même un MEMBRE, sous SON PROPRE rôle, ne peut plus écrire', async () => {
   const [low] = ordered(a, b);
-  const roleDeLautre = low === a ? 'b' : 'a'; // a tente d'écrire sous le rôle de b
+  const roleA = low === a ? 'a' : 'b';
   await assert.rejects(
     () => asUser(db, a, () => db.query(
       `INSERT INTO aventure_answers (session_id, node_id, role, answer_index)
-       VALUES ($1::uuid, 'n2', $2, 0)`, [sessionId, roleDeLautre],
+       VALUES ($1::uuid, 'n2', $2, 0)`, [sessionId, roleA],
     )),
     /row-level security/i,
   );
