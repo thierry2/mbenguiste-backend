@@ -1238,6 +1238,10 @@ create table if not exists public.aventure_sessions (
   phase         text not null default 'scene',
   outcome       text check (outcome in ('match','echec','left')),
   joker_used    boolean not null default false,
+  -- Compteur de tours de désaccord SUR LE NŒUD COURANT : le serveur le lit pour
+  -- savoir quand la boucle de désaccord atteint le plafond (= mort). Remis à 0
+  -- dès qu'on quitte le nœud. Sans lui, la résolution serveur n'a pas de mémoire.
+  tours_desaccord int not null default 0,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   unique (pair_id)
@@ -1286,6 +1290,15 @@ begin
     begin alter publication supabase_realtime add table public.aventure_sessions; exception when duplicate_object then null; end;
   end if;
 end $$;
+
+-- Graphes d'Aventure éditables (migration 032). FERMÉE au client (backend only).
+create table if not exists public.aventure_graphs (
+  id          text primary key,
+  title       text,
+  data        jsonb not null,
+  updated_at  timestamptz not null default now()
+);
+alter table public.aventure_graphs enable row level security;
 
 insert into public.app_settings (key, value) values
   ('mystere.draw_hour_utc',      '21'::jsonb),

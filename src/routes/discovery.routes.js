@@ -21,6 +21,19 @@ router.post('/picks/:id/like', authenticate, validate(schemas.pickLike), c.likeP
 // Le Mystère — la personne à découvrir, TOUJOURS masquée (jamais /likes, qui
 // renvoie du clair aux comptes Or).
 router.get('/mystere', authenticate, c.mystere);
+// Lancer / reprendre l'Aventure : verrouille la paire, crée la session, rend mon rôle.
+router.post('/mystere/start', authenticate, c.startMystere);
+// Soumettre ma réponse à l'étape courante (le canal temps réel). Le serveur
+// tranche quand les deux ont répondu ; le message intime est refiltré ici.
+router.post('/mystere/answer', authenticate, c.submitMystereAnswer);
+// Jouer le Joker : dépense 1 Joker, renvoie à l'épreuve finale (402 si vide).
+router.post('/mystere/joker', authenticate, c.playJokerMystere);
+// Le graphe de présentation (nœuds + clips) que le client joue — plus de mock.
+router.get('/mystere/graph/:id', authenticate, c.mystereGraph);
+// La révélation : le vrai profil du partenaire, une fois l'aventure gagnée.
+router.get('/mystere/reveal', authenticate, c.mystereReveal);
+// Un message de négociation (désaccord répété) — échange libre, sans résolution.
+router.post('/mystere/message', authenticate, c.submitMystereMessage);
 // « Qui t'a liké » — total toujours, profils réservés à l'Or.
 router.get('/likes', authenticate, c.likesReceived);
 // Swiper un profil : POST /discovery/:id/swipe { action }.

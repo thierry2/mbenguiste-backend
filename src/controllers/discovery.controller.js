@@ -4,9 +4,13 @@ const logger = require('../utils/logger');
 const ApiError = require('../utils/apiError');
 const config = require('../config');
 const discoveryModel = require('../models/discovery.model');
+const mystereModel = require('../models/mystere.model');
 const accessService = require('../services/access.service');
 const swipeService = require('../services/swipe.service');
 const picksService = require('../services/picks.service');
+const aventureService = require('../services/aventure.service');
+const graphsModel = require('../models/graphs.model');
+const { filtrerMessageIntime } = require('../domain/intimeFilter');
 const creditsModel = require('../models/credits.model');
 
 /** File de profils à découvrir. */
@@ -114,18 +118,23 @@ const online = (lastActiveAt) => !!lastActiveAt && Date.now() - new Date(lastAct
  * du deck — donc quelqu'un que les préférences et le score ont déjà retenu, ce
  * qui est la bonne forme. Seul ce choix bougera ; le contrat de sortie, non.
  */
+/**
+ * Le Mystère du membre : sa PAIRE réelle (`mystere_pairs`), servie MASQUÉE.
+ *
+ * Change du 20/07 : on lit désormais la vraie paire tirée par le job de passe,
+ * plus le « premier candidat du deck » (béquille interim). Aucune paire → aucun
+ * Mystère, et on l'assume (doctrine : mieux vaut rare et juste). Le jeton reste
+ * opaque : le client ne peut pas déduire qui est en face.
+ */
 const mystere = catchAsync(async (req, res) => {
   const viewerId = req.user.id;
-  const [cible] = await discoveryModel.candidates(viewerId, { limit: 1 });
-  if (!cible) return res.json({ success: true, data: { mystere: null } });
+  const pair = await mystereModel.pairForUser(viewerId);
+  if (!pair) return res.json({ success: true, data: { mystere: null } });
 
-  const masked = await discoveryModel.maskedCardsByIds([cible.id]);
-  const m = masked.get(cible.id);
-  // On sert en priorité le masque HÉROS (plein écran, calibré pour montrer la
-  // forme sans le visage). Repli sur le masque tuile tant que le backfill héros
-  // n'est pas passé : plus flou, mais MASQUÉ tout autant — jamais la photo nette.
-  // Aucune des deux → pas de Mystère : mieux vaut un écran sans photo qu'un
-  // visage révélé par accident.
+  const masked = await discoveryModel.maskedCardsByIds([pair.partnerId]);
+  const m = masked.get(pair.partnerId);
+  // Masque HÉROS (plein écran) en priorité, repli sur le masque tuile. Aucun des
+  // deux → pas de Mystère : jamais un visage révélé par accident.
   const blurUrl = m?.blurHeroUrl ?? m?.blurUrl ?? null;
   if (!blurUrl) return res.json({ success: true, data: { mystere: null } });
 
@@ -133,12 +142,124 @@ const mystere = catchAsync(async (req, res) => {
     success: true,
     data: {
       mystere: {
-        id: maskToken(viewerId, cible.id), // jeton opaque : aucune fuite d'identité
+        id: maskToken(viewerId, pair.partnerId), // jeton opaque : aucune fuite d'identité
         blurUrl,
         enLigne: online(m.lastActiveAt),
+        etat: pair.state,                        // 'proposed' | 'active' (aventure en cours)
       },
     },
   });
+});
+
+/**
+ * Lancer / reprendre l'Aventure : verrouille la paire et crée sa session. Rend
+ * la session + MON rôle ('a'/'b') pour le Realtime. Le graphe est encore le
+ * mock côté client tant que les vrais clips ne sont pas tournés.
+ */
+const startMystere = catchAsync(async (req, res) => {
+  const { graphId, startNode } = req.body || {};
+  if (!graphId || !startNode) throw ApiError.badRequest('graphId et startNode requis');
+  const session = await mystereModel.startAdventure(req.user.id, { graphId, startNode });
+  if (!session) throw ApiError.notFound('Aucun mystère à lancer');
+  res.json({ success: true, data: { session } });
+});
+
+/**
+ * Soumettre MA réponse à l'étape courante — le keystone du temps réel.
+ *
+ * On DÉRIVE la session de l'utilisateur (jamais un id fourni par le client :
+ * impossible de répondre pour la session d'autrui). Le message intime est
+ * REFILTRÉ côté serveur avant d'être écrit (jamais confiance au filtre client).
+ * Le serveur tranche (domaine autoritaire) ; sa réponse dit `waiting` (l'autre
+ * n'a pas encore répondu) ou l'issue résolue — c'est aussi ce que l'autre reçoit
+ * en Realtime.
+ */
+const submitMystereAnswer = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const body = req.body || {};
+
+  let answerIndex = null;
+  if (body.answerIndex !== undefined && body.answerIndex !== null) {
+    answerIndex = Number(body.answerIndex);
+    if (answerIndex !== 0 && answerIndex !== 1) throw ApiError.badRequest('answerIndex doit valoir 0 ou 1');
+  }
+
+  const s = await mystereModel.sessionForUser(userId);
+  if (!s) throw ApiError.notFound('Aucune aventure en cours');
+
+  // Refiltrage serveur du message intime (la migration 031 le promet).
+  let cleanMessage = null;
+  let filtered = null;
+  if (typeof body.message === 'string' && body.message.trim()) {
+    const f = filtrerMessageIntime(body.message.trim());
+    cleanMessage = f.clean;
+    if (f.flagged) filtered = { reasons: f.reasons };
+  }
+
+  const result = await aventureService.soumettre({
+    sessionId: s.sessionId, userId, answerIndex, message: cleanMessage,
+  });
+  if (result.error === 'not-member') throw ApiError.forbidden('Pas ta session');
+  if (result.error === 'no-session') throw ApiError.notFound('Aventure introuvable');
+
+  res.json({ success: true, data: { ...result, filtered } });
+});
+
+/**
+ * Jouer le Joker — le seul achat du parcours. Dépense 1 Joker, renvoie à
+ * l'épreuve finale et pose `joker_used` côté serveur (autoritaire) : la relecture
+ * réussira. 402 JOKER_EMPTY si le solde est vide (le front ouvre le paywall).
+ */
+const playJokerMystere = catchAsync(async (req, res) => {
+  const r = await mystereModel.playJoker(req.user.id);
+  if (r.error === 'no-session') throw ApiError.notFound('Aucune aventure à rejouer');
+  if (r.error === 'no-final') throw ApiError.badRequest('Graphe sans épreuve finale');
+  if (r.error === 'no-joker') {
+    throw ApiError.paymentRequired('Tu n’as pas de Joker.', { code: 'JOKER_EMPTY', source: 'mystere_joker' });
+  }
+  res.json({ success: true, data: r });
+});
+
+/**
+ * La RÉVÉLATION — le vrai profil du partenaire, une fois l'aventure GAGNÉE.
+ * Le client n'a jamais eu accès à l'identité pendant le Mystère ; la victoire
+ * (le match) la rend légitime. On sert le profil complet (même sérialisation que
+ * le deck). `null` si l'utilisateur n'a aucune paire gagnée.
+ */
+const mystereReveal = catchAsync(async (req, res) => {
+  const partnerId = await mystereModel.revealedPartner(req.user.id);
+  if (!partnerId) return res.json({ success: true, data: { profil: null } });
+  const cards = await discoveryModel.cardsByIds([partnerId]);
+  res.json({ success: true, data: { profil: cards.get(partnerId) ?? null } });
+});
+
+/**
+ * Un message de NÉGOCIATION (désaccord répété) : un échange libre entre les deux,
+ * sur un « canal » propre au tour (nodeId synthétique côté client). Refiltré
+ * serveur, enregistré SANS résolution — il ne fait pas avancer l'aventure, il
+ * fait parler. L'autre le reçoit par Realtime (comme toute réponse).
+ */
+const submitMystereMessage = catchAsync(async (req, res) => {
+  const { nodeId, message } = req.body || {};
+  if (!nodeId || typeof nodeId !== 'string') throw ApiError.badRequest('nodeId requis');
+  const s = await mystereModel.sessionForUser(req.user.id);
+  if (!s) throw ApiError.notFound('Aucune aventure en cours');
+  const role = await mystereModel.roleOf(s.pairId, req.user.id);
+  if (!role) throw ApiError.forbidden('Pas ta session');
+  const clean = typeof message === 'string' && message.trim()
+    ? filtrerMessageIntime(message.trim()).clean : null;
+  await mystereModel.recordAnswer({ sessionId: s.sessionId, nodeId, role, answerIndex: null, message: clean });
+  res.json({ success: true, data: { ok: true } });
+});
+
+/**
+ * Le GRAPHE DE PRÉSENTATION servi au client : nœuds (questions, options, clips,
+ * ambiances) + routage. C'est ce que le client joue — plus de graphe en dur.
+ * `null` si aucun graphe n'est enregistré → le client retombe sur son mock.
+ */
+const mystereGraph = catchAsync(async (req, res) => {
+  const g = await graphsModel.getGraph(req.params.id);
+  res.json({ success: true, data: { graph: g ? g.data : null } });
 });
 
 const likesReceived = catchAsync(async (req, res) => {
@@ -229,4 +350,4 @@ const countCandidates = catchAsync(async (req, res) => {
   res.json({ success: true, data: { count } });
 });
 
-module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere };
+module.exports = { getCandidates, swipe, rewind, dailyPicks, likePick, countCandidates, boost, likesReceived, mystere, startMystere, submitMystereAnswer, playJokerMystere, mystereReveal, submitMystereMessage, mystereGraph };

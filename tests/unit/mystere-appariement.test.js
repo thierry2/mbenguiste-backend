@@ -351,3 +351,28 @@ test('le score DOIT être injecté — aucun score maison ne peut repousser ici'
     /score unifié/,
   );
 });
+
+// ── Cycle de vie d'une paire (helpers purs) ──────────────────────────────────
+const { roleDe, partenaireDe, etatApresIssue } = require('../../src/domain/mystere');
+
+test('roleDe : user_low = a, user_high = b, étranger = null', async () => {
+  const pair = { user_low: 'AA', user_high: 'ZZ' };
+  assert.equal(roleDe(pair, 'AA'), 'a');
+  assert.equal(roleDe(pair, 'ZZ'), 'b');
+  assert.equal(roleDe(pair, 'MM'), null);
+  assert.equal(roleDe(null, 'AA'), null);
+});
+
+test('partenaireDe : renvoie l’autre, jamais soi ni un ordre', async () => {
+  const pair = { user_low: 'AA', user_high: 'ZZ' };
+  assert.equal(partenaireDe(pair, 'AA'), 'ZZ');
+  assert.equal(partenaireDe(pair, 'ZZ'), 'AA');
+  assert.equal(partenaireDe(pair, 'MM'), null);
+});
+
+test('etatApresIssue : match→won, echec→lost, left→left', async () => {
+  assert.equal(etatApresIssue('match'), 'won');
+  assert.equal(etatApresIssue('echec'), 'lost');
+  assert.equal(etatApresIssue('left'), 'left');
+  assert.equal(etatApresIssue('n_importe_quoi'), null);
+});

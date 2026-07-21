@@ -237,8 +237,33 @@ function apparier({
   return { paires, sansMystere };
 }
 
+// ── Cycle de vie d'une paire (helpers purs) ──────────────────────────────────
+
+/** Mon rôle dans la paire : 'a' = user_low, 'b' = user_high (miroir de la RLS). */
+function roleDe(pair, userId) {
+  if (!pair) return null;
+  if (pair.user_low === userId) return 'a';
+  if (pair.user_high === userId) return 'b';
+  return null;
+}
+
+/** Le partenaire, sans jamais exposer d'ordre au-dehors. */
+function partenaireDe(pair, userId) {
+  if (!pair) return null;
+  if (pair.user_low === userId) return pair.user_high;
+  if (pair.user_high === userId) return pair.user_low;
+  return null;
+}
+
+// L'issue de l'Aventure → l'état TERMINAL de la paire. 'match' = gagné (on crée
+// le match), 'echec' = perdu (Joker possible), 'left' = sortie propre (pas de
+// Joker). Les états non terminaux ('proposed'/'active') ne sont pas des issues.
+const ISSUE_VERS_ETAT = { match: 'won', echec: 'lost', left: 'left' };
+function etatApresIssue(issue) { return ISSUE_VERS_ETAT[issue] ?? null; }
+
 module.exports = {
   apparier, desirabiliteParDefaut,
   estDansLaFenetre, prochainTirage, plancherApplicable, tirageDuJour,
+  roleDe, partenaireDe, etatApresIssue,
   CONFIG_DEFAUT,
 };

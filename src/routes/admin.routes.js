@@ -6,6 +6,8 @@ const partnersModel = require('../models/partners.model');
 const partnerStats = require('../models/partnerStats.model');
 const verifC = require('../controllers/verification.controller');
 const { runScheduledPass } = require('../services/mystere.service');
+const graphsModel = require('../models/graphs.model');
+const { validerGraphe } = require('../domain/aventure');
 const { requireAdmin } = require('../middlewares/auth.middleware');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/apiError');
@@ -74,6 +76,31 @@ router.use((req, _res, next) => {
 router.post('/mystere/pass', catchAsync(async (_req, res) => {
   const r = await runScheduledPass({ force: true });
   res.json({ success: true, data: r });
+}));
+
+// ── GRAPHES D'AVENTURE (éditeur) ─────────────────────────────────────────────
+// GET /admin/graphs — la liste (id + titre + date).
+router.get('/graphs', catchAsync(async (_req, res) => {
+  res.json({ success: true, data: { graphs: await graphsModel.listGraphs() } });
+}));
+
+// GET /admin/graphs/:id — un graphe complet (pour l'éditer).
+router.get('/graphs/:id', catchAsync(async (req, res) => {
+  const graph = await graphsModel.getGraph(req.params.id);
+  if (!graph) throw ApiError.notFound('Graphe introuvable');
+  res.json({ success: true, data: { graph } });
+}));
+
+// PUT /admin/graphs/:id  body: { title?, data } — enregistre (upsert). Le graphe
+// est VALIDÉ avant écriture : une flèche vers un nœud inexistant figerait une
+// aventure. Refus 400 avec la liste des problèmes sinon.
+router.put('/graphs/:id', catchAsync(async (req, res) => {
+  const { title, data } = req.body || {};
+  if (!data || typeof data !== 'object') throw ApiError.badRequest('Le graphe (data) est requis');
+  const problems = validerGraphe(data);
+  if (problems.length) throw ApiError.badRequest('Graphe invalide', { problems });
+  const graph = await graphsModel.saveGraph(req.params.id, { title, data });
+  res.json({ success: true, data: { graph } });
 }));
 
 const ACTIONS = ['retirer', 'restaurer', 'rejeter'];

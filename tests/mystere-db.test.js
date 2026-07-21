@@ -177,3 +177,54 @@ test('une aventure VERROUILLÉE reste unique par paire (pas de double session)',
     /unique|duplicate/i,
   );
 });
+
+// ── Cycle de vie : trouver sa paire, démarrer, révéler → match ───────────────
+
+test('on retrouve SA paire non terminale (proposed ou active)', async () => {
+  // La query que fera `pairForUser` : l'unique paire non terminale du user.
+  const r = await db.query(
+    `SELECT id, user_low, user_high, state FROM mystere_pairs
+     WHERE state IN ('proposed','active') AND (user_low = $1::uuid OR user_high = $1::uuid)`,
+    [a],
+  );
+  assert.equal(r.rows.length, 1);
+  assert.equal(r.rows[0].id, pairId);
+});
+
+test('DÉMARRER : la paire passe active, la session existe (déjà le cas ici)', async () => {
+  // `before` a créé la paire 'active' + la session : démarrer est idempotent.
+  const s = await db.query('SELECT id, current_node FROM aventure_sessions WHERE pair_id = $1::uuid', [pairId]);
+  assert.equal(s.rows.length, 1);
+  const p = await db.query('SELECT state FROM mystere_pairs WHERE id = $1::uuid', [pairId]);
+  assert.equal(p.rows[0].state, 'active');
+});
+
+test('RÉVÉLATION : la victoire crée un match entre les deux, et clôt la paire', async () => {
+  const [low, high] = ordered(a, b);
+  // Ce que fera `revealAndMatch('match')` : créer le match + clore la paire.
+  await db.query(
+    `INSERT INTO matches (user_low, user_high, last_message_at)
+     VALUES ($1::uuid, $2::uuid, now())
+     ON CONFLICT (user_low, user_high) DO UPDATE SET is_active = true`,
+    [low, high],
+  );
+  await db.query("UPDATE mystere_pairs SET state = 'won' WHERE id = $1::uuid", [pairId]);
+
+  const m = await db.query(
+    'SELECT 1 FROM matches WHERE user_low = $1::uuid AND user_high = $2::uuid',
+    [low, high],
+  );
+  assert.equal(m.rows.length, 1);
+  const p = await db.query('SELECT state FROM mystere_pairs WHERE id = $1::uuid', [pairId]);
+  assert.equal(p.rows[0].state, 'won');
+});
+
+test('une paire close LIBÈRE ses membres pour un futur mystère (plus non terminale)', async () => {
+  // Après 'won', la query de pairForUser ne doit plus rien renvoyer pour a.
+  const r = await db.query(
+    `SELECT 1 FROM mystere_pairs
+     WHERE state IN ('proposed','active') AND (user_low = $1::uuid OR user_high = $1::uuid)`,
+    [a],
+  );
+  assert.equal(r.rows.length, 0);
+});

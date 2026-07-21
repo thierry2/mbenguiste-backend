@@ -136,12 +136,13 @@
       t.classList.add('tab-on');
       tab = t.dataset.tab;
       var partenaires = tab === 'partenaires';
+      var graphes = tab === 'graphes';
       // Le filtre « à traiter / traités » ne parle que des dossiers de modération.
       // La file de vérification n'a qu'un seul état visible : ce qui attend une décision.
       var moderation = tab === 'dossiers' || tab === 'libres';
       $('filters').classList.toggle('hidden', !moderation);
       $('panel-partners').classList.toggle('hidden', !partenaires);
-      $('stats').classList.toggle('hidden', partenaires);
+      $('stats').classList.toggle('hidden', partenaires || graphes);
       charger();
     });
   });
@@ -180,6 +181,7 @@
     revoquerBlobs(); // les images de la vue précédente ne servent plus
     squelette();
     if (tab === 'partenaires') return chargerPartenaires();
+    if (tab === 'graphes') return chargerGraphes();
 
     api('/moderation/counts').then(function (c) {
       $('s-dossiers').textContent = c.dossiers;
@@ -707,6 +709,113 @@
       if (localStorage.getItem(k) !== null) localStorage.removeItem(k);
     });
   } catch (e) { /* stockage indisponible : rien à purger */ }
+
+  /* ── Graphes d'aventure (éditeur) ─────────────────────────────────────── */
+  // Un graphe modèle valide (nœuds + routage + clips) pour partir d'une base.
+  var TEMPLATE_GRAPHE = {
+    start: 'n1',
+    nodes: {
+      n1: { kind: 'epreuve', ambiance: 'grotte', question: 'Un guide sort de l’ombre. Qui suivez-vous ?', options: ['Alain', 'Richard'], clip: 'n1',
+        accord: { survie: { next: 'n2', clip: 'n1_succes' }, mort: { next: 'fin_mort', clip: 'n1_mort' } },
+        desaccord: { maxTours: 6, clip: 'n1_reprise', mort: 'fin_desaccord' } },
+      n2: { kind: 'intime', ambiance: 'nuit', question: 'Où iriez-vous ensemble ?', clip: 'n2', reveal: 'aveu', next: 'n2b' },
+      n2b: { kind: 'consentement', ambiance: 'nuit', question: 'Après ça… vous continuez l’aventure ensemble ?', options: ['On continue', 'On s’arrête là'], clip: 'n2b', oui: 'n3', non: 'fin_separes' },
+      n3: { kind: 'epreuve', ambiance: 'nuit', question: 'Le sol s’effondre. Vous sautez… ensemble ?', options: ['On saute', 'On attend'], clip: 'n3',
+        accord: { survie: { next: 'fin_plage', clip: 'n3_succes' }, mort: { next: 'fin_mort', clip: 'n3_mort' } },
+        desaccord: { maxTours: 6, clip: 'n3_reprise', mort: 'fin_desaccord' } },
+      fin_plage: { kind: 'end', end: 'match', reveal: 'visage' },
+      fin_mort: { kind: 'end', end: 'echec' },
+      fin_desaccord: { kind: 'end', end: 'echec' },
+      fin_separes: { kind: 'end', end: 'left' }
+    },
+    // clips : identifiant (celui des champs « clip » ci-dessus) → URL de la vidéo.
+    // C'est CE que le client joue. Colle une URL .mp4 par identifiant.
+    clips: {
+      n1: '', n1_succes: '', n1_mort: '', n1_reprise: '',
+      n2: '', n2b: '',
+      n3: '', n3_succes: '', n3_mort: '', n3_reprise: ''
+    }
+  };
+
+  function champ(id, label, placeholder) {
+    var wrap = el('div', 'field mt14');
+    wrap.appendChild(el('label', null, label));
+    var input = el('input');
+    input.id = id; input.autocomplete = 'off';
+    if (placeholder) input.placeholder = placeholder;
+    wrap.appendChild(input);
+    return wrap;
+  }
+
+  function chargerGraphes() {
+    api('/graphs')
+      .then(function (d) { rendreEditeurGraphe(d.graphs || []); })
+      .catch(function (e) { if (!e.handled) erreur('Chargement impossible : ' + e.message); });
+  }
+
+  function rendreEditeurGraphe(graphs) {
+    $('out').innerHTML = '';
+    var box = el('div', 'card card-pad');
+    box.appendChild(el('h2', null, 'Graphes d’aventure'));
+    box.appendChild(el('p', 'hint', 'Le graphe pilote le routage (serveur) ET la présentation jouée par le client. Chaque nœud a un identifiant de clip (champ « clip ») ; la table « clips » associe cet identifiant à l’URL de la vidéo. Enregistré ici, il remplace le mock — validé avant écriture.'));
+
+    var row = el('div', 'row mt14');
+    var sel = el('select'); sel.id = 'g-select';
+    var optNew = el('option', null, '➕ Nouveau graphe'); optNew.value = '__new__'; sel.appendChild(optNew);
+    graphs.forEach(function (g) {
+      var o = el('option', null, g.id + (g.title ? ' — ' + g.title : '')); o.value = g.id; sel.appendChild(o);
+    });
+    row.appendChild(sel);
+    box.appendChild(row);
+
+    box.appendChild(champ('g-id', 'Identifiant', 'grotte-ci'));
+    box.appendChild(champ('g-title', 'Titre', 'Grotte de Yamoussoukro'));
+
+    var taWrap = el('div', 'field mt14');
+    taWrap.appendChild(el('label', null, 'Graphe (JSON) — nœuds, routage, clips'));
+    var ta = el('textarea'); ta.id = 'g-json'; ta.rows = 22; ta.spellcheck = false;
+    ta.style.width = '100%'; ta.style.fontFamily = 'ui-monospace, monospace'; ta.style.fontSize = '12px';
+    taWrap.appendChild(ta);
+    box.appendChild(taWrap);
+
+    var msg = el('div', 'msgzone'); msg.id = 'g-msg'; box.appendChild(msg);
+
+    var actions = el('div', 'row mt14');
+    actions.appendChild(el('span', 'spacer'));
+    var save = el('button', 'btn-accent', 'Enregistrer'); save.id = 'g-save';
+    actions.appendChild(save);
+    box.appendChild(actions);
+
+    $('out').appendChild(box);
+
+    // Nouveau graphe par défaut.
+    ta.value = JSON.stringify(TEMPLATE_GRAPHE, null, 2);
+
+    sel.addEventListener('change', function () {
+      notice($('g-msg'), '', '');
+      if (sel.value === '__new__') {
+        $('g-id').value = ''; $('g-title').value = ''; ta.value = JSON.stringify(TEMPLATE_GRAPHE, null, 2);
+        return;
+      }
+      api('/graphs/' + encodeURIComponent(sel.value)).then(function (d) {
+        $('g-id').value = d.graph.id;
+        $('g-title').value = d.graph.title || '';
+        ta.value = JSON.stringify(d.graph.data, null, 2);
+      }).catch(function (e) { if (!e.handled) notice($('g-msg'), e.message, 'err'); });
+    });
+
+    save.addEventListener('click', function () {
+      var id = $('g-id').value.trim();
+      if (!id) return notice($('g-msg'), 'Donne un identifiant (ex. grotte-ci).', 'err');
+      var data;
+      try { data = JSON.parse(ta.value); }
+      catch (e) { return notice($('g-msg'), 'JSON invalide : ' + e.message, 'err'); }
+      save.disabled = true; notice($('g-msg'), '', '');
+      api('/graphs/' + encodeURIComponent(id), { method: 'PUT', body: { title: $('g-title').value.trim() || null, data: data } })
+        .then(function () { save.disabled = false; toast('Graphe enregistré : ' + id, 'ok'); chargerGraphes(); })
+        .catch(function (e) { save.disabled = false; if (!e.handled) notice($('g-msg'), e.message, 'err'); });
+    });
+  }
 
   if (token()) entrer(); else ouvrirGate();
 })();
