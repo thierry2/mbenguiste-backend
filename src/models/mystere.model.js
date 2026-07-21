@@ -13,7 +13,8 @@
 const supabase = require('../config/supabase');
 const { candidates } = require('./discovery.model');
 const { compatibilityScore } = require('../domain/picks');
-const { roleDe, partenaireDe, etatApresIssue } = require('../domain/mystere');
+const { roleDe, partenaireDe, etatApresIssue, attributsIndices } = require('../domain/mystere');
+const { ageFromBirthDate } = require('./profile.model');
 const { grapheRuntime, randomGraph } = require('./graphs.model');
 const { trouveEpreuveFinale } = require('../domain/aventure');
 const credits = require('./credits.model');
@@ -82,18 +83,30 @@ async function loadLockedPairs() {
   return (data || []).map((r) => [r.user_low, r.user_high]);
 }
 
+/**
+ * Insère les paires NOUVELLES (état 'proposed'). Renvoie celles RÉELLEMENT créées
+ * (`[low, high]`) — le trigger « un seul mystère actif » en refuse certaines, et
+ * l'appelant a besoin de savoir lesquelles ont abouti pour notifier les bons
+ * membres (« un mystère t'attend »).
+ */
 async function writePairs(pairs) {
-  if (!pairs.length) return;
+  if (!pairs.length) return [];
   const rows = pairs.map(([a, b]) => {
     const [low, high] = ordonner(a, b);
     return { user_low: low, user_high: high, state: 'proposed' };
   });
   // Le trigger « un seul mystère actif » refuse toute paire dont un participant
   // est déjà pris — on insère une par une pour qu'un refus n'annule pas les autres.
+  const creees = [];
   for (const row of rows) {
     const { error } = await supabase.from('mystere_pairs').insert(row);
-    if (error && !/actif/.test(error.message)) throw error;
+    if (error) {
+      if (!/actif/.test(error.message)) throw error;
+      continue; // paire refusée (un membre déjà pris) → pas de notif pour elle
+    }
+    creees.push([row.user_low, row.user_high]);
   }
+  return creees;
 }
 
 // ── Le vivier + l'éligibilité réciproque ─────────────────────────────────────
@@ -277,13 +290,27 @@ async function leaveMystere(userId) {
 // service est testé avec des fakes ; ici c'est le vrai Supabase, service_role
 // (bypass RLS — le backend est autoritaire).
 
-/** La session, dans la forme EXACTE que le service lit (camelCase, tours). */
+/**
+ * La session, dans la forme EXACTE que le service lit (camelCase, tours).
+ *
+ * On fait REMONTER `error` (au lieu de le passer sous silence) : une colonne
+ * manquante en prod (schéma en retard sur les migrations, cf. `tours_desaccord`
+ * le 21/07) transformait sinon une vraie erreur DB en `null` silencieux — le
+ * contrôleur répondait « Aventure introuvable » comme si la session n'existait
+ * pas, une heure de debug pour une colonne oubliée. `maybeSingle()` sans erreur
+ * ET sans ligne reste un `null` légitime (pas de session) : ce n'est QUE la
+ * présence d'`error` qui doit faire lever.
+ */
 async function getSession(sessionId) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('aventure_sessions')
-    .select('id, pair_id, graph_id, current_node, joker_used, tours_desaccord, outcome')
+    .select(
+      'id, pair_id, graph_id, current_node, joker_used, tours_desaccord, outcome, '
+      + 'phase, last_issue, negocier, clip_a_jouer',
+    )
     .eq('id', sessionId)
     .maybeSingle();
+  if (error) throw error;
   if (!data) return null;
   return {
     id: data.id,
@@ -293,6 +320,10 @@ async function getSession(sessionId) {
     jokerUsed: data.joker_used,
     toursDesaccord: data.tours_desaccord ?? 0,
     outcome: data.outcome,
+    phase: data.phase,
+    lastIssue: data.last_issue,
+    negocier: !!data.negocier,
+    clipAJouer: data.clip_a_jouer,
   };
 }
 
@@ -341,13 +372,21 @@ async function answersForNode(sessionId, nodeId) {
  * ARRIVE : en boucle de désaccord (même nœud) ça remet la question à zéro ; en
  * avançant (nouveau nœud) c'est un no-op (il n'a pas encore de réponses).
  */
-async function advanceSession(sessionId, { currentNode, toursDesaccord = 0, outcome, clearAnswers = false }) {
+async function advanceSession(sessionId, {
+  currentNode, toursDesaccord = 0, outcome, clearAnswers = false,
+  lastIssue, negocier, clipAJouer,
+}) {
   const patch = {
     current_node: currentNode,
     tours_desaccord: toursDesaccord,
     updated_at: new Date().toISOString(),
   };
   if (outcome !== undefined) patch.outcome = outcome; // `null` remet à « en cours »
+  // CERVEAU UNIQUE (034) : ce que les DEUX clients liront via Realtime, au lieu
+  // de le recalculer chacun sur son propre état local (cf. aventure.service).
+  if (lastIssue !== undefined) patch.last_issue = lastIssue;
+  if (negocier !== undefined) patch.negocier = negocier;
+  if (clipAJouer !== undefined) patch.clip_a_jouer = clipAJouer;
   const { error } = await supabase.from('aventure_sessions').update(patch).eq('id', sessionId);
   if (error) throw error;
   if (clearAnswers) {
@@ -407,11 +446,38 @@ async function playJoker(userId) {
 
   await supabase.from('aventure_sessions').update({
     joker_used: true, current_node: finale, tours_desaccord: 0, outcome: null,
+    // On repart NEUTRE sur la finale : un vieux `last_issue`/`negocier` d'un tour
+    // précédent ne doit pas fuiter dans la relecture (les DEUX clients suivent
+    // maintenant ces champs, ils doivent refléter l'état RÉEL de la finale rejouée).
+    last_issue: null, negocier: false, clip_a_jouer: null,
     updated_at: new Date().toISOString(),
   }).eq('id', sess.id);
   // Table rase des réponses : la dernière épreuve se rejoue proprement.
   await supabase.from('aventure_answers').delete().eq('session_id', sess.id);
   return { ok: true, sessionId: sess.id, currentNode: finale, role: p.role };
+}
+
+/**
+ * LES INDICES RÉELS du partenaire de l'aventure EN COURS — dérivés de son profil
+ * (texte seulement, JAMAIS la photo). Autoritaire : on DÉRIVE le partenaire de la
+ * paire active de l'utilisateur (jamais un id fourni par le client). On sert TOUT
+ * d'un coup (décision produit) ; le rythme de dévoilement est géré côté client par
+ * `node.reveal`. `null` si aucune paire (pas d'aventure → pas d'indices).
+ */
+async function partnerIndices(userId) {
+  const p = await pairForUser(userId);
+  if (!p || !p.partnerId) return null;
+  const { data } = await supabase
+    .from('profiles')
+    .select(
+      'first_name, birth_date, current_city, '
+      + 'interests:profile_interests(interest:interests(code, display_name)), '
+      + 'prompts:profile_prompts(answer, position, prompt:prompts(code, question))',
+    )
+    .eq('id', p.partnerId)
+    .maybeSingle();
+  if (!data) return null;
+  return attributsIndices(data, ageFromBirthDate(data.birth_date));
 }
 
 module.exports = {
@@ -421,6 +487,7 @@ module.exports = {
   pairForUser, startAdventure, revealAndMatch, leaveMystere,
   // I/O de session (deps du service de résolution) + cycle Joker
   getSession, roleOf, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,
+  partnerIndices,
   scoreOf: compatibilityScore,
   desirabiliteOf: (p) => (Number.isFinite(p?.desirabilite) ? p.desirabilite : 0.5),
 };

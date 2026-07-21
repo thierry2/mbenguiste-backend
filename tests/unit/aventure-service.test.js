@@ -6,7 +6,7 @@
 // ATTEND (rien ne bouge). Quand les DEUX ont répondu, le serveur résout et fait
 // avancer la session — c'est ce que les deux clients verront via Realtime.
 // ─────────────────────────────────────────────────────────────────────────────
-const { test } = require('node:test');
+const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const { soumettreReponse } = require('../../src/services/aventure.service');
 const { graphe } = require('../../src/domain/aventureGraphe');
@@ -98,4 +98,46 @@ test('SORTIE PROPRE (consentement refusé) → outcome left, paire close sans ma
   const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 1 });
   assert.equal(r.outcome, 'left');
   assert.deepEqual(d._journal().clos, [{ pairId: 'P', issue: 'left' }]);
+});
+
+// ── CERVEAU UNIQUE (034) : la session PORTE `negocier`/`clip_a_jouer`/
+// `last_issue` — plus aucun client ne les recalcule sur son PROPRE compteur.
+describe('la session écrite porte tout ce que l’écran doit rendre — les DEUX clients LISENT', () => {
+  test('accord → last_issue + clip de conséquence (s’il existe) écrits, negocier=false', async () => {
+    const d = deps(); // n2, accord (0,0) → survie vers n3
+    await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
+    const patch = d._journal().avance[0];
+    assert.equal(patch.lastIssue, 'survie');
+    assert.equal(patch.negocier, false);
+  });
+
+  test('désaccord AU 2e TOUR → negocier=true, écrit dans la session (pas recalculé client)', async () => {
+    const d = deps({ answersForNode: async () => ({ aRepondu: true, bRepondu: true, a: 0, b: 1 }) });
+    const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0, });
+    // tour=1 (1er désaccord) : pas encore de négociation.
+    assert.equal(r.negocier, false);
+    assert.equal(d._journal().avance[0].negocier, false);
+    assert.equal(d._journal().avance[0].lastIssue, 'boucle');
+  });
+
+  test('désaccord répété (tour pair) → negocier=true, IDENTIQUE pour les deux joueurs', async () => {
+    // session déjà à 1 tour de désaccord → celui-ci porte le compteur à 2 (pair → négociation).
+    const d = deps({
+      getSession: async () => ({
+        id: 'S', pairId: 'P', graphId: 'grotte-ci', currentNode: 'n2',
+        jokerUsed: false, toursDesaccord: 1, outcome: null,
+      }),
+      answersForNode: async () => ({ aRepondu: true, bRepondu: true, a: 0, b: 1 }),
+    });
+    const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
+    assert.equal(r.negocier, true);
+    assert.equal(d._journal().avance[0].negocier, true);
+    assert.equal(d._journal().avance[0].toursDesaccord, 2);
+  });
+
+  test('clip de conséquence : réponse renvoie le MÊME clip que celui écrit en session', async () => {
+    const d = deps(); // n2 → n3, accord.survie.clip du graphe grotte-ci (si défini)
+    const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
+    assert.equal(r.clipAJouer, d._journal().avance[0].clipAJouer);
+  });
 });

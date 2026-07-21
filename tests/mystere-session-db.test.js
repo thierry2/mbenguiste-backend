@@ -100,3 +100,41 @@ test('outcome remis à null (ce que fait le Joker) est accepté', async () => {
   assert.equal(r.rows[0].outcome, null);
   assert.equal(r.rows[0].joker_used, true);
 });
+
+// ── CERVEAU UNIQUE (034) : les colonnes que les DEUX clients LISENT désormais,
+// au lieu de recalculer chacun sur leur propre état local. ──────────────────
+test('last_issue/negocier/clip_a_jouer : défauts, puis écrits par une résolution', async () => {
+  const init = await db.query(
+    'SELECT last_issue, negocier, clip_a_jouer FROM aventure_sessions WHERE id = $1::uuid', [sessionId],
+  );
+  assert.equal(init.rows[0].last_issue, null);
+  assert.equal(init.rows[0].negocier, false);
+  assert.equal(init.rows[0].clip_a_jouer, null);
+
+  await db.query(
+    "UPDATE aventure_sessions SET last_issue = 'boucle', negocier = true, clip_a_jouer = 'n2_reprise' WHERE id = $1::uuid",
+    [sessionId],
+  );
+  const r = await db.query(
+    'SELECT last_issue, negocier, clip_a_jouer FROM aventure_sessions WHERE id = $1::uuid', [sessionId],
+  );
+  assert.equal(r.rows[0].last_issue, 'boucle');
+  assert.equal(r.rows[0].negocier, true);
+  assert.equal(r.rows[0].clip_a_jouer, 'n2_reprise');
+});
+
+test('last_issue : la contrainte CHECK rejette une valeur hors survie/mort/boucle', async () => {
+  await assert.rejects(
+    db.query("UPDATE aventure_sessions SET last_issue = 'gagné' WHERE id = $1::uuid", [sessionId]),
+  );
+});
+
+test('phase : la contrainte CHECK rejette une valeur hors de la machine', async () => {
+  await assert.rejects(
+    db.query("UPDATE aventure_sessions SET phase = 'inventee' WHERE id = $1::uuid", [sessionId]),
+  );
+  // Une phase valide, elle, passe.
+  await db.query("UPDATE aventure_sessions SET phase = 'negociation' WHERE id = $1::uuid", [sessionId]);
+  const r = await db.query('SELECT phase FROM aventure_sessions WHERE id = $1::uuid', [sessionId]);
+  assert.equal(r.rows[0].phase, 'negociation');
+});

@@ -72,4 +72,12 @@ async function info(id) {
     .select('id, state').single();
   if (error) { console.error('❌ Insertion refusée :', error.message); process.exit(1); }
   console.log(`✅ Paire forcée : ${data.id} (${data.state}). Ouvre l’app / la page de test pour lancer l’aventure.`);
+
+  // « Un mystère t'attend » aux deux membres (anonyme, best-effort) — pour tester
+  // la découverte par notification comme en vrai. N'échoue jamais la commande.
+  try {
+    const notif = require('../src/services/notification.service');
+    await Promise.allSettled([notif.onMystereProposed(a), notif.onMystereProposed(b)]);
+    console.log('🔔 Notification « un mystère t\'attend » envoyée (si push activés).');
+  } catch (e) { console.warn('⚠️  notif non envoyée :', e?.message); }
 })().catch((e) => { console.error('FATAL', e.message); process.exit(1); });

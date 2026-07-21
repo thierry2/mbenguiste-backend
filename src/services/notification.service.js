@@ -89,7 +89,28 @@ function createNotificationService({ sendPush, supabase }) {
     }
   }
 
-  return { onSuperLikeReceived, onVerificationDecided, onMystereEnded };
+  /**
+   * Une nouvelle paire vient de naître : un mystère ATTEND cette personne. Sans
+   * ce push, il faudrait ouvrir l'onglet au hasard pour le découvrir (la table
+   * `mystere_pairs` est fermée au client — pas de Realtime possible sans exposer
+   * l'identité ; le push, lui, ne porte AUCUNE identité). ANONYME par doctrine :
+   * juste « quelqu'un t'attend », jamais le prénom ni l'avatar. Best-effort : un
+   * échec de push ne doit jamais faire échouer l'appariement qui l'a déclenché.
+   */
+  async function onMystereProposed(userId) {
+    try {
+      if (await _isPushOff(userId)) return;
+      await sendPush(userId, {
+        title: 'Mbenguiste',
+        body: 'Un mystère t\'attend 🔮',
+        data: { type: 'mystere_proposed' },
+      });
+    } catch (e) {
+      console.error('[notif] onMystereProposed:', e?.message);
+    }
+  }
+
+  return { onSuperLikeReceived, onVerificationDecided, onMystereEnded, onMystereProposed };
 }
 
 const defaultService = createNotificationService({
@@ -102,4 +123,5 @@ module.exports = {
   onSuperLikeReceived: defaultService.onSuperLikeReceived,
   onVerificationDecided: defaultService.onVerificationDecided,
   onMystereEnded: defaultService.onMystereEnded,
+  onMystereProposed: defaultService.onMystereProposed,
 };

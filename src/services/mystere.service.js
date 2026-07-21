@@ -39,6 +39,7 @@ async function runMysteryPass(deps, now = Date.now(), opts = {}) {
     loadStaleProposed, dissolvePairs,
     loadLockedPairs, loadVivier, writePairs,
     scoreOf, desirabiliteOf, logger = { info() {}, warn() {} },
+    notifyProposed = async () => {}, // best-effort : « un mystère t'attend » aux 2 membres
   } = deps;
   const force = !!opts.force;
 
@@ -74,11 +75,16 @@ async function runMysteryPass(deps, now = Date.now(), opts = {}) {
   // ne réécrit que ce qui est NOUVEAU.
   const dejaLa = new Set(verrouillees.map(cle));
   const nouvelles = paires.filter((p) => !dejaLa.has(cle(p)));
-  if (nouvelles.length) await writePairs(nouvelles);
+  // On ne notifie que les paires RÉELLEMENT créées (writePairs filtre les refus).
+  const creees = nouvelles.length ? (await writePairs(nouvelles)) || [] : [];
+  for (const [a, b] of creees) {
+    await notifyProposed(a);
+    await notifyProposed(b);
+  }
 
   await setLastPassAt(now);
-  logger.info(`[mystere] passe : ${nouvelles.length} paire(s), ${stale.length} dissoute(s)${force ? ' (forcée)' : ''}`);
-  return { paires: nouvelles.length, dissoutes: stale.length, forced: force };
+  logger.info(`[mystere] passe : ${creees.length} paire(s), ${stale.length} dissoute(s)${force ? ' (forcée)' : ''}`);
+  return { paires: creees.length, dissoutes: stale.length, forced: force };
 }
 
 /**
@@ -88,7 +94,12 @@ async function runMysteryPass(deps, now = Date.now(), opts = {}) {
 async function runScheduledPass(opts = {}) {
   const model = require('../models/mystere.model');
   const logger = require('../utils/logger');
-  return runMysteryPass({ ...model, logger }, Date.now(), opts);
+  const notif = require('./notification.service');
+  return runMysteryPass(
+    { ...model, logger, notifyProposed: (uid) => notif.onMystereProposed(uid) },
+    Date.now(),
+    opts,
+  );
 }
 
 module.exports = { runMysteryPass, runScheduledPass };

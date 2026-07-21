@@ -32,6 +32,8 @@ router.post('/mystere/joker', authenticate, c.playJokerMystere);
 router.get('/mystere/graph/:id', authenticate, c.mystereGraph);
 // La révélation : le vrai profil du partenaire, une fois l'aventure gagnée.
 router.get('/mystere/reveal', authenticate, c.mystereReveal);
+// Les indices RÉELS (texte, jamais la photo) pour remplir la carte au fil du jeu.
+router.get('/mystere/indices', authenticate, c.mystereIndices);
 // Un message de négociation (désaccord répété) — échange libre, sans résolution.
 router.post('/mystere/message', authenticate, c.submitMystereMessage);
 // Terminer le mystère (sortie propre unilatérale, confirmée côté client) : clôt
