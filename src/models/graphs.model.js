@@ -40,6 +40,20 @@ async function getGraph(id) {
   return data || null;
 }
 
+/**
+ * TIRE un graphe AU SORT parmi ceux enregistrés (plusieurs scénarios possibles ;
+ * chaque aventure en reçoit un, tiré au hasard, puis FIXE). Renvoie { id, start }
+ * ou null si aucun graphe n'est en BD. Serveur-autoritaire : le client ne choisit
+ * jamais son scénario.
+ */
+async function randomGraph() {
+  const { data } = await supabase.from('aventure_graphs').select('id, data');
+  const rows = (data || []).filter((r) => r.data && r.data.start && r.data.nodes);
+  if (!rows.length) return null;
+  const row = rows[Math.floor(Math.random() * rows.length)];
+  return { id: row.id, start: row.data.start };
+}
+
 /** Upsert un graphe, puis rafraîchit le cache (le runtime le voit tout de suite). */
 async function saveGraph(id, { title, data }) {
   const { error } = await supabase
@@ -50,4 +64,4 @@ async function saveGraph(id, { title, data }) {
   return getGraph(id);
 }
 
-module.exports = { refreshCache, grapheRuntime, listGraphs, getGraph, saveGraph, _cache };
+module.exports = { refreshCache, grapheRuntime, randomGraph, listGraphs, getGraph, saveGraph, _cache };

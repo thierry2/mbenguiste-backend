@@ -1,0 +1,44 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: #0D090C; color: #FBFAF7;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 560px; margin: 0 auto; padding: 24px 18px 60px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 19px; line-height: 1.35; margin: 6px 0 14px; }
+.sub { color: rgba(251,250,247,0.6); font-size: 13px; margin: 0 0 20px; }
+.card {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px; padding: 18px; margin-bottom: 16px;
+}
+.hidden { display: none; }
+label { display: block; font-size: 13px; color: rgba(251,250,247,0.75); margin-bottom: 12px; }
+input, textarea {
+  width: 100%; margin-top: 6px; padding: 11px 12px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.35);
+  color: #FBFAF7; font-size: 15px;
+}
+button {
+  border: 0; border-radius: 12px; padding: 13px 16px; font-size: 15px; font-weight: 600;
+  cursor: pointer; width: 100%; margin-top: 8px;
+}
+.primary { background: #C25B54; color: #fff; }
+.gold { background: #E7D3AC; color: #2a1810; }
+.ghost { background: transparent; color: rgba(251,250,247,0.7); border: 1px solid rgba(255,255,255,0.22); }
+.ghost, .gold { margin-top: 10px; }
+#btn-refresh { width: auto; padding: 6px 12px; margin: 0; }
+.row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pill {
+  font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 999px;
+  background: rgba(194,91,84,0.2); color: #F6DEDB;
+}
+.pill.dim { background: rgba(255,255,255,0.08); color: rgba(251,250,247,0.7); }
+.small { font-size: 12px; }
+.dim { color: rgba(251,250,247,0.6); }
+#options button { background: rgba(255,255,255,0.06); color: #FBFAF7; border: 1px solid rgba(255,255,255,0.16); text-align: left; }
+#options button:hover { background: rgba(255,255,255,0.12); }
+.msg { font-size: 13px; margin: 12px 0 0; min-height: 18px; }
+.msg.err { color: #E39A94; }
+.msg.ok { color: #8FD3A0; }
