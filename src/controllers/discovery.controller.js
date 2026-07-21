@@ -139,6 +139,18 @@ const mystere = catchAsync(async (req, res) => {
   const blurUrl = m?.blurHeroUrl ?? m?.blurUrl ?? null;
   if (!blurUrl) return res.json({ success: true, data: { mystere: null } });
 
+  // LE SCÉNARIO DE CETTE PAIRE — pour que l'onglet précharge LES BONS clips.
+  // Il est dérivé de l'id de paire, donc c'est exactement celui que recevra la
+  // session au lancement. Sans ça, l'onglet préchargeait un id EN DUR et se
+  // trompait dès le deuxième scénario enregistré. Ne révèle rien de l'autre.
+  const scenario = await graphsModel.grapheDePaire(pair.pairId);
+
+  // LA PROGRESSION RÉELLE — le flou de la carte EST la jauge. L'onglet la
+  // codait à 0 en dur : quelqu'un à une épreuve du but voyait le flou maximal
+  // et « Vivre l'Aventure » au lieu de « Reprendre ». Le client ne peut pas la
+  // calculer (il ne connaît pas le nœud courant hors du lecteur).
+  const { etape, total } = await mystereModel.progressionDePaire(pair.pairId);
+
   res.json({
     success: true,
     data: {
@@ -147,6 +159,9 @@ const mystere = catchAsync(async (req, res) => {
         blurUrl,
         enLigne: online(m.lastActiveAt),
         etat: pair.state,                        // 'proposed' | 'active' (aventure en cours)
+        graphId: scenario?.id ?? null,           // null = aucun scénario jouable en BD
+        etape,                                   // étapes franchies (jauge de flou)
+        total,                                   // étapes du scénario joué
       },
     },
   });
