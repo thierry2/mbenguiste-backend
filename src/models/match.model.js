@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { conversationDemarree } = require('../domain/conversation');
 
 // Profil « léger » de l'autre membre du match (pour la liste + l'en-tête de chat).
 // `primary_language` sert à traduire vers SA langue : la cible est déduite ICI,
@@ -57,8 +58,14 @@ async function listForUser(userId) {
   const profById = new Map((profiles || []).map((p) => [p.id, otherFromRow(p)]));
   const lastByMatch = new Map();
   const unreadByMatch = new Map();
+  // Qui a écrit dans chaque fil — sert à dire si la conversation a VRAIMENT
+  // commencé (les deux ont parlé). C'est ce verdict, et lui seul, qui consomme
+  // la carte de révélation du Mystère sur les DEUX téléphones à la fois.
+  const expediteursByMatch = new Map();
   for (const msg of lastMsgs || []) {
     if (!lastByMatch.has(msg.match_id)) lastByMatch.set(msg.match_id, msg);
+    if (!expediteursByMatch.has(msg.match_id)) expediteursByMatch.set(msg.match_id, []);
+    expediteursByMatch.get(msg.match_id).push(msg.sender_id);
     // Non-lus = messages reçus (pas de moi) et non lus.
     if (msg.sender_id !== userId && !msg.read_at) {
       unreadByMatch.set(msg.match_id, (unreadByMatch.get(msg.match_id) || 0) + 1);
@@ -77,6 +84,9 @@ async function listForUser(userId) {
         : null,
       nonLus: unreadByMatch.get(m.id) || 0,
       nouveau: !last, // match sans message encore échangé
+      // Les DEUX ont parlé : le client s'en sert pour effacer la révélation du
+      // Mystère au même moment sur les deux téléphones (cf. domain/conversation).
+      conversationDemarree: conversationDemarree(expediteursByMatch.get(m.id) || [], userId),
     };
   });
 }
