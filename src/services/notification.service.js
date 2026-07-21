@@ -69,7 +69,27 @@ function createNotificationService({ sendPush, supabase }) {
     }
   }
 
-  return { onSuperLikeReceived, onVerificationDecided };
+  /**
+   * Le mystère de quelqu'un vient d'être TERMINÉ par l'autre (sortie propre).
+   * Sans ce push, le partenaire attendrait une réponse qui ne viendra jamais.
+   * ANONYME par doctrine : on ne dit ni QUI a mis fin, ni son prénom — juste que
+   * le mystère est fini (l'app ne révèle jamais l'identité hors victoire).
+   * Best-effort : un échec de push ne casse jamais la sortie qui l'a déclenché.
+   */
+  async function onMystereEnded(userId) {
+    try {
+      if (await _isPushOff(userId)) return;
+      await sendPush(userId, {
+        title: 'Mbenguiste',
+        body: 'Ton mystère a pris fin.',
+        data: { type: 'mystere_ended' },
+      });
+    } catch (e) {
+      console.error('[notif] onMystereEnded:', e?.message);
+    }
+  }
+
+  return { onSuperLikeReceived, onVerificationDecided, onMystereEnded };
 }
 
 const defaultService = createNotificationService({
@@ -81,4 +101,5 @@ module.exports = {
   createNotificationService,
   onSuperLikeReceived: defaultService.onSuperLikeReceived,
   onVerificationDecided: defaultService.onVerificationDecided,
+  onMystereEnded: defaultService.onMystereEnded,
 };
