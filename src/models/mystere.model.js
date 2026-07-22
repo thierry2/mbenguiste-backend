@@ -211,7 +211,18 @@ async function startAdventure(userId, opts = {}) {
   const { data: exist } = await supabase
     .from('aventure_sessions').select('id, graph_id, current_node').eq('pair_id', p.pairId).maybeSingle();
   if (exist) {
-    return { sessionId: exist.id, role: p.role, graphId: exist.graph_id, startNode: exist.current_node };
+    // ⚠ `etape` VIENT DU SERVEUR, jamais d'un compteur local du lecteur.
+    // Le lecteur tenait `step` en état React (`useState(1)`, puis +1) : au
+    // moindre remontage (redémarrage de l'app, rechargement Metro, retour sur
+    // l'écran) il repartait à 1 alors que le nœud, lui, était bien restauré. Les
+    // deux téléphones affichaient donc des compteurs DIFFÉRENTS pour la même
+    // partie — « plus que 4 épreuves » d'un côté, « 6 » de l'autre (22/07).
+    // La progression se DÉRIVE du nœud courant : c'est la seule source honnête.
+    const prog = progressionAventure(grapheRuntime(exist.graph_id), exist.current_node);
+    return {
+      sessionId: exist.id, role: p.role, graphId: exist.graph_id,
+      startNode: exist.current_node, etape: prog.etape, total: prog.total,
+    };
   }
 
   // Nouvelle session : le GRAPHE EST DÉRIVÉ DE LA PAIRE côté serveur (le client
@@ -228,7 +239,10 @@ async function startAdventure(userId, opts = {}) {
     .insert({ pair_id: p.pairId, graph_id: graphId, current_node: startNode })
     .select('id').single();
   if (error) throw error;
-  return { sessionId: s.id, role: p.role, graphId, startNode };
+  // Session neuve : on est au départ, donc zéro étape derrière nous. On le dit
+  // explicitement plutôt que de laisser le client le supposer.
+  const prog = progressionAventure(grapheRuntime(graphId), startNode);
+  return { sessionId: s.id, role: p.role, graphId, startNode, etape: prog.etape, total: prog.total };
 }
 
 /**
@@ -260,12 +274,12 @@ async function revealAndMatch(pairId, issue) {
     )
     .select('id').single();
   if (error) throw error;
-  // La conversation s'ouvre sur CE QU'ILS SE SONT DÉJÀ ÉCRIT pendant l'Aventure.
-  // BEST-EFFORT ABSOLU : le match est acquis, il ne doit jamais échouer parce
-  // qu'on n'a pas su recopier un historique.
-  try { await semerFilAventure(pairId, m.id, pair); } catch (e) {
-    console.error('[mystere] fil aventure → conversation:', e && e.message);
-  }
+  // ⚠ ON N'ENSEMENCE PAS ICI. Verser le fil dès la création du match faisait
+  // arriver tous les messages d'un coup PENDANT la révélation : la carte et le
+  // match n'avaient plus le temps d'exister, on passait directement à une
+  // conversation déjà pleine. Le fil se verse à L'OUVERTURE de la conversation
+  // (`semerFilAventure`, appelé par la liste des messages) — au moment où on
+  // vient précisément pour le lire.
   return m.id;
 }
 
@@ -275,13 +289,28 @@ async function revealAndMatch(pairId, issue) {
  * IDEMPOTENT par le même garde que `seedOpeners` : on n'écrit QUE si le fil est
  * encore vide. Un re-match, une reprise ou une course ne dupliquent rien.
  */
-async function semerFilAventure(pairId, matchId, pair) {
+async function semerFilAventure(matchId) {
+  if (!matchId) return;
+  // Le fil n'est versé QU'UNE FOIS : dès qu'un message existe, on ne touche à
+  // rien. C'est ce qui rend l'appel sûr à chaque ouverture de conversation.
   const { count } = await supabase
     .from('messages').select('id', { count: 'exact', head: true }).eq('match_id', matchId);
   if (count) return;
 
+  // On remonte du match vers la paire par le COUPLE (les deux tables ordonnent
+  // leurs membres pareil, `user_low`/`user_high`). Le match ne porte pas de
+  // `pair_id` : c'est le seul lien disponible.
+  const { data: m } = await supabase
+    .from('matches').select('user_low, user_high').eq('id', matchId).maybeSingle();
+  if (!m) return;
+  const { data: pair } = await supabase
+    .from('mystere_pairs').select('id, user_low, user_high')
+    .eq('user_low', m.user_low).eq('user_high', m.user_high)
+    .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  if (!pair) return;
+
   const { data: sess } = await supabase
-    .from('aventure_sessions').select('id').eq('pair_id', pairId).maybeSingle();
+    .from('aventure_sessions').select('id').eq('pair_id', pair.id).maybeSingle();
   if (!sess) return;
 
   const { data: rows } = await supabase
@@ -557,7 +586,7 @@ module.exports = {
   loadConfig, getLastPassAt, setLastPassAt,
   loadStaleProposed, dissolvePairs, loadLockedPairs, writePairs, loadVivier,
   forcePair,
-  pairForUser, startAdventure, revealAndMatch, leaveMystere,
+  pairForUser, startAdventure, revealAndMatch, leaveMystere, semerFilAventure,
   // I/O de session (deps du service de résolution) + cycle Joker
   getSession, roleOf, membresDePaire, progressionDePaire, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,
   partnerIndices,
