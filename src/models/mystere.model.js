@@ -18,6 +18,7 @@ const { ageFromBirthDate } = require('./profile.model');
 const { grapheRuntime, grapheDePaire } = require('./graphs.model');
 const { progressionAventure } = require('../domain/aventureProgression');
 const { trouveEpreuveFinale } = require('../domain/aventure');
+const { messagesDuFil } = require('../domain/aventureFil');
 const credits = require('./credits.model');
 
 const LAST_PASS_KEY = 'mystere.last_pass_at';
@@ -259,7 +260,40 @@ async function revealAndMatch(pairId, issue) {
     )
     .select('id').single();
   if (error) throw error;
+  // La conversation s'ouvre sur CE QU'ILS SE SONT DÉJÀ ÉCRIT pendant l'Aventure.
+  // BEST-EFFORT ABSOLU : le match est acquis, il ne doit jamais échouer parce
+  // qu'on n'a pas su recopier un historique.
+  try { await semerFilAventure(pairId, m.id, pair); } catch (e) {
+    console.error('[mystere] fil aventure → conversation:', e && e.message);
+  }
   return m.id;
+}
+
+/**
+ * Verse le fil de l'Aventure (aveu + négociations) dans la conversation neuve.
+ *
+ * IDEMPOTENT par le même garde que `seedOpeners` : on n'écrit QUE si le fil est
+ * encore vide. Un re-match, une reprise ou une course ne dupliquent rien.
+ */
+async function semerFilAventure(pairId, matchId, pair) {
+  const { count } = await supabase
+    .from('messages').select('id', { count: 'exact', head: true }).eq('match_id', matchId);
+  if (count) return;
+
+  const { data: sess } = await supabase
+    .from('aventure_sessions').select('id').eq('pair_id', pairId).maybeSingle();
+  if (!sess) return;
+
+  const { data: rows } = await supabase
+    .from('aventure_answers')
+    .select('node_id, role, message_text, created_at')
+    .eq('session_id', sess.id)
+    .not('message_text', 'is', null);
+
+  const messages = messagesDuFil({ rows: rows || [], pair, matchId });
+  if (!messages.length) return;
+  const { error } = await supabase.from('messages').insert(messages);
+  if (error) throw error;
 }
 
 /**
@@ -482,8 +516,15 @@ async function playJoker(userId) {
     last_issue: null, negocier: false, clip_a_jouer: null,
     updated_at: new Date().toISOString(),
   }).eq('id', sess.id);
-  // Table rase des réponses : la dernière épreuve se rejoue proprement.
-  await supabase.from('aventure_answers').delete().eq('session_id', sess.id);
+  // ⚠ ON N'EFFACE QUE LA FINALE, plus toute la session. La table rase était
+  // trop large : elle emportait l'AVEU du nœud intime et les messages de
+  // négociation. Or le Joker est le chemin NORMAL vers la révélation (l'échec
+  // de la finale est forcé) — donc dans un parcours gagnant typique, tout le fil
+  // était déjà supprimé au moment du match, et la conversation s'ouvrait vide.
+  // Ce que le Joker doit garantir, c'est que la DERNIÈRE ÉPREUVE se rejoue
+  // proprement : seules SES réponses ont besoin de disparaître.
+  await supabase.from('aventure_answers')
+    .delete().eq('session_id', sess.id).eq('node_id', finale);
   // `pairId` remonte pour que l'appelant puisse PRÉVENIR le partenaire : le
   // Joker rouvre la dernière épreuve, sa réponse est de nouveau attendue.
   return { ok: true, sessionId: sess.id, currentNode: finale, role: p.role, pairId: p.pairId };
