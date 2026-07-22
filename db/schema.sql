@@ -303,6 +303,13 @@ create table if not exists public.messages (
 );
 create index if not exists idx_messages_match on public.messages(match_id, created_at);
 
+-- IMAGES DE MESSAGE (migration 002). Elles n'existaient QUE dans la migration :
+-- une base créée depuis ce seul fichier avait une table `messages` sans support
+-- média — l'envoi d'une photo en chat échouait. `media_path` stocke un CHEMIN
+-- (bucket privé `chat-media`, servi par URL signée), jamais une URL publique.
+alter table public.messages add column if not exists media_path text;
+alter table public.messages add column if not exists media_type text;   -- 'image' | 'video'
+
 -- =============================================================================
 --  5. SAFETY  &  BILLING
 -- =============================================================================
@@ -808,6 +815,18 @@ alter table public.profiles
 alter table public.match_preferences
   add column if not exists search_country   text,
   add column if not exists search_radius_km integer;
+
+-- FILTRES v2 (migration 015). Ils n'existaient QUE dans la migration : une base
+-- créée depuis ce seul fichier avait un écran Préférences dont la moitié des
+-- réglages ne s'enregistrait nulle part — sans erreur, les filtres restaient
+-- simplement sans effet. `lifestyle_filters` est un objet {kind: [codes]},
+-- miroir de `profiles.lifestyle`.
+alter table public.match_preferences
+  add column if not exists origin_country          text,
+  add column if not exists min_height              smallint,
+  add column if not exists max_height              smallint,
+  add column if not exists require_shared_interest boolean not null default false,
+  add column if not exists lifestyle_filters       jsonb   not null default '{}'::jsonb;
 
 -- =============================================================================
 --  11. TÉLÉMÉTRIE DECK & ENGAGEMENT  (sondes UI — cf. migration 018)
@@ -1318,11 +1337,19 @@ create policy aventure_answers_read on public.aventure_answers
 -- son rôle.
 drop policy if exists aventure_answers_write on public.aventure_answers;
 
+-- ── PUBLICATION REALTIME — LES QUATRE TABLES, PAS DEUX ──────────────────────
+-- `messages` et `matches` n'étaient ajoutées QUE dans les migrations 002 et 003.
+-- Une base créée à partir de ce seul fichier avait donc l'Aventure en temps réel
+-- mais le CHAT ET LES MATCHS MUETS — sans lever la moindre erreur : les messages
+-- s'écrivent, ils n'arrivent simplement jamais chez l'autre. Ce fichier se
+-- présente comme exécutable de bout en bout ; il doit l'être vraiment.
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     begin alter publication supabase_realtime add table public.aventure_answers; exception when duplicate_object then null; end;
     begin alter publication supabase_realtime add table public.aventure_sessions; exception when duplicate_object then null; end;
+    begin alter publication supabase_realtime add table public.messages; exception when duplicate_object then null; end;
+    begin alter publication supabase_realtime add table public.matches; exception when duplicate_object then null; end;
   end if;
 end $$;
 
