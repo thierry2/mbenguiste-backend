@@ -137,6 +137,30 @@ function createNotificationService({ sendPush, supabase }) {
   }
 
   /**
+   * LA RELANCE — après un long silence, on rappelle UNE fois.
+   *
+   * Ton distinct de `onMystereWaiting` : là-bas on vient de jouer et l'info est
+   * FRAÎCHE ; ici des heures ont passé, et le message doit assumer le temps
+   * écoulé sans culpabiliser. On ne dit pas « tu n'as toujours pas répondu »
+   * (reproche) mais « votre aventure t'attend » (invitation).
+   *
+   * Une seule par tour, garantie par `relance_at` (migration 038). Insister
+   * au-delà, c'est ce qui fait désinstaller une app de rencontre.
+   */
+  async function onMystereRelance(userId) {
+    try {
+      if (await _isPushOff(userId)) return;
+      await sendPush(userId, {
+        title: 'Mbenguiste',
+        body: 'Votre aventure t’attend — ton binôme a joué 🔮',
+        data: { type: 'mystere_relance' },
+      });
+    } catch (e) {
+      console.error('[notif] onMystereRelance:', e?.message);
+    }
+  }
+
+  /**
    * TON BINÔME A JOUÉ — c'est à toi. LA notification du jeu : l'Aventure est
    * asynchrone, les deux joueurs peuvent être séparés par des heures, et sans
    * elle il fallait ouvrir l'onglet au hasard pour découvrir qu'on nous
@@ -179,7 +203,7 @@ function createNotificationService({ sendPush, supabase }) {
 
   return {
     onSuperLikeReceived, onVerificationDecided,
-    onMystereEnded, onMystereProposed, onMystereTurn, onMystereReveal, onMystereWaiting,
+    onMystereEnded, onMystereProposed, onMystereTurn, onMystereReveal, onMystereWaiting, onMystereRelance,
   };
 }
 
@@ -196,5 +220,6 @@ module.exports = {
   onMystereProposed: defaultService.onMystereProposed,
   onMystereTurn: defaultService.onMystereTurn,
   onMystereWaiting: defaultService.onMystereWaiting,
+  onMystereRelance: defaultService.onMystereRelance,
   onMystereReveal: defaultService.onMystereReveal,
 };

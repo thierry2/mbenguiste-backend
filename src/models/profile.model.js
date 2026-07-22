@@ -347,6 +347,10 @@ async function purgeAccount(id) {
     updated_at: new Date().toISOString(),
   }).eq('id', id);
   if (error) throw error;
+  // Les tokens vivent maintenant dans leur propre table (migr 037) : vider la
+  // colonne héritée ne suffit plus. Sans ça, un compte purgé continuerait de
+  // recevoir des notifications sur ses anciens appareils.
+  await supabase.from('push_tokens').delete().eq('profile_id', id);
 }
 
 /**

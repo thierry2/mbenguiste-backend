@@ -113,14 +113,22 @@ const savePushToken = catchAsync(async (req, res) => {
   if (!String(pushToken).startsWith('ExponentPushToken')) {
     throw ApiError.badRequest('pushToken invalide (attendu : ExponentPushToken[…])');
   }
+  // UNE LIGNE PAR APPAREIL (migration 037). La colonne `profiles.push_token`
+  // n'en gardait qu'un : se connecter sur un second téléphone rendait le premier
+  // muet SANS RIEN DIRE — un symptôme qui ressemble à une panne FCM alors que
+  // tout va bien, et qui a déjà coûté une session de diagnostic (21/07).
+  //
+  // La clé est LE TOKEN : un même appareil qui change de compte doit suivre le
+  // NOUVEAU compte, sinon l'ancien propriétaire recevrait les notifications de
+  // quelqu'un d'autre — une fuite, pas seulement un bug.
+  const pushTokens = require('../models/pushTokens.model');
+  await pushTokens.save(req.user.id, String(pushToken), req.body?.platform ?? null);
+
+  // La colonne héritée reste écrite tant qu'elle existe : un serveur déployé
+  // avant la migration continue de la lire, et `listFor` s'en sert de repli.
+  // Elle mourra dans une migration ultérieure, quand plus rien ne la lira.
   const supabase = require('../config/supabase');
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ push_token: pushToken })
-    .eq('id', req.user.id)
-    .select('id');
-  if (error) throw error;
-  if (!data || !data.length) throw ApiError.notFound('profil introuvable — token NON enregistré');
+  await supabase.from('profiles').update({ push_token: pushToken }).eq('id', req.user.id);
   res.json({ success: true });
 });
 
