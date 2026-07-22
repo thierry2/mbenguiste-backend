@@ -3,6 +3,7 @@ const ApiError = require('../utils/apiError');
 const config = require('../config');
 const matchModel = require('../models/match.model');
 const messageModel = require('../models/message.model');
+const mystereModel = require('../models/mystere.model');
 const usage = require('../models/usage.model');
 const accessService = require('../services/access.service');
 const { translateMessage } = require('../services/translation.service');
@@ -20,6 +21,19 @@ const listMessages = catchAsync(async (req, res) => {
   await assertMember(req.params.id, req.user.id);
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit ?? '30', 10)));
   const before = req.query.before || undefined;
+  // ── LE FIL DE L'AVENTURE SE VERSE À L'OUVERTURE ─────────────────────────
+  // Et pas à la création du match : versé là-bas, tous les messages tombaient
+  // PENDANT la révélation et on passait direct à une conversation pleine, sans
+  // avoir le temps de regarder la carte (constaté device 22/07).
+  // Seulement sur la PREMIÈRE page (`!before`) : inutile de retenter à chaque
+  // pagination. L'opération est idempotente (elle ne fait rien dès qu'un message
+  // existe) et BEST-EFFORT — on n'empêche jamais de lire ses messages parce
+  // qu'un historique n'a pas pu être recopié.
+  if (!before) {
+    try { await mystereModel.semerFilAventure(req.params.id); } catch (e) {
+      console.error('[messages] fil aventure:', e && e.message);
+    }
+  }
   const messages = await messageModel.list(req.params.id, req.user.id, { before, limit });
   res.json({ success: true, data: { messages } });
 });
