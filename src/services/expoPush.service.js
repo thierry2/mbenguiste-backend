@@ -1,10 +1,14 @@
 const supabase = require('../config/supabase');
+const pushTokens = require('../models/pushTokens.model');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Envoi de push via l'API Expo (portage à l'identique d'AfrikMoms). Aucune clé
 // n'est requise côté serveur : l'endpoint Expo est public, c'est le lien
 // Expo↔FCM (credentials du projet EAS) qui authentifie la livraison.
-// Le token vit dans profiles.push_token (posé par POST /profiles/me/push-token).
+// Les tokens vivent dans `push_tokens` — UN PAR APPAREIL (migration 037). Avant,
+// une colonne unique sur `profiles` faisait qu'un second téléphone rendait le
+// premier muet sans le dire. On envoie donc à TOUS les appareils du compte, et
+// un token mort se supprime tout seul au lieu de laisser le compte silencieux.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -17,19 +21,20 @@ const supabase = require('../config/supabase');
  */
 const CANAUX = { mystere_turn: 'mystere', mystere_reveal: 'mystere' };
 
-async function sendPush(userId, { title, body, data = {}, silent = false }) {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('push_token')
-    .eq('id', userId)
-    .maybeSingle();
-
-  const token = profile?.push_token;
-  if (!token || !token.startsWith('ExponentPushToken')) {
-    console.log('[expoPush] pas de token valide en base pour', userId, '→ aucune push');
+async function sendPush(userId, opts) {
+  const tokens = await pushTokens.listFor(userId);
+  if (!tokens.length) {
+    console.log('[expoPush] aucun token livrable pour', userId, '→ aucune push');
     return;
   }
+  // Un appareil injoignable ne doit pas empêcher les autres d'être servis :
+  // chaque envoi est indépendant et ses erreurs sont déjà avalées.
+  await Promise.all(tokens.map((t) => _envoyerA(userId, t, opts)));
+}
 
+/** Un envoi vers UN appareil. Ses erreurs sont avalées : un appareil
+ *  injoignable ne doit jamais empêcher les autres d'être servis. */
+async function _envoyerA(userId, token, { title, body, data = {}, silent = false }) {
   try {
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
@@ -90,10 +95,11 @@ async function _logReceipt(ticketId, userId = null, sentToken = null) {
     // le vide. Garde `.eq('push_token', sentToken)` : si l'utilisateur a rouvert l'app
     // entre l'envoi et ce reçu (~5 s), son NOUVEAU token vient d'être enregistré — on ne
     // l'écrase pas.
-    if (receipt?.status === 'error' && receipt?.details?.error === 'DeviceNotRegistered' && userId && sentToken) {
-      await supabase.from('profiles').update({ push_token: null })
-        .eq('id', userId).eq('push_token', sentToken);
-      console.log('[expoPush] token mort effacé pour', userId);
+    if (receipt?.status === 'error' && receipt?.details?.error === 'DeviceNotRegistered' && sentToken) {
+      // On supprime LE TOKEN, pas « le token du compte » : c'est un appareil
+      // précis qui a disparu, les autres du même compte restent joignables.
+      await pushTokens.remove(sentToken);
+      console.log('[expoPush] token mort supprimé:', sentToken.slice(0, 24), '…');
     }
   } catch (e) {
     console.warn('[expoPush] getReceipts échoué:', e?.message);

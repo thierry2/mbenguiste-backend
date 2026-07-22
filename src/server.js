@@ -3,6 +3,7 @@ const config = require('./config');
 const { verifyConnection } = require('./config/db');
 const logger = require('./utils/logger');
 const { purgeExpiredAccounts } = require('./models/profile.model');
+const relanceService = require('./services/relance.service');
 const { runScheduledPass } = require('./services/mystere.service');
 const graphsModel = require('./models/graphs.model');
 
@@ -46,6 +47,17 @@ async function start() {
   setInterval(async () => {
     try { await runScheduledPass(); } catch (e) { logger.warn(`Passe Mystère : ${e.message}`); }
   }, 60 * 1000);
+
+  // Relance douce : les aventures où l'un attend l'autre depuis des heures. UNE
+  // relance par tour (garantie par `relance_at`, migr 038) — c'est un filet
+  // contre l'oubli, jamais un système de rappels. Un tick toutes les 5 min
+  // suffit largement pour un seuil qui se compte en heures.
+  setInterval(async () => {
+    try {
+      const n = await relanceService.passer();
+      if (n) logger.info(`Relances Mystère envoyées : ${n}`);
+    } catch (e) { logger.warn(`Relance Mystère : ${e.message}`); }
+  }, 5 * 60 * 1000);
 }
 
 function shutdown(signal) {

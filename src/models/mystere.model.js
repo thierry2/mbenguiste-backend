@@ -480,6 +480,9 @@ async function advanceSession(sessionId, {
   const patch = {
     current_node: currentNode,
     tours_desaccord: toursDesaccord,
+    // Un nouveau tour a droit à SON filet : on efface la relance du tour passé,
+    // sinon une aventure ne serait relançable qu'une seule fois dans sa vie.
+    relance_at: null,
     updated_at: new Date().toISOString(),
   };
   if (outcome !== undefined) patch.outcome = outcome; // `null` remet à « en cours »
@@ -590,11 +593,50 @@ async function partnerIndices(userId) {
   return attributsIndices(data, ageFromBirthDate(data.birth_date));
 }
 
+/**
+ * Les attentes en cours : UNE ligne par réponse déjà posée sur le nœud courant,
+ * pour les sessions actives PAS ENCORE relancées. Le tri (qui relancer, quand)
+ * appartient au domaine (`sessionsARelancer`) — ici, uniquement de l'I/O.
+ */
+async function attentesARelancer() {
+  const { data: sessions } = await supabase
+    .from('aventure_sessions')
+    .select('id, pair_id, current_node')
+    .is('outcome', null)
+    .is('relance_at', null);
+  if (!sessions || !sessions.length) return [];
+
+  const { data: reps } = await supabase
+    .from('aventure_answers')
+    .select('session_id, node_id, role, created_at')
+    .in('session_id', sessions.map((s) => s.id));
+
+  const parId = new Map(sessions.map((s) => [s.id, s]));
+  return (reps || [])
+    // Seules comptent les réponses du nœud COURANT : une réponse d'un nœud
+    // passé ne dit rien de l'attente d'aujourd'hui.
+    .filter((r) => parId.get(r.session_id)?.current_node === r.node_id)
+    .map((r) => ({
+      sessionId: r.session_id,
+      pairId: parId.get(r.session_id).pairId ?? parId.get(r.session_id).pair_id,
+      role: r.role,
+      repondUAt: r.created_at,
+    }));
+}
+
+/** Marque la relance envoyée — c'est ce qui la rend UNIQUE par tour. */
+async function marquerRelance(sessionId) {
+  await supabase.from('aventure_sessions')
+    .update({ relance_at: new Date().toISOString() })
+    .eq('id', sessionId);
+}
+
 module.exports = {
   loadConfig, getLastPassAt, setLastPassAt,
   loadStaleProposed, dissolvePairs, loadLockedPairs, writePairs, loadVivier,
   forcePair,
   pairForUser, startAdventure, revealAndMatch, leaveMystere, semerFilAventure,
+  attentesARelancer, marquerRelance,
   // I/O de session (deps du service de résolution) + cycle Joker
   getSession, roleOf, membresDePaire, progressionDePaire, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,
   partnerIndices,

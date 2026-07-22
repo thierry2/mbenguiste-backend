@@ -1270,6 +1270,11 @@ create table if not exists public.aventure_sessions (
   -- La clé de clip que l'écran doit charger MAINTENANT (scène, reprise, ou
   -- conséquence) — le client ne choisit plus lui-même quel clip afficher.
   clip_a_jouer  text,
+  -- LA RELANCE DÉJÀ ENVOYÉE pour le tour en cours (migration 038). C'est elle
+  -- qui garantit « UNE relance par tour, jamais deux » : sans état persisté, un
+  -- serveur qui redémarre relancerait à chaque tick et le filet deviendrait du
+  -- harcèlement. Remise à NULL à chaque avancée — un nouveau tour a droit au sien.
+  relance_at    timestamptz,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   unique (pair_id)
@@ -1342,3 +1347,31 @@ on conflict (key) do nothing;
 -- =============================================================================
 --  Done. Backend connects with SUPABASE_SERVICE_ROLE_KEY (bypasses RLS).
 -- =============================================================================
+
+-- =============================================================================
+--  PUSH TOKENS  (migration 037) — UN COMPTE, PLUSIEURS APPAREILS
+-- =============================================================================
+-- `profiles.push_token` n'en gardait qu'UN : se connecter sur un second
+-- téléphone rendait le premier muet, sans le dire. Le symptôme ressemble à une
+-- panne de configuration FCM alors que tout va bien — ça a coûté une session
+-- entière de diagnostic (21/07).
+--
+-- LA CLÉ EST LE TOKEN, pas le couple (profil, token) : un même appareil peut
+-- changer de compte, et le token doit alors suivre le NOUVEAU compte. Sinon
+-- l'ancien propriétaire recevrait les notifications de quelqu'un d'autre — une
+-- fuite, pas seulement un bug.
+create table if not exists public.push_tokens (
+  token       text primary key,
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  platform    text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists idx_push_tokens_profile on public.push_tokens(profile_id);
+
+alter table public.push_tokens enable row level security;
+-- Le serveur écrit/lit en service_role. Le client ne peut lire QUE les siens :
+-- le token d'autrui suffirait à lui envoyer des push via l'API Expo, publique.
+drop policy if exists push_tokens_read_own on public.push_tokens;
+create policy push_tokens_read_own on public.push_tokens
+  for select to authenticated using (profile_id = auth.uid());
