@@ -32,6 +32,15 @@ async function start() {
     // l'ajout de la variable, on verra 'off' ici alors qu'elle est bien posée
     // dans le dashboard — c'est LE signe que le process n'a pas la variable.
     logger.info(`FREE_TIER_WOMEN=${config.freeTierWomen ? 'on' : 'off'}`);
+    // MÊME RAISON, et c'est le diagnostic n°1 d'un 401 généralisé : le jeton est
+    // émis par le projet que l'APP pointe, et validé (`auth.getUser`) auprès du
+    // projet que le BACKEND pointe. S'ils diffèrent, TOUT renvoie 401 — y compris
+    // `bootstrap` — sans que rien n'indique la cause. On affiche donc l'identifiant
+    // de projet au démarrage : s'il n'est pas celui qu'on attend, le process n'a
+    // pas la nouvelle variable (redéploiement manquant). Jamais la clé, seulement
+    // le ref, qui est public.
+    const ref = (config.supabase.url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/) || [])[1];
+    logger.info(`SUPABASE=${ref || config.supabase.url}`);
   });
 
   // Purge des comptes dont la suppression programmée est échue (toutes les minutes).
