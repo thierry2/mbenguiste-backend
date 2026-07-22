@@ -181,3 +181,31 @@ test('aucune notif pour une aventure verrouillée (rien de nouveau créé)', asy
   await runMysteryPass(d, H(21));
   assert.equal(d._lu().notified.length, 0);
 });
+
+// ── L'ACTIVITÉ RÉCENTE EST UN CRITÈRE D'APPARIEMENT ─────────────────────────
+// Constaté le 22/07 : la passe a créé 100 paires d'un coup, comptes dormants
+// compris. Or le Mystère est RARE — un seul à la fois, tiré une fois par jour.
+// L'apparier à quelqu'un qui n'ouvre plus l'app brûle le créneau de l'autre, qui
+// se lance, répond, et attend indéfiniment. La relance douce ne rattrape pas ça :
+// on ne réveille pas un compte abandonné.
+test('le seuil d’inactivité vient de la CONFIG et descend jusqu’au vivier', async () => {
+  let recu;
+  const d = deps({
+    loadConfig: async () => ({ ...CFG, maxInactiviteJours: 14 }),
+    loadVivier: async (jours) => { recu = jours; return viviersDeux(); },
+  });
+  await runMysteryPass(d, H(21), { force: true });
+  assert.equal(recu, 14, 'la passe transmet le seuil au chargement du vivier');
+});
+
+test('seuil ABSENT de la config → on ne filtre pas (pas de vivier vidé par surprise)', async () => {
+  // Un réglage jamais posé ne doit pas assécher la passe en silence : sans
+  // valeur, on garde le comportement d'avant.
+  let recu = 'jamais appelé';
+  const d = deps({
+    loadConfig: async () => CFG,
+    loadVivier: async (jours) => { recu = jours; return viviersDeux(); },
+  });
+  await runMysteryPass(d, H(21), { force: true });
+  assert.equal(recu, undefined);
+});

@@ -38,6 +38,15 @@ async function loadConfig() {
     plancherFenetre: num('mystere.floor_in_window', 10),
     plancherHorsFenetre: num('mystere.floor_out_window', 20),
     assortativeWeight: num('mystere.assortative_weight', 20),
+    // ── L'ACTIVITÉ RÉCENTE EST UN CRITÈRE ────────────────────────────────
+    // Le Mystère est RARE par conception : un seul à la fois, tiré une fois
+    // par jour. L'apparier à un compte dormant brûle le créneau de l'autre —
+    // elle reçoit « un mystère t'attend », se lance, répond… et attend
+    // indéfiniment quelqu'un qui ne reviendra pas. La relance douce ne rattrape
+    // pas ça : on ne réveille pas un compte abandonné.
+    // Réglable sans redéploiement ; 0 (ou négatif) DÉSACTIVE le filtre — utile
+    // sur un vivier jeune où il assécherait la passe.
+    maxInactiviteJours: num('mystere.max_inactivity_days', 7),
   };
 }
 
@@ -113,6 +122,17 @@ async function writePairs(pairs) {
 
 // ── Le vivier + l'éligibilité réciproque ─────────────────────────────────────
 
+/**
+ * La date avant laquelle un compte est considéré comme DORMANT, ou `null` si le
+ * filtre est désactivé (`jours` ≤ 0). Isolé et pur : c'est la seule règle du
+ * critère, elle mérite d'être lisible et testable seule.
+ */
+function seuilInactivite(maintenant, jours) {
+  const j = Number(jours);
+  if (!Number.isFinite(j) || j <= 0) return null;
+  return new Date(maintenant - j * 24 * 60 * 60 * 1000).toISOString();
+}
+
 /** Désirabilité [0,1], NEUTRE 0.5 à froid (sous le seuil d'impressions). */
 function desirabilite(eng) {
   const e = Array.isArray(eng) ? eng[0] : eng;
@@ -121,9 +141,14 @@ function desirabilite(eng) {
   return Math.max(0, Math.min(1, taux / 0.6)); // 0.6 de like-rate = plafond
 }
 
-async function loadVivier() {
-  // Le vivier : découvrables, onboardés, non supprimés, non incognito.
-  const { data: rows } = await supabase
+async function loadVivier(maxInactiviteJours = 0) {
+  // Le vivier : découvrables, onboardés, non supprimés, non incognito — et
+  // ACTIFS RÉCEMMENT (cf. `mystere.max_inactivity_days`). Sans ce dernier
+  // critère, la passe appariait des comptes qui n'avaient pas ouvert l'app
+  // depuis des mois, et le partenaire attendait une réponse qui ne viendrait
+  // jamais (constaté 22/07 : 100 paires créées d'un coup, comptes dormants
+  // compris).
+  let q = supabase
     .from('profiles')
     .select('id, spoken_languages, bio, is_verified, '
       + 'profile_interests(interest_id), profile_engagement(impressions, likes_received)')
@@ -131,6 +156,9 @@ async function loadVivier() {
     .eq('onboarding_done', true)
     .eq('is_discoverable', true)
     .eq('incognito', false);
+  const seuil = seuilInactivite(Date.now(), maxInactiviteJours);
+  if (seuil) q = q.gte('last_active_at', seuil);
+  const { data: rows } = await q;
 
   const profils = new Map();
   for (const r of rows || []) {
@@ -636,6 +664,7 @@ module.exports = {
   loadStaleProposed, dissolvePairs, loadLockedPairs, writePairs, loadVivier,
   forcePair,
   pairForUser, startAdventure, revealAndMatch, leaveMystere, semerFilAventure,
+  seuilInactivite,
   attentesARelancer, marquerRelance,
   // I/O de session (deps du service de résolution) + cycle Joker
   getSession, roleOf, membresDePaire, progressionDePaire, recordAnswer, answersForNode, advanceSession, sessionForUser, playJoker, revealedPartner,

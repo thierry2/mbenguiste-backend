@@ -27,21 +27,26 @@ async function save(profileId, token, platform = null) {
 /**
  * Tous les tokens LIVRABLES d'un compte.
  *
- * Repli sur `profiles.push_token` tant que la table peut être vide pour ce
- * compte (migration tout juste passée, ou backend déployé avant elle) : sans ce
- * filet, le déploiement couperait les notifications de tout le monde jusqu'à la
- * prochaine ouverture de l'app.
+ * ⚠ AUCUN REPLI SUR `profiles.push_token` — et c'est le cœur de l'affaire.
+ *
+ * Cette colonne n'a JAMAIS eu de contrainte d'unicité : un même appareil qui se
+ * connecte successivement à plusieurs comptes laissait son token sur CHACUN
+ * d'eux. Le repli faisait donc résoudre plusieurs profils vers le MÊME
+ * téléphone, qui recevait les notifications de tous les comptes auxquels il
+ * s'était un jour connecté — quatre « Un mystère t'attend » en cinq minutes,
+ * constaté le 22/07.
+ *
+ * `push_tokens` a, elle, le token pour clé primaire : un appareil appartient à
+ * UN compte à la fois, le dernier qui s'y est connecté. C'est la seule vérité
+ * qu'on lit désormais. Conséquence assumée : un compte dont l'appareil a été
+ * réattribué ne reçoit plus rien — ce qui est exactement ce qu'on veut, ce
+ * téléphone n'est plus le sien.
  */
 async function listFor(profileId) {
   if (!profileId) return [];
   const { data } = await supabase
     .from('push_tokens').select('token').eq('profile_id', profileId);
-  const tokens = (data || []).map((r) => r.token).filter(estLivrable);
-  if (tokens.length) return tokens;
-
-  const { data: p } = await supabase
-    .from('profiles').select('push_token').eq('id', profileId).maybeSingle();
-  return estLivrable(p?.push_token) ? [p.push_token] : [];
+  return (data || []).map((r) => r.token).filter(estLivrable);
 }
 
 /** Supprime un token mort (DeviceNotRegistered remonté par Expo). */
