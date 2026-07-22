@@ -1,0 +1,84 @@
+<!-- ─────────────────────────────────────────────────────────────────────────
+     CONFIRM SIGNUP — Dashboard → Authentication → Email Templates → Confirm signup
+     Objet suggéré : Confirme ton adresse
+     ───────────────────────────────────────────────────────────────────────── -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#F4F2EF;margin:0;padding:32px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:600px;width:100%;background:#FFFFFF;border-radius:18px;border:1px solid #E8E5E0;">
+
+        <!-- En-tête : le nom, en lettrage espacé. Pas d'image : la moitié des
+             clients les bloquent et laisseraient un cadre vide à la place. -->
+        <tr>
+          <td style="padding:34px 40px 0;">
+            <div style="font-size:12px;letter-spacing:3px;color:#9A968E;font-weight:700;">MBENGUISTE</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:22px 40px 0;">
+            <div style="font-family:Georgia,'Times New Roman',serif;font-size:27px;line-height:34px;color:#1B1A1E;">
+              Encore une chose,<br>et la route s’ouvre.
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:16px 40px 0;">
+            <div style="font-size:15px;line-height:23px;color:#66645E;">
+              Confirme que <span style="color:#1B1A1E;">{{ .Email }}</span> est bien
+              à toi. C’est ce qui protège ton compte — et c’est la seule fois où
+              on te le demandera.
+            </div>
+          </td>
+        </tr>
+
+        <!-- Le bouton. `bgcolor` + styles EN LIGNE : Outlook ignore tout le reste. -->
+        <tr>
+          <td style="padding:28px 40px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td bgcolor="#C25B54" style="border-radius:14px;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:15px 30px;font-size:15px;font-weight:700;
+                            color:#FFFFFF;text-decoration:none;border-radius:14px;">
+                    Confirmer mon adresse
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Le lien EN CLAIR. Certains clients d'entreprise cassent les boutons :
+             sans cette ligne, la personne est bloquée sans aucun recours. -->
+        <tr>
+          <td style="padding:24px 40px 0;">
+            <div style="font-size:12.5px;line-height:19px;color:#9A968E;">
+              Le bouton ne marche pas ? Copie ce lien dans ton navigateur :<br>
+              <a href="{{ .ConfirmationURL }}" style="color:#66645E;word-break:break-all;">{{ .ConfirmationURL }}</a>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:26px 40px 0;">
+            <div style="height:1px;background:#E8E5E0;font-size:0;line-height:0;">&nbsp;</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:18px 40px 34px;">
+            <div style="font-size:12.5px;line-height:19px;color:#9A968E;">
+              Tu n’as pas créé de compte Mbenguiste ? Ignore ce message : sans
+              cette confirmation, rien ne sera activé.
+            </div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>

@@ -376,3 +376,28 @@ test('etatApresIssue : match→won, echec→lost, left→left', async () => {
   assert.equal(etatApresIssue('left'), 'left');
   assert.equal(etatApresIssue('n_importe_quoi'), null);
 });
+
+// ── LE SEUIL D'INACTIVITÉ (règle pure) ──────────────────────────────────────
+// Isolée parce que c'est TOUTE la règle du critère : une date de coupure, ou
+// rien. Le reste (la requête) est de l'I/O.
+const { seuilInactivite } = require('../../src/models/mystere.model');
+const T_INACT = Date.parse('2026-07-22T12:00:00.000Z');
+
+test('seuil d’inactivité : N jours → la date de coupure correspondante', () => {
+  assert.equal(seuilInactivite(T_INACT, 7), '2026-07-15T12:00:00.000Z');
+  assert.equal(seuilInactivite(T_INACT, 1), '2026-07-21T12:00:00.000Z');
+});
+
+test('seuil d’inactivité : 0 ou négatif → filtre DÉSACTIVÉ', () => {
+  // L'échappatoire assumée : sur un vivier jeune, filtrer assécherait la passe.
+  // On doit pouvoir couper le critère sans redéployer.
+  for (const j of [0, -1, -100]) assert.equal(seuilInactivite(T_INACT, j), null);
+});
+
+test('seuil d’inactivité : valeur illisible → désactivé, jamais une date absurde', () => {
+  // Un réglage mal saisi ne doit pas vider le vivier EN SILENCE : mieux vaut ne
+  // pas filtrer que filtrer sur une date qu'on ne comprend pas.
+  for (const j of [null, undefined, 'sept', NaN, {}]) {
+    assert.equal(seuilInactivite(T_INACT, j), null);
+  }
+});

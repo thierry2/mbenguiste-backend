@@ -1,0 +1,104 @@
+<!-- ─────────────────────────────────────────────────────────────────────────
+     MAGIC LINK — Dashboard → Authentication → Email Templates → Magic Link
+     Objet suggéré : Ton lien de connexion
+
+     ⚠ L'app n'utilise PAS encore ce flux : la connexion se fait par mot de passe
+     ou par Google (`googleAuth.ts`). Ce gabarit est prêt pour le jour où tu
+     l'activeras — mais tant qu'aucun écran ne reçoit `mbenguiste://auth-callback`
+     depuis un lien magique, le lien ouvrira l'app sans ouvrir de session.
+     ───────────────────────────────────────────────────────────────────────── -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#F4F2EF;margin:0;padding:32px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:600px;width:100%;background:#FFFFFF;border-radius:18px;border:1px solid #E8E5E0;">
+
+        <tr>
+          <td style="padding:34px 40px 0;">
+            <div style="font-size:12px;letter-spacing:3px;color:#9A968E;font-weight:700;">MBENGUISTE</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:22px 40px 0;">
+            <div style="font-family:Georgia,'Times New Roman',serif;font-size:27px;line-height:34px;color:#1B1A1E;">
+              Te voilà.<br>Sans mot de passe.
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:16px 40px 0;">
+            <div style="font-size:15px;line-height:23px;color:#66645E;">
+              Un seul geste et tu es connecté·e sur
+              <span style="color:#1B1A1E;">{{ .Email }}</span>.
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:28px 40px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td bgcolor="#C25B54" style="border-radius:14px;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:15px 30px;font-size:15px;font-weight:700;
+                            color:#FFFFFF;text-decoration:none;border-radius:14px;">
+                    Ouvrir Mbenguiste
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Le code à saisir, en secours. Sur mobile, un lien qui s'ouvre dans le
+             mauvais navigateur casse la session : pouvoir taper 6 chiffres évite
+             d'être coincé. Retire ce bloc si aucun écran ne demande de code. -->
+        <tr>
+          <td style="padding:24px 40px 0;">
+            <div style="font-size:13px;line-height:20px;color:#9A968E;">
+              Ou saisis ce code dans l’app :
+            </div>
+            <div style="margin-top:8px;font-family:'SF Mono',Menlo,Consolas,monospace;
+                        font-size:25px;letter-spacing:6px;color:#1B1A1E;">{{ .Token }}</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:20px 40px 0;">
+            <div style="font-size:13px;line-height:20px;color:#9A968E;">
+              Valable une heure, une seule fois.
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:20px 40px 0;">
+            <div style="font-size:12.5px;line-height:19px;color:#9A968E;">
+              Le bouton ne marche pas ? Copie ce lien dans ton navigateur :<br>
+              <a href="{{ .ConfirmationURL }}" style="color:#66645E;word-break:break-all;">{{ .ConfirmationURL }}</a>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:26px 40px 0;">
+            <div style="height:1px;background:#E8E5E0;font-size:0;line-height:0;">&nbsp;</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:18px 40px 34px;">
+            <div style="font-size:12.5px;line-height:19px;color:#9A968E;">
+              Tu n’as pas demandé ce lien ? Ignore-le. Personne ne peut entrer
+              sans ouvrir ce message.
+            </div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>

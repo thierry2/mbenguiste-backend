@@ -97,7 +97,11 @@ async function phaseAuth() {
   const aCreer = source.filter((u) => !dejaLa.has(u.id));
 
   console.log(`source ${source.length} · destination ${cible.length} · à créer ${aCreer.length}`);
-  if (DRY) { console.log('🧪 dry-run : aucun compte créé.'); return aCreer.length === 0; }
+  // En DRY-RUN, « N comptes à créer » est l'état NORMAL avant migration — pas un
+  // échec. Renvoyer `aCreer.length === 0` faisait conclure le script par un ⚠
+  // alarmant alors que tout allait bien : un faux signal dans un outil de
+  // vérification est pire qu'aucun signal, il fait douter d'une copie saine.
+  if (DRY) { console.log('🧪 dry-run : aucun compte créé.'); return true; }
   if (!aCreer.length) { console.log('✅ rien à faire.'); return true; }
 
   let ok = 0; const rates = [];

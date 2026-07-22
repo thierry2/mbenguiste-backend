@@ -60,7 +60,9 @@ async function runMysteryPass(deps, now = Date.now(), opts = {}) {
   if (stale.length) await dissolvePairs(stale);
 
   // ④ Appariement — le domaine décide, on ne fait qu'appliquer.
-  const { profils, eligibles } = await loadVivier();
+  // Le seuil d'inactivité vient de la CONFIG, pas du code : sur un vivier jeune
+  // il peut assécher la passe, et on doit pouvoir l'ajuster sans redéployer.
+  const { profils, eligibles } = await loadVivier(cfg.maxInactiviteJours);
   const verrouillees = (await loadLockedPairs()) || [];
   const plancher = plancherApplicable(now, cfg);
 
