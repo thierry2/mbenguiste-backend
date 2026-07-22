@@ -13,6 +13,7 @@
 const supabase = require('../config/supabase');
 const codeGraphe = require('../domain/aventureGraphe');
 const { choisirGraphe } = require('../domain/grapheChoix');
+const { validerGraphe } = require('../domain/aventure');
 
 const _cache = new Map();
 
@@ -56,7 +57,14 @@ async function getGraph(id) {
  */
 async function grapheDePaire(pairId) {
   const { data } = await supabase.from('aventure_graphs').select('id, data');
-  const jouables = (data || []).filter((r) => r.data && r.data.start && r.data.nodes);
+  // DÉFENSE EN PROFONDEUR : on ne sert QU'un graphe VALIDE. L'admin valide déjà à
+  // l'écriture (route PUT), mais un graphe entré autrement (SQL direct, legacy
+  // d'avant la validation) ne doit JAMAIS tomber sur une paire — une flèche vers
+  // un nœud inexistant figerait l'aventure au premier pas. `validerGraphe` est
+  // pur et bon marché (une poignée de scénarios) : on peut le passer à chaque tirage.
+  const jouables = (data || []).filter(
+    (r) => r.data && r.data.start && r.data.nodes && validerGraphe(r.data).length === 0,
+  );
   if (!jouables.length) return null;
   const id = choisirGraphe(jouables.map((r) => r.id), pairId);
   const row = jouables.find((r) => r.id === id);
