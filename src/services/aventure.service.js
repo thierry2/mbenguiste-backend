@@ -62,10 +62,31 @@ async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, m
   const node = graph && graph.nodes && graph.nodes[session.currentNode];
   if (!node || node.kind === 'end') return { error: 'terminal', role };
 
+  // ── AVAIS-JE DÉJÀ RÉPONDU SUR CE NŒUD ? ───────────────────────────────────
+  // Lu AVANT d'enregistrer : `recordAnswer` est un upsert, il ne sait pas dire
+  // si l'écriture était neuve. C'est ce qui distingue une vraie première réponse
+  // (le binôme doit être prévenu) d'un renvoi (il l'a déjà été — le re-sonner
+  // serait du harcèlement).
+  const avant = await answersForNode(sessionId, session.currentNode);
+  const jAvaisDejaRepondu = role === 'a' ? avant.aRepondu : avant.bRepondu;
+
   await recordAnswer({ sessionId, nodeId: session.currentNode, role, answerIndex, message });
 
   const rep = await answersForNode(sessionId, session.currentNode);
-  if (!rep.aRepondu || !rep.bRepondu) return { waiting: true, role };
+  if (!rep.aRepondu || !rep.bRepondu) {
+    // ── LE TROU CENTRAL DES NOTIFICATIONS (audit 22/07) ─────────────────────
+    // Les push ne partaient QU'À la résolution, sur l'idée que « l'autre a déjà
+    // été prévenu à l'étape précédente ». Faux à la PREMIÈRE étape (rien ne la
+    // précède), faux si la notification a été balayée, faux après un Joker.
+    // Résultat vécu : on attend des heures quelqu'un qui ignore qu'on l'attend.
+    // Le message part donc AU MOMENT où il devient vrai — une seule fois.
+    if (!jAvaisDejaRepondu) {
+      await prevenirPartenaire(deps, {
+        pairId: session.pairId, userId, type: 'mystere_waiting',
+      });
+    }
+    return { waiting: true, role };
+  }
 
   // ── Les deux ont répondu → le serveur tranche. ──
   const r = resoudreEtape(graph, node, { a: rep.a, b: rep.b }, {
@@ -137,6 +158,7 @@ async function soumettre({ sessionId, userId, answerIndex, message }) {
   // jamais à connaître la forme d'une notification.
   const notifier = (uid, type) => {
     if (type === 'mystere_turn') return notif.onMystereTurn(uid);
+    if (type === 'mystere_waiting') return notif.onMystereWaiting(uid);
     if (type === 'mystere_reveal') return notif.onMystereReveal(uid);
     if (type === 'mystere_ended') return notif.onMystereEnded(uid);
     return Promise.resolve();

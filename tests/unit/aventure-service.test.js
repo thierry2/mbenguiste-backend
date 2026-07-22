@@ -258,51 +258,50 @@ describe('désaccord : le clip servi dépend de ce qui suit', () => {
 // vécu : quelqu'un attend pendant des heures un partenaire qui ne sait pas qu'on
 // l'attend. Le message doit partir AU MOMENT où il devient vrai.
 describe('quand j’ai répondu et que j’attends, le binôme est PRÉVENU', () => {
-  const enAttente = (over = {}) => deps({
-    answersForNode: async () => ({ aRepondu: true, bRepondu: false, a: 0, b: null }),
-    ...over,
-  });
-
-  test('ma réponse laisse le binôme à jouer → push « on t’attend »', async () => {
+  /**
+   * Mock STATEFUL : `answersForNode` doit refléter ce que `recordAnswer` a écrit.
+   * Un mock constant simulerait « j'ai déjà répondu » DÈS le premier appel — et
+   * masquerait précisément le comportement qu'on veut vérifier.
+   */
+  function attente(over = {}) {
+    const etat = { a: false, b: false };
     const envoyes = [];
-    const d = enAttente({
+    const d = deps({
+      recordAnswer: async ({ role }) => { etat[role] = true; },
+      answersForNode: async () => ({
+        aRepondu: etat.a, bRepondu: etat.b, a: etat.a ? 0 : null, b: etat.b ? 0 : null,
+      }),
       membresDePaire: async () => ['U', 'PARTENAIRE'],
       notifier: async (uid, type) => { envoyes.push({ uid, type }); },
+      ...over,
     });
+    return { d, envoyes, etat };
+  }
+
+  test('ma réponse laisse le binôme à jouer → push « on t’attend »', async () => {
+    const { d, envoyes } = attente();
     const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
     assert.equal(r.waiting, true);
     assert.deepEqual(envoyes, [{ uid: 'PARTENAIRE', type: 'mystere_waiting' }]);
   });
 
   test('jamais à MOI — je viens de jouer, je suis devant l’écran', async () => {
-    const envoyes = [];
-    const d = enAttente({
-      membresDePaire: async () => ['U', 'PARTENAIRE'],
-      notifier: async (uid, type) => { envoyes.push({ uid, type }); },
-    });
+    const { d, envoyes } = attente();
     await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
     assert.equal(envoyes.every((e) => e.uid !== 'U'), true);
   });
 
   test('RENVOI de ma propre réponse → aucun push de plus (pas de harcèlement)', async () => {
-    // J'avais déjà répondu sur ce nœud (reconnexion, double-tap, renvoi après
-    // erreur réseau) : le binôme a déjà été prévenu, le re-sonner serait du bruit.
-    const envoyes = [];
-    const d = deps({
-      answersForNode: async () => ({ aRepondu: true, bRepondu: false, a: 0, b: null }),
-      membresDePaire: async () => ['U', 'PARTENAIRE'],
-      notifier: async (uid, type) => { envoyes.push({ uid, type }); },
-    });
+    // Reconnexion, double-tap, renvoi après erreur réseau : le binôme a déjà été
+    // prévenu, le re-sonner serait du bruit.
+    const { d, envoyes } = attente();
     await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
     await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 1 });
     assert.equal(envoyes.length, 1, 'un seul « on t’attend » par nœud et par personne');
   });
 
   test('un push qui échoue ne casse PAS la soumission', async () => {
-    const d = enAttente({
-      membresDePaire: async () => ['U', 'PARTENAIRE'],
-      notifier: async () => { throw new Error('service de push mort'); },
-    });
+    const { d } = attente({ notifier: async () => { throw new Error('service de push mort'); } });
     const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
     assert.equal(r.waiting, true);
   });

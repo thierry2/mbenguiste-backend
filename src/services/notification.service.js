@@ -111,6 +111,32 @@ function createNotificationService({ sendPush, supabase }) {
   }
 
   /**
+   * ON T'ATTEND — envoyé DÈS que le binôme a répondu et reste seul à attendre.
+   *
+   * C'est le message qui manquait (audit 22/07). Les push ne partaient qu'À la
+   * résolution, en supposant que « l'autre a déjà été prévenu à l'étape
+   * précédente ». Faux à la première étape, faux si la notification a été
+   * balayée, faux après un Joker — et pendant ce temps quelqu'un attend des
+   * heures un partenaire qui ignore qu'on l'attend.
+   *
+   * Ton distinct de `onMystereTurn` : là-bas une étape s'est RÉSOLUE et la suite
+   * est prête ; ici rien n'a bougé, on est simplement en train de t'attendre.
+   * ANONYME comme le reste : on dit qu'on t'attend, jamais qui.
+   */
+  async function onMystereWaiting(userId) {
+    try {
+      if (await _isPushOff(userId)) return;
+      await sendPush(userId, {
+        title: 'Mbenguiste',
+        body: 'Ton binôme t’attend pour continuer 🔮',
+        data: { type: 'mystere_waiting' },
+      });
+    } catch (e) {
+      console.error('[notif] onMystereWaiting:', e?.message);
+    }
+  }
+
+  /**
    * TON BINÔME A JOUÉ — c'est à toi. LA notification du jeu : l'Aventure est
    * asynchrone, les deux joueurs peuvent être séparés par des heures, et sans
    * elle il fallait ouvrir l'onglet au hasard pour découvrir qu'on nous
@@ -153,7 +179,7 @@ function createNotificationService({ sendPush, supabase }) {
 
   return {
     onSuperLikeReceived, onVerificationDecided,
-    onMystereEnded, onMystereProposed, onMystereTurn, onMystereReveal,
+    onMystereEnded, onMystereProposed, onMystereTurn, onMystereReveal, onMystereWaiting,
   };
 }
 
@@ -169,5 +195,6 @@ module.exports = {
   onMystereEnded: defaultService.onMystereEnded,
   onMystereProposed: defaultService.onMystereProposed,
   onMystereTurn: defaultService.onMystereTurn,
+  onMystereWaiting: defaultService.onMystereWaiting,
   onMystereReveal: defaultService.onMystereReveal,
 };
