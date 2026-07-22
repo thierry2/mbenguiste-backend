@@ -172,3 +172,81 @@ describe('la session écrite porte tout ce que l’écran doit rendre — les DE
     assert.equal(r.clipAJouer, d._journal().avance[0].clipAJouer);
   });
 });
+
+// ── LE CLIP QUI PRÉCÈDE LA NÉGOCIATION ───────────────────────────────────────
+// Constaté sur device le 22/07 : au 1er désaccord le clip de reprise jouait
+// bien, mais au 2e (celui qui ouvre la négociation) le formulaire de message
+// tombait SEC. Or c'est justement au moment de demander aux deux de s'expliquer
+// qu'il faut le leur dire dans le récit — et ce n'est pas la même vidéo que la
+// simple reprise (« remettez-vous d'accord » ≠ « expliquez-vous »).
+describe('désaccord : le clip servi dépend de ce qui suit', () => {
+  // Graphe explicite : on ne dépend pas du contenu du graphe en dur.
+  const g = {
+    id: 'g', start: 'x', clips: {},
+    nodes: {
+      x: {
+        kind: 'epreuve', options: ['A', 'B'],
+        accord: { proba: 1, survie: { next: 'fin' }, mort: { next: 'fin' } },
+        desaccord: { clip: 'x_reprise', clipNegociation: 'x_negoc', maxTours: 6, mort: 'fin' },
+      },
+      fin: { kind: 'end', end: 'echec' },
+    },
+  };
+  const dd = (toursDesaccord) => deps({
+    getSession: async () => ({
+      id: 'S', pairId: 'P', graphId: 'g', currentNode: 'x',
+      jokerUsed: false, toursDesaccord, outcome: null,
+    }),
+    answersForNode: async () => ({ aRepondu: true, bRepondu: true, a: 0, b: 1 }),
+    graphe: () => g,
+  });
+
+  test('désaccord SIMPLE (tour impair) → clip de reprise', async () => {
+    const d = dd(0);
+    const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
+    assert.equal(r.negocier, false);
+    assert.equal(r.clipAJouer, 'x_reprise');
+    assert.equal(d._journal().avance[0].clipAJouer, 'x_reprise');
+  });
+
+  test('désaccord qui OUVRE LA NÉGOCIATION → clip de négociation, pas la reprise', async () => {
+    const d = dd(1); // ce tour porte le compteur à 2 → négociation
+    const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
+    assert.equal(r.negocier, true);
+    assert.equal(r.clipAJouer, 'x_negoc');
+    assert.equal(d._journal().avance[0].clipAJouer, 'x_negoc');
+  });
+
+  test('sans clip de négociation déclaré → REPLI sur la reprise (jamais rien)', async () => {
+    // Un graphe qui n'a pas tourné la vidéo d'explication ne doit pas perdre la
+    // vidéo qu'il a : mieux vaut la reprise que le formulaire sec.
+    const sansNegoc = JSON.parse(JSON.stringify(g));
+    delete sansNegoc.nodes.x.desaccord.clipNegociation;
+    const d = deps({
+      getSession: async () => ({
+        id: 'S', pairId: 'P', graphId: 'g', currentNode: 'x',
+        jokerUsed: false, toursDesaccord: 1, outcome: null,
+      }),
+      answersForNode: async () => ({ aRepondu: true, bRepondu: true, a: 0, b: 1 }),
+      graphe: () => sansNegoc,
+    });
+    const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
+    assert.equal(r.negocier, true);
+    assert.equal(r.clipAJouer, 'x_reprise');
+  });
+
+  test('aucun clip du tout → null, jamais une clé inventée', async () => {
+    const nu = JSON.parse(JSON.stringify(g));
+    nu.nodes.x.desaccord = { maxTours: 6, mort: 'fin' };
+    const d = deps({
+      getSession: async () => ({
+        id: 'S', pairId: 'P', graphId: 'g', currentNode: 'x',
+        jokerUsed: false, toursDesaccord: 1, outcome: null,
+      }),
+      answersForNode: async () => ({ aRepondu: true, bRepondu: true, a: 0, b: 1 }),
+      graphe: () => nu,
+    });
+    const r = await soumettreReponse(d, { sessionId: 'S', userId: 'U', answerIndex: 0 });
+    assert.equal(r.clipAJouer, null);
+  });
+});

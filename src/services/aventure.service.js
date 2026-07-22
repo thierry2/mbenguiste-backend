@@ -82,7 +82,14 @@ async function soumettreReponse(deps, { sessionId, userId, answerIndex = null, m
   // voyait la question intime, l'autre non (cf. docs/audit-mystere.md §1).
   if (r.issue === 'boucle') {
     const negocier = doitInjecterIntime(r.tour, node.desaccord && node.desaccord.maxTours);
-    const clipAJouer = (node.desaccord && node.desaccord.clip) || null;
+    // DEUX vidéos possibles, et ce n'est pas la même chose à dire : la reprise
+    // dit « remettez-vous d'accord », la négociation dit « expliquez-vous ».
+    // Avant, le formulaire de message intime tombait SEC, sans aucune vidéo
+    // (constaté device 22/07) — au moment précis où le récit doit intervenir.
+    // Repli sur la reprise si le graphe n'a pas tourné la seconde : mieux vaut
+    // la vidéo qu'on a que pas de vidéo du tout.
+    const d = node.desaccord || {};
+    const clipAJouer = (negocier ? (d.clipNegociation || d.clip) : d.clip) || null;
     await advanceSession(sessionId, {
       currentNode: session.currentNode, toursDesaccord: r.tour, clearAnswers: true,
       lastIssue: 'boucle', negocier, clipAJouer,

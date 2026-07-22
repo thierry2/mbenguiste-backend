@@ -220,6 +220,16 @@ const submitMystereAnswer = catchAsync(async (req, res) => {
   });
   if (result.error === 'not-member') throw ApiError.forbidden('Pas ta session');
   if (result.error === 'no-session') throw ApiError.notFound('Aventure introuvable');
+  // ── DÉSYNCHRONISATION CLIENT/SERVEUR ──────────────────────────────────────
+  // Le service refuse déjà une réponse sur un nœud terminal, mais cette erreur
+  // repartait en **200 OK** : côté client, `{ error: 'terminal' }` devenait
+  // indiscernable de `{ waiting: true }` (« j'ai répondu, j'attends l'autre »),
+  // et l'écran attendait UN PARTENAIRE QUI NE VIENDRAIT JAMAIS. C'est la panne
+  // « bloqué à 7/7 » : silencieuse, donc invisible au diagnostic. Un 409 la rend
+  // explicite et permet au client de se resynchroniser sur le nœud du serveur.
+  if (result.error === 'terminal') {
+    throw ApiError.conflict('Cette étape est déjà terminée — resynchronisation nécessaire.');
+  }
 
   res.json({ success: true, data: { ...result, filtered } });
 });
