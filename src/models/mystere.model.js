@@ -209,7 +209,9 @@ async function startAdventure(userId, opts = {}) {
   // Session déjà là (reprise) : on rend SON graphe — tiré au sort une seule fois,
   // à la création, puis FIXE. On lit le vrai graph_id stocké, jamais l'argument.
   const { data: exist } = await supabase
-    .from('aventure_sessions').select('id, graph_id, current_node').eq('pair_id', p.pairId).maybeSingle();
+    .from('aventure_sessions')
+    .select('id, graph_id, current_node, last_issue, clip_a_jouer')
+    .eq('pair_id', p.pairId).maybeSingle();
   if (exist) {
     // ⚠ `etape` VIENT DU SERVEUR, jamais d'un compteur local du lecteur.
     // Le lecteur tenait `step` en état React (`useState(1)`, puis +1) : au
@@ -222,6 +224,12 @@ async function startAdventure(userId, opts = {}) {
     return {
       sessionId: exist.id, role: p.role, graphId: exist.graph_id,
       startNode: exist.current_node, etape: prog.etape, total: prog.total,
+      // La DERNIÈRE issue résolue et son clip. Ils permettent au client de
+      // rattraper une conséquence jouée pendant qu'il avait fermé l'aventure :
+      // sans eux, il reprend au nœud suivant et l'issue de l'épreuve qu'il vient
+      // de réussir n'est jamais montrée (cf. `consequenceARejouer`, front).
+      lastIssue: exist.last_issue ?? null,
+      clipAJouer: exist.clip_a_jouer ?? null,
     };
   }
 
