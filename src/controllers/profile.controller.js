@@ -22,10 +22,20 @@ const updateMe = catchAsync(async (req, res) => {
 
 /** Termine l'onboarding : dernières infos + bascule onboarding_done à true. */
 const completeOnboarding = catchAsync(async (req, res) => {
+  // Filet de sécurité pour le parcours e-mail (déjà coché dans register.tsx,
+  // jamais tracé côté serveur jusqu'ici) — no-op pour un compte Google, qui a
+  // déjà dû passer par acceptTerms pour arriver jusqu'ici (cf. gate _layout.tsx).
+  await profileModel.acceptTermsIfNeeded(req.user.id);
   const profile = await profileService.updateProfile(req.user.id, {
     ...req.body,
     onboardingFait: true,
   });
+  res.json({ success: true, data: { profile } });
+});
+
+/** Trace le consentement CGU / données sensibles — écran dédié après Google. */
+const acceptTerms = catchAsync(async (req, res) => {
+  const profile = await profileModel.acceptTermsIfNeeded(req.user.id);
   res.json({ success: true, data: { profile } });
 });
 
@@ -173,4 +183,4 @@ const updateLocation = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { getMe, updateMe, completeOnboarding, lookupReferral, redeemReferral, getById, getPreferences, setPreferences, getEntitlements, updateLocation, savePushToken, updateSettings, deleteMe, cancelDeleteMe, exportMine };
+module.exports = { getMe, updateMe, completeOnboarding, acceptTerms, lookupReferral, redeemReferral, getById, getPreferences, setPreferences, getEntitlements, updateLocation, savePushToken, updateSettings, deleteMe, cancelDeleteMe, exportMine };

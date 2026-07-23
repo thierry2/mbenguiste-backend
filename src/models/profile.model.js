@@ -7,7 +7,7 @@ const SELECT_PROFILE = `
   current_country, current_city, target_country, target_city, open_to_relocate, intention,
   height_cm, origin_country, occupation,
   primary_language, spoken_languages, is_verified, is_premium, premium_until,
-  onboarding_done, last_active_at, created_at, lifestyle, scheduled_deletion_at,
+  onboarding_done, terms_accepted_at, last_active_at, created_at, lifestyle, scheduled_deletion_at,
   notif_push, notif_email, notif_sms, is_discoverable, incognito, hide_online_status,
   gender:genders!gender_id(code, display_name),
   goal:relationship_goals!relationship_goal_id(code, display_name),
@@ -65,6 +65,9 @@ function fromRow(row) {
     estPremium:    row.is_premium ?? false,
     premiumJusquau: row.premium_until ?? null,
     onboardingFait: row.onboarding_done ?? false,
+    // CGU + traitement des données sensibles (register.tsx, ou l'écran dédié
+    // pour Google) — cf. migration 040.
+    consentementDonne: !!row.terms_accepted_at,
 
     // Suppression programmée : ISO tant qu'un délai de grâce court, null sinon.
     // Le front s'en sert pour la bannière « ton compte sera supprimé le… ».
@@ -137,6 +140,23 @@ async function ensureProfile(user) {
   });
   if (error) throw error;
   return findById(user.id);
+}
+
+/**
+ * Trace le consentement CGU / données sensibles — idempotent (n'écrase jamais
+ * une date déjà posée). Deux appelants : l'écran dédié après Google (le seul
+ * parcours qui n'a JAMAIS montré les cases à cocher), et `completeOnboarding`
+ * en filet de sécurité pour le parcours e-mail (déjà coché dans register.tsx,
+ * on ne fait qu'enregistrer la date si elle manque encore).
+ */
+async function acceptTermsIfNeeded(id) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ terms_accepted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('terms_accepted_at', null);
+  if (error) throw error;
+  return findById(id);
 }
 
 // Map champs FR (front) → colonnes EN. Les FK (genre/objectif) sont résolues en amont
@@ -376,4 +396,4 @@ async function purgeExpiredAccounts() {
   }
 }
 
-module.exports = { findById, ensureProfile, update, updateSettings, setInterests, setPrompts, touchActivity, scheduleDeleteAccount, cancelDeleteAccount, purgeExpiredAccounts, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, accessRow, setLocation, photoCount, setPhotoVec };
+module.exports = { findById, ensureProfile, acceptTermsIfNeeded, update, updateSettings, setInterests, setPrompts, touchActivity, scheduleDeleteAccount, cancelDeleteAccount, purgeExpiredAccounts, ageFromBirthDate, fromRow, isPremium, setPremiumStatus, accessRow, setLocation, photoCount, setPhotoVec };

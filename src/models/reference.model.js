@@ -20,8 +20,21 @@ async function loadTable(table, columns = COLUMNS[table] ?? 'id, code, display_n
   }
   const { data, error } = await query;
   if (error) throw error;
-  cache.set(table, data || []);
-  return data || [];
+  // Une table de référence vide est TOUJOURS un accident (seed pas encore joué,
+  // migration en cours, table vidée par erreur) — jamais un état voulu. La mettre
+  // en cache la figerait vide pour toute la durée de vie du process (jusqu'au
+  // redeploy Railway) : `/reference/bootstrap` n'afficherait plus JAMAIS aucune
+  // option (ex. « JE SUIS » sans homme/femme, onboarding bloqué pour tout le
+  // monde), et `idForCode` renverrait `null` en silence pour un code pourtant
+  // valide — un genre choisi à l'onboarding se sauverait alors comme `gender_id:
+  // null`, sans la moindre erreur. On ne met donc en cache QUE du non-vide, pour
+  // que la prochaine requête retente contre la base.
+  if (!data || data.length === 0) {
+    console.warn(`[reference] table "${table}" vide — pas mise en cache, nouvel essai à la prochaine requête.`);
+    return data || [];
+  }
+  cache.set(table, data);
+  return data;
 }
 
 async function idForCode(table, code) {
