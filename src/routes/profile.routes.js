@@ -14,6 +14,10 @@ router.get('/me', authenticate, c.getMe);
 router.patch('/me', authenticate, validate(schemas.updateMe), c.updateMe);
 router.post('/me/onboarding', authenticate, validate(schemas.completeOnboarding), c.completeOnboarding);
 
+// Consentement CGU / données sensibles — écran dédié après une 1re connexion Google
+// (le seul parcours qui ne les fait jamais valider autrement, cf. migration 040).
+router.post('/me/accept-terms', authenticate, c.acceptTerms);
+
 // Programme Partenaires : valider un code (live) + le rattacher (cadeau de bienvenue).
 // Limité : sans ça, un compte authentifié pourrait ÉNUMÉRER les codes valides en
 // les essayant en rafale (et découvrir qui sont les partenaires).

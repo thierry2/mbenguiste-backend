@@ -3,6 +3,20 @@
 À coller dans **Dashboard → Authentication → Email Templates**. Un fichier par
 gabarit ; le `<h2>` d'objet suggéré est en tête de chaque fichier, en commentaire.
 
+## ⚠ DÉCISIONS EN SUSPENS — à revoir avant toute diffusion large
+
+- **LE NOM N'EST PAS ARRÊTÉ.** « MBENGUISTE » apparaît en en-tête des trois
+  gabarits (le `<div>` letter-spacing en haut) ET dans la phrase de pied de
+  `confirm-signup` (« compte Mbenguiste »). Quand le nom sera tranché, remplacer
+  à ces 4 endroits. Finalistes évoqués : `Leko` / `Meko` (non tranché).
+- **LA MÉTAPHORE « ROUTE » EST MORTE (abandonnée depuis 5+ ans).** Elle a été
+  retirée du titre de `confirm-signup` (« Encore une chose, et la route s'ouvre »
+  → « Bienvenue. Plus qu'un pas. »). ⚠ `CLAUDE.md` la décrit ENCORE (« A member
+  is defined by a ROUTE… ») : ne pas s'y fier pour le ton, et la purger un jour.
+- Ces textes n'ont **pas été validés** par le porteur du produit — ce sont des
+  propositions. Les titres des deux autres (« On repart d'un mot de passe neuf »,
+  « Te voilà. Sans mot de passe. ») sont en attente de son avis.
+
 ## Pourquoi ces contraintes de code
 
 Un e-mail n'est pas une page web. Ce qui est écrit ici l'est pour de bonnes raisons :
