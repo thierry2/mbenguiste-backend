@@ -67,7 +67,7 @@ test('gratuit : tous les quotas comptés, capacités à false, crédits à zéro
   assert.deepEqual(e.quotas.picks, { illimite: false, restants: 1, limite: 1, resetLe: '2026-07-16T00:00:00.000Z' }, 'quota picks exposé');
   assert.deepEqual(e.quotas.translations, { illimite: false, restants: 7, limite: 10, resetLe: '2026-07-16T00:00:00.000Z' });
   assert.equal(e.capacites.grilleDefloutee, false);
-  assert.deepEqual(e.credits, { coupsDeCoeur: 0, boosts: 0, jokers: 0 });
+  assert.deepEqual(e.credits, { superLikes: 0, boosts: 0, jokers: 0 });
 });
 
 // ── Or payé ──────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ test('or payé : likes/traduction illimités, Super Likes RESTENT comptés (jama
   assert.deepEqual(e.quotas.picks, { illimite: true }, 'Or : picks illimités (picksIllimites)');
   assert.equal(e.quotas.superLikes.illimite, false, 'doctrine 15/07 : l\'Or n\'a PLUS de Super Likes illimités');
   assert.equal(e.quotas.superLikes.restants, 0);
-  assert.equal(e.credits.coupsDeCoeur, 5, 'ses munitions viennent du grant hebdo');
+  assert.equal(e.credits.superLikes, 5, 'ses munitions viennent du grant hebdo');
   assert.equal(e.capacites.grilleDefloutee, true);
   assert.equal(e.premiumJusquau, FUTUR);
 });
@@ -102,7 +102,7 @@ test('or offert : capacités de confort, révélation exclue, RIEN à afficher c
   assert.equal(e.quotas.likes.illimite, true);
   assert.equal(e.capacites.grilleDefloutee, false, 'invariant n°5');
   assert.equal(e.capacites.picksIllimites, false, 'invariant n°5');
-  assert.equal(e.credits.coupsDeCoeur, 5);
+  assert.equal(e.credits.superLikes, 5);
 });
 
 // ── Prestige ─────────────────────────────────────────────────────────────────

@@ -338,15 +338,15 @@ const likesReceived = catchAsync(async (req, res) => {
   const revele = caps.grilleDefloutee;
 
   if (!pending.length) {
-    return res.json({ success: true, data: { coeurs: [], likes: [], premiumRequis: !revele } });
+    return res.json({ success: true, data: { superLikes: [], likes: [], premiumRequis: !revele } });
   }
 
-  const coeursPending = pending.filter((p) => p.superLike);
+  const superLikesPending = pending.filter((p) => p.superLike);
   const likesPending = pending.filter((p) => !p.superLike);
 
   // Cartes RÉVÉLÉES : uniquement si la capacité est là — sinon rien, pas même les
   // super-likes (leur révélation se joue dans le deck, cf. en-tête).
-  const revealPending = revele ? [...coeursPending, ...likesPending] : [];
+  const revealPending = revele ? [...superLikesPending, ...likesPending] : [];
   const revealIds = revealPending.map((p) => p.id);
   const cards = revealIds.length ? await discoveryModel.cardsByIds(revealIds) : new Map();
   // Coords SERVEUR ONLY → distance en km, sans jamais renvoyer la position brute.
@@ -396,10 +396,10 @@ const likesReceived = catchAsync(async (req, res) => {
   };
 
   const rendre = (p) => (revele ? toRevealed(p) : toMasked(p));
-  const coeurs = coeursPending.map(rendre);
+  const superLikes = superLikesPending.map(rendre);
   const likes = likesPending.map(rendre);
 
-  res.json({ success: true, data: { coeurs, likes, premiumRequis: !revele } });
+  res.json({ success: true, data: { superLikes, likes, premiumRequis: !revele } });
 });
 
 /** Active un Boost (dépense 1 crédit) : mise en avant en découverte ~30 min. */
