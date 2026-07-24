@@ -377,6 +377,13 @@ async function countCandidates(userId, apiPrefs = {}) {
     max_height: apiPrefs.tailleMax ?? null,
     require_shared_interest: apiPrefs.interetsCommuns,
     lifestyle_filters: apiPrefs.lifestyleFiltres ?? {},
+    // L'ancre et l'élargissement pèsent sur le RÉSULTAT (cf. filterByRadius) :
+    // les omettre ici faisait compter depuis ma position au lieu de l'ancre, et
+    // ignorer l'élargissement — le compteur annonçait donc moins que ce que le
+    // deck allait servir. Le compteur ne doit jamais mentir.
+    search_anchor_lat: apiPrefs.ancreLat ?? null,
+    search_anchor_lng: apiPrefs.ancreLng ?? null,
+    expand_if_empty: apiPrefs.elargirSiVide ?? false,
   };
 
   // La réciprocité (préférences du candidat) est une relation jointe, comme les
