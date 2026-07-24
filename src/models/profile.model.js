@@ -351,19 +351,31 @@ async function cancelDeleteAccount(id) {
  *
  * MAIS on ne peut pas pour autant laisser `auth.users` intact : sinon la
  * personne (a) peut encore ouvrir une session qui 403 partout — un cul-de-sac —,
- * et (b) ne peut JAMAIS revenir, son e-mail restant capté à vie. La solution qui
- * réconcilie tout : on ne SUPPRIME pas la ligne auth (cascade préservée), on la
- * NEUTRALISE — e-mail remplacé par une adresse-tombstone jetable (`.invalid`,
- * TLD réservé RFC 2606, ne résout jamais, unique via l'UUID) + bannissement
- * permanent. L'e-mail réel redevient libre → un futur signUp/Google repart d'un
- * compte NEUF ; l'ancienne session bannie ne peut plus se rafraîchir.
+ * et (b) ne peut JAMAIS revenir. La solution qui réconcilie tout : on ne SUPPRIME
+ * pas la ligne auth (cascade préservée), on la NEUTRALISE en TROIS gestes :
+ *   1. on DÉTACHE les identités OAuth (auth.identities, migr 041) — sinon
+ *      l'identité Google reste collée au compte banni et la reconnexion Google
+ *      retombe dessus et échoue (bounce silencieux) au lieu de créer un compte neuf ;
+ *   2. on BROUILLE l'e-mail (adresse-tombstone `.invalid`, TLD réservé RFC 2606,
+ *      unique via l'UUID) — libère l'e-mail réel pour un futur signUp, et évite la
+ *      collision d'unicité quand Google recrée un compte avec le vrai e-mail ;
+ *   3. on BANNIT — l'ancienne session ne peut plus se rafraîchir.
+ * Les trois sont nécessaires : (1) pour Google, (2) pour l'e-mail, (3) pour les
+ * sessions déjà ouvertes.
  */
 async function purgeAccount(id) {
   // ── D'ABORD neutraliser le compte auth ──────────────────────────────────────
-  // AVANT de poser `deleted_at` : si ceci échoue, on NE marque pas la ligne
-  // purgée → `purgeExpiredAccounts` la reprend au cycle suivant (retry propre).
-  // Poser deleted_at en premier la sortirait du balayage et figerait l'e-mail
-  // capté pour toujours en cas d'échec ici.
+  // AVANT de poser `deleted_at` : si un de ces gestes échoue, on NE marque pas la
+  // ligne purgée → `purgeExpiredAccounts` la reprend au cycle suivant (retry
+  // propre, chaque geste étant idempotent). Poser deleted_at en premier la
+  // sortirait du balayage et figerait un état à moitié neutralisé.
+
+  // 1. Détacher les identités OAuth (Google…) : le compte tombstone devient
+  //    injoignable par ce biais, une reconnexion Google crée un compte NEUF.
+  const { error: idErr } = await supabase.rpc('unlink_auth_identities', { p_user_id: id });
+  if (idErr) throw idErr;
+
+  // 2. + 3. Brouiller l'e-mail + bannir.
   const { error: authErr } = await supabase.auth.admin.updateUserById(id, {
     email: `deleted-${id}@deleted.invalid`,
     email_confirm: true,          // pas de flux de confirmation vers une adresse morte
