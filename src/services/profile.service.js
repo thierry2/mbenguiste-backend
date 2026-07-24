@@ -82,6 +82,7 @@ async function getPreferences(userId) {
     .from('match_preferences')
     .select(`
       seeking_gender_id, min_age, max_age, search_country, search_radius_km,
+      search_anchor_lat, search_anchor_lng, search_anchor_label, expand_if_empty,
       require_common_language, min_photos, require_bio, verified_only,
       origin_country, min_height, max_height, require_shared_interest, lifestyle_filters,
       genders:seeking_gender_id(code), goal:seeking_goal_id(code)
@@ -93,6 +94,8 @@ async function getPreferences(userId) {
       genreRecherche: null, ageMin: 18, ageMax: 60, objectifRecherche: null,
       paysRecherche: null, rayonKm: null, langueCommune: false, photosMin: 0, avecBio: false, verifiesUniquement: false,
       origineRecherche: null, tailleMin: null, tailleMax: null, interetsCommuns: false, lifestyleFiltres: {},
+      // Ancre de recherche (Passeport) : vide = « autour de moi ».
+      ancreLat: null, ancreLng: null, ancreLabel: null, elargirSiVide: false,
     };
   }
   return {
@@ -112,6 +115,13 @@ async function getPreferences(userId) {
     tailleMax: data.max_height ?? null,
     interetsCommuns: data.require_shared_interest ?? false,
     lifestyleFiltres: data.lifestyle_filters ?? {},
+    // Ancre de recherche : vide = « autour de moi » (comportement par défaut).
+    // Renseignée = un lieu choisi (Passeport). Le libellé permet à l'app
+    // d'ancrer le rayon à un lieu NOMMÉ plutôt qu'à des coordonnées.
+    ancreLat: data.search_anchor_lat ?? null,
+    ancreLng: data.search_anchor_lng ?? null,
+    ancreLabel: data.search_anchor_label ?? null,
+    elargirSiVide: data.expand_if_empty ?? false,
   };
 }
 
@@ -133,6 +143,20 @@ async function setPreferences(userId, input) {
   if (input.tailleMin !== undefined) row.min_height = input.tailleMin;
   if (input.tailleMax !== undefined) row.max_height = input.tailleMax;
   if (input.interetsCommuns !== undefined) row.require_shared_interest = input.interetsCommuns;
+  if (input.elargirSiVide !== undefined) row.expand_if_empty = input.elargirSiVide;
+  // L'ancre est un COUPLE : on écrit les deux ou aucune (la base a une contrainte
+  // en ce sens, cf. migration 042). `null` explicite = revenir « autour de moi ».
+  if (input.ancreLat !== undefined || input.ancreLng !== undefined) {
+    const lat = input.ancreLat ?? null;
+    const lng = input.ancreLng ?? null;
+    const complet = lat !== null && lng !== null;
+    row.search_anchor_lat = complet ? lat : null;
+    row.search_anchor_lng = complet ? lng : null;
+    if (!complet) row.search_anchor_label = null;   // pas d'ancre, pas de nom
+  }
+  if (input.ancreLabel !== undefined && row.search_anchor_label === undefined) {
+    row.search_anchor_label = input.ancreLabel;
+  }
   // On ne garde que les catégories réellement contraintes ({} = indifférent).
   if (input.lifestyleFiltres !== undefined) {
     row.lifestyle_filters = Object.fromEntries(

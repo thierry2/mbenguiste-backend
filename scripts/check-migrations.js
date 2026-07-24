@@ -42,6 +42,16 @@ async function verifier040() {
   return { ok: !error, detail: error?.message };
 }
 
+async function verifier042() {
+  // `discovery.model` sélectionne ces colonnes à CHAQUE deck : sans elles, la
+  // requête des préférences échoue et la découverte tombe. Lecture pure.
+  const { error } = await supabase
+    .from('match_preferences')
+    .select('search_anchor_lat, search_anchor_lng, expand_if_empty')
+    .limit(1);
+  return { ok: !error, detail: error?.message };
+}
+
 async function verifier041() {
   // Sonde INOFFENSIVE : `delete ... where user_id = <uuid nul>` ne correspond à
   // aucun compte (aucun auth.users n'a l'UUID nul) → 0 ligne touchée. On ne
@@ -55,6 +65,7 @@ async function verifier041() {
     ['039', 'RPC email_exists (check e-mail à l\'inscription)', verifier039],
     ['040', 'colonne profiles.terms_accepted_at (consentement)', verifier040],
     ['041', 'RPC unlink_auth_identities (retour après suppression)', verifier041],
+    ['042', 'ancre de recherche + élargissement (match_preferences)', verifier042],
   ];
 
   console.log(`Base : ${URL}\n`);

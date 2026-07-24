@@ -69,6 +69,12 @@ const preferences = z.object({
     tailleMax: z.number().int().min(100).max(250).nullable().optional(),
     interetsCommuns: z.boolean().optional(),
     lifestyleFiltres: z.record(z.string().max(40), z.array(z.string().max(40)).max(12)).optional(),
+    // Ancre de recherche (Passeport) : un point sur Terre, ou null pour revenir
+    // « autour de moi ». Les bornes valent aussi côté base (migration 042).
+    ancreLat: z.number().min(-90).max(90).nullable().optional(),
+    ancreLng: z.number().min(-180).max(180).nullable().optional(),
+    ancreLabel: z.string().max(80).nullable().optional(),
+    elargirSiVide: z.boolean().optional(),
   }),
 });
 

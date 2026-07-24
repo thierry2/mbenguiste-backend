@@ -9,6 +9,9 @@ const { orderDeck, lockPhotos, acceptsMe, splitAdmirers } = require('../domain/d
 const { ageFromBirthDate } = require('./profile.model');
 const { scoreCandidates } = require('../domain/ranking');
 const { resolveTier } = require('../domain/access');
+const {
+  ancrePour, rayonApplicable, dansLeRayon, distanceKm, elargissementRequis,
+} = require('../domain/localisation');
 
 // Version « carte » : mêmes relations que le profil complet, en plus léger.
 // origin_country / premium_tier / premium_until nourrissent le RANKING
@@ -197,7 +200,7 @@ async function candidates(userId, { limit = 20 } = {}) {
   const [{ data: prefs }, mesPhotos, admirerRatio, admirerCap, reciprocityWeight] = await Promise.all([
     supabase
       .from('match_preferences')
-      .select('seeking_gender_id, seeking_goal_id, min_age, max_age, search_country, search_radius_km, require_common_language, min_photos, require_bio, verified_only, origin_country, min_height, max_height, require_shared_interest, lifestyle_filters')
+      .select('seeking_gender_id, seeking_goal_id, min_age, max_age, search_country, search_radius_km, search_anchor_lat, search_anchor_lng, expand_if_empty, require_common_language, min_photos, require_bio, verified_only, origin_country, min_height, max_height, require_shared_interest, lifestyle_filters')
       .eq('profile_id', userId)
       .maybeSingle(),
     // Verrou de réciprocité photos : combien de photos J'AI (cf. lockPhotos).
@@ -323,33 +326,30 @@ function crossesRoutes(me, other) {
   );
 }
 
-// ── Distance (rayon en km) — haversine, post-filtre JS ───────────────────────
-const EARTH_KM = 6371;
+// ── Distance (rayon en km) ───────────────────────────────────────────────────
+// La RÈGLE vit dans `domain/localisation` (pure, testée) : l'app y pose les
+// mêmes questions que le serveur, ce qui empêche d'afficher un rayon qui
+// n'agirait pas. Ici on ne fait plus qu'appliquer le verdict.
+
+/** Compat : la signature plate reste utilisée par discovery.controller (distance affichée). */
 function haversineKm(lat1, lng1, lat2, lng2) {
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return EARTH_KM * 2 * Math.asin(Math.sqrt(a));
+  return distanceKm({ lat: lat1, lng: lng1 }, { lat: lat2, lng: lng2 });
 }
 
 /**
- * Le rayon s'applique AUTOUR DE MA position, et seulement en LOCAL : pas de pays
- * choisi (partout) ou pays choisi == mon pays. En cross-border (autre pays), un
- * rayon autour de moi n'aurait pas de sens → on reste à l'échelle du pays.
+ * Filtre par rayon autour de l'ANCRE (ma position, ou un lieu choisi — Passeport).
+ *
+ * ÉLARGISSEMENT : si le rayon ne laisse presque personne ET que l'option est
+ * active, on rend le lot NON filtré plutôt qu'une file vide. Un rayon serré sur
+ * un pool réduit vide la découverte, et on croit l'app morte alors qu'on s'est
+ * enfermé soi-même. Jamais automatique — `expand_if_empty` est un choix explicite.
  */
-function shouldApplyRadius(prefs, me) {
-  return !!prefs?.search_radius_km
-    && me?.current_lat != null && me?.current_lng != null
-    && (!prefs.search_country || prefs.search_country === me.current_country);
-}
-
 function filterByRadius(rows, prefs, me) {
-  if (!shouldApplyRadius(prefs, me)) return rows;
+  if (!rayonApplicable(prefs, me)) return rows;
+  const ancre = ancrePour(prefs, me);
   const km = prefs.search_radius_km;
-  return rows.filter((r) => r.current_lat != null && r.current_lng != null
-    && haversineKm(me.current_lat, me.current_lng, r.current_lat, r.current_lng) <= km);
+  const dedans = rows.filter((r) => dansLeRayon(ancre, { lat: r.current_lat, lng: r.current_lng }, km));
+  return elargissementRequis(dedans.length, prefs) ? rows : dedans;
 }
 
 /**
