@@ -5,7 +5,7 @@ const config = require('../config');
 const SELECT_PROFILE = `
   id, email, first_name, birth_date, bio, avatar_url,
   current_country, current_city, target_country, target_city, open_to_relocate, intention,
-  height_cm, origin_country, occupation,
+  height_cm, origin_country, occupation, current_lat, current_lng,
   primary_language, spoken_languages, is_verified, is_premium, premium_until,
   onboarding_done, terms_accepted_at, last_active_at, created_at, lifestyle, scheduled_deletion_at,
   notif_push, notif_email, notif_sms, is_discoverable, incognito, hide_online_status,
@@ -45,6 +45,11 @@ function fromRow(row) {
     // La « route » — signature de Mbenguiste.
     villeActuelle: row.current_city ?? null,
     paysActuel:    row.current_country ?? null,
+    // BOOLÉEN SEULEMENT — jamais les coordonnées brutes (doctrine : la position
+    // reste serveur, cf. discovery.controller qui n'en sort qu'une distance en km).
+    // Sert à l'écran Préférences : sans position, le filtre « rayon » ne filtre
+    // RIEN (shouldApplyRadius l'exige) et il faut pouvoir le dire.
+    positionEnregistree: row.current_lat != null && row.current_lng != null,
     villeCible:    row.target_city ?? null,
     paysCible:     row.target_country ?? null,
     ouvertAuDepart: row.open_to_relocate ?? false,
