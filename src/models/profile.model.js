@@ -341,8 +341,36 @@ async function cancelDeleteAccount(id) {
  * contenus qui l'exposeraient encore, on anonymise les PII de la ligne et on pose
  * `deleted_at` (le middleware auth renverra alors 403, findById l'exclut déjà).
  * `scheduled_deletion_at` repasse à null — c'est deleted_at qui bloque désormais.
+ *
+ * ── POURQUOI ON NE SUPPRIME PAS auth.users ──────────────────────────────────
+ * `profiles.id` référence `auth.users(id) ON DELETE CASCADE`, et TOUTES les
+ * tables enfants (messages, matchs…) référencent `profiles.id` en cascade.
+ * Supprimer la ligne auth ferait donc s'évanouir les messages que cette personne
+ * a envoyés à d'AUTRES — leur historique de conversation se viderait. On garde
+ * donc la ligne `profiles` anonymisée (tombstone) pour l'intégrité des tiers.
+ *
+ * MAIS on ne peut pas pour autant laisser `auth.users` intact : sinon la
+ * personne (a) peut encore ouvrir une session qui 403 partout — un cul-de-sac —,
+ * et (b) ne peut JAMAIS revenir, son e-mail restant capté à vie. La solution qui
+ * réconcilie tout : on ne SUPPRIME pas la ligne auth (cascade préservée), on la
+ * NEUTRALISE — e-mail remplacé par une adresse-tombstone jetable (`.invalid`,
+ * TLD réservé RFC 2606, ne résout jamais, unique via l'UUID) + bannissement
+ * permanent. L'e-mail réel redevient libre → un futur signUp/Google repart d'un
+ * compte NEUF ; l'ancienne session bannie ne peut plus se rafraîchir.
  */
 async function purgeAccount(id) {
+  // ── D'ABORD neutraliser le compte auth ──────────────────────────────────────
+  // AVANT de poser `deleted_at` : si ceci échoue, on NE marque pas la ligne
+  // purgée → `purgeExpiredAccounts` la reprend au cycle suivant (retry propre).
+  // Poser deleted_at en premier la sortirait du balayage et figerait l'e-mail
+  // capté pour toujours en cas d'échec ici.
+  const { error: authErr } = await supabase.auth.admin.updateUserById(id, {
+    email: `deleted-${id}@deleted.invalid`,
+    email_confirm: true,          // pas de flux de confirmation vers une adresse morte
+    ban_duration: '876000h',      // ~100 ans = bannissement permanent (pas de « infinite » côté Supabase)
+  });
+  if (authErr) throw authErr;
+
   await supabase.from('profile_photos').delete().eq('profile_id', id);
   await supabase.from('profile_interests').delete().eq('profile_id', id);
   await supabase.from('profile_prompts').delete().eq('profile_id', id);
