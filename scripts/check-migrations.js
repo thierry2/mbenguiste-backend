@@ -84,7 +84,9 @@ async function verifier041() {
 
   console.log('');
   if (manquantes === 0) {
-    console.log('✔ Les trois migrations sont en base. Déploiement backend sans risque.');
+    // Compte dérivé de la liste, jamais écrit en dur : ce message a menti dès
+    // qu'une 4e migration s'est ajoutée à `checks`.
+    console.log(`✔ Les ${checks.length} migrations sont en base. Déploiement backend sans risque.`);
   } else {
     console.log(`⚠ ${manquantes} migration(s) manquante(s).`);
     console.log('  Passe-les dans le SQL Editor Supabase AVANT de déployer le backend :');

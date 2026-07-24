@@ -49,6 +49,15 @@ const previewCount = z.object({
     tailleMax: z.number().int().min(100).max(250).nullable().optional(),
     interetsCommuns: z.boolean().optional(),
     lifestyleFiltres: z.record(z.string().max(40), z.array(z.string().max(40)).max(12)).optional(),
+    // ⚠ TOUT champ absent d'ici est RETIRÉ par zod, EN SILENCE. Ces quatre-là
+    // changent le RÉSULTAT du comptage : les oublier faisait compter le serveur
+    // sans eux pendant que le deck les appliquait — un compteur qui ment, ce que
+    // ce code s'interdit explicitement. Ce schéma doit suivre `construirePayload`
+    // (frontend/src/lib/prefsPayload.ts) champ pour champ.
+    ancreLat: z.number().min(-90).max(90).nullable().optional(),
+    ancreLng: z.number().min(-180).max(180).nullable().optional(),
+    ancreLabel: z.string().max(80).nullable().optional(),
+    elargirSiVide: z.boolean().optional(),
   }),
 });
 
