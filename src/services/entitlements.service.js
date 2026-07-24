@@ -52,7 +52,7 @@ function createEntitlementsService({ config, access, grants, usage, credits }) {
       premiumJusquau: a.offert ? null : (a.premiumUntil ?? null),
       quotas,
       capacites: a.caps,
-      credits: { coupsDeCoeur: solde.superLikes, boosts: solde.boosts, jokers: solde.jokers },
+      credits: { superLikes: solde.superLikes, boosts: solde.boosts, jokers: solde.jokers },
       boostActifJusquau: a.boostActiveUntil ?? null,
     };
   }
